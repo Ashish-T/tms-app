@@ -7,6 +7,13 @@ models.Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="Transport Management System API")
 
+@app.get("/")
+def read_root():
+    return {
+        "message": "Welcome to the Transport Management System API!",
+        "docs_url": "https://tms-app-c03d.onrender.com/docs"
+    }
+
 def get_db():
     db = SessionLocal()
     try:
