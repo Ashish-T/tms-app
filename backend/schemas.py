@@ -1,38 +1,38 @@
 from pydantic import BaseModel, ConfigDict
 from typing import Optional
-from datetime import datetime
-from models import TripStatus, ExpenseType
 
-class DriverCreate(BaseModel):
-    name: str
-    license_number: str
+# Sent by the Driver frontend
+class TripLogCreate(BaseModel):
+    date: str
+    vehicle_number: str
+    vehicle_type: str
+    reporting_time: str
+    out_time: str
+    out_km: float
+    in_time: str
+    in_km: float
+    driver_name: str
+    mobile_number: str
+    vendor_name: str
+    helper_name: str
+    toll_money: float
+    fuel_litres: float
+    fuel_price: float
+    police_fines: float
 
-class DriverResponse(DriverCreate):
+# Sent by the Admin frontend
+class TripLogAdminUpdate(BaseModel):
+    driver_cost: float
+    vehicle_charged: float
+    billing_amount: float
+
+# Sent back to the frontend (Contains all 21 fields)
+class TripLogResponse(TripLogCreate):
     id: int
-    check_in_time: Optional[datetime] = None
-    check_out_time: Optional[datetime] = None
-    model_config = ConfigDict(from_attributes=True)
-
-class TripCreate(BaseModel):
-    driver_id: int
-    vehicle_id: int
-    source: str
-    destination: str
-    start_km: float
-
-class TripResponse(TripCreate):
-    id: int
-    status: TripStatus
-    start_time: datetime
-    model_config = ConfigDict(from_attributes=True)
-
-class ExpenseCreate(BaseModel):
-    expense_type: ExpenseType
-    amount: float
-    description: Optional[str] = None
-
-class ExpenseResponse(ExpenseCreate):
-    id: int
-    trip_id: int
-    timestamp: datetime
+    driver_cost: float
+    vehicle_charged: float
+    billing_amount: float
+    total_cost: float
+    profit: float
+    is_billed: bool
     model_config = ConfigDict(from_attributes=True)

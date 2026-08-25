@@ -4,24 +4,18 @@ from sqlalchemy.orm import Session
 import models, schemas
 from models import SessionLocal, engine
 
-# Create the database tables on startup
 models.Base.metadata.create_all(bind=engine)
 
-app = FastAPI(title="Transport Management System API")
+app = FastAPI(title="TMS Unified API")
 
-# Configure CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "https://tms-app-web.onrender.com", 
-        "http://localhost:5173"
-    ],
+    allow_origins=["https://tms-app-web.onrender.com", "http://localhost:5173"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Dependency: Database session manager
 def get_db():
     db = SessionLocal()
     try:
@@ -29,64 +23,39 @@ def get_db():
     finally:
         db.close()
 
-# --- ROOT & HEALTHCHECK ---
-@app.get("/")
-def read_root():
-    return {
-        "message": "Welcome to the Transport Management System API!",
-        "docs_url": "/docs"
-    }
-
-# --- DRIVER ENDPOINTS ---
-@app.post("/drivers/", response_model=schemas.DriverResponse)
-def create_driver(driver: schemas.DriverCreate, db: Session = Depends(get_db)):
-    db_driver = models.Driver(**driver.model_dump())
-    db.add(db_driver)
-    db.commit()
-    db.refresh(db_driver)
-    return db_driver
-
-@app.get("/drivers/", response_model=list[schemas.DriverResponse])
-def get_all_drivers(db: Session = Depends(get_db)):
-    return db.query(models.Driver).all()
-
-# --- TRIP ENDPOINTS ---
-@app.post("/trips/", response_model=schemas.TripResponse)
-def create_trip(trip: schemas.TripCreate, db: Session = Depends(get_db)):
-    db_trip = models.Trip(**trip.model_dump())
+@app.post("/trips/", response_model=schemas.TripLogResponse)
+def create_trip_log(trip: schemas.TripLogCreate, db: Session = Depends(get_db)):
+    db_trip = models.TripLog(**trip.model_dump())
     db.add(db_trip)
     db.commit()
     db.refresh(db_trip)
     return db_trip
 
-@app.get("/trips/", response_model=list[schemas.TripResponse])
+@app.get("/trips/", response_model=list[schemas.TripLogResponse])
 def get_all_trips(db: Session = Depends(get_db)):
-    return db.query(models.Trip).all()
+    return db.query(models.TripLog).order_by(models.TripLog.id.desc()).all()
 
-@app.post("/trips/{trip_id}/expenses/", response_model=schemas.ExpenseResponse)
-def add_expense(trip_id: int, expense: schemas.ExpenseCreate, db: Session = Depends(get_db)):
-    db_trip = db.query(models.Trip).filter(models.Trip.id == trip_id).first()
+@app.patch("/trips/{trip_id}/billing", response_model=schemas.TripLogResponse)
+def process_admin_billing(trip_id: int, billing: schemas.TripLogAdminUpdate, db: Session = Depends(get_db)):
+    db_trip = db.query(models.TripLog).filter(models.TripLog.id == trip_id).first()
     if not db_trip:
         raise HTTPException(status_code=404, detail="Trip not found")
     
-    db_expense = models.Expense(**expense.model_dump(), trip_id=trip_id)
-    db.add(db_expense)
+    # 1. Save Admin Inputs
+    db_trip.driver_cost = billing.driver_cost
+    db_trip.vehicle_charged = billing.vehicle_charged
+    db_trip.billing_amount = billing.billing_amount
+    
+    # 2. Auto-Calculate Total Cost
+    fuel_cost = db_trip.fuel_litres * db_trip.fuel_price
+    db_trip.total_cost = db_trip.toll_money + fuel_cost + db_trip.police_fines + billing.driver_cost
+    
+    # 3. Auto-Calculate Profit
+    db_trip.profit = billing.billing_amount - db_trip.total_cost
+    
+    # 4. Mark as processed
+    db_trip.is_billed = True
+    
     db.commit()
-    db.refresh(db_expense)
-    return db_expense
-
-@app.get("/trips/{trip_id}/summary")
-def get_trip_summary(trip_id: int, db: Session = Depends(get_db)):
-    db_trip = db.query(models.Trip).filter(models.Trip.id == trip_id).first()
-    if not db_trip:
-        raise HTTPException(status_code=404, detail="Trip not found")
-        
-    total_expenses = sum(exp.amount for exp in db_trip.expenses)
-    distance_run = (db_trip.end_km - db_trip.start_km) if db_trip.end_km else 0
-    
-    return {
-        "trip_id": trip_id,
-        "status": db_trip.status,
-        "total_distance_km": distance_run,
-        "total_cost": total_expenses
-    }
+    db.refresh(db_trip)
+    return db_trip
