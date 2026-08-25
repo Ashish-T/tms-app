@@ -7,6 +7,14 @@ models.Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="Transport Management System API")
 
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # In production, replace "*" with your frontend URL
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 @app.get("/")
 def read_root():
     return {
@@ -20,6 +28,16 @@ def get_db():
         yield db
     finally:
         db.close()
+
+
+@app.get("/drivers/", response_model=List[schemas.DriverResponse])
+def get_all_drivers(db: Session = Depends(get_db)):
+    return db.query(models.Driver).all()
+
+@app.get("/trips/", response_model=List[schemas.TripResponse])
+def get_all_trips(db: Session = Depends(get_db)):
+    return db.query(models.Trip).all()
+
 
 @app.post("/drivers/", response_model=schemas.DriverResponse)
 def create_driver(driver: schemas.DriverCreate, db: Session = Depends(get_db)):
