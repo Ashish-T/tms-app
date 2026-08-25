@@ -4,25 +4,21 @@ from sqlalchemy.orm import Session
 import models, schemas
 from models import SessionLocal, engine
 
+# Create the database tables on startup
 models.Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="Transport Management System API")
 
+# Configure CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # In production, replace "*" with your frontend URL
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-@app.get("/")
-def read_root():
-    return {
-        "message": "Welcome to the Transport Management System API!",
-        "docs_url": "https://tms-app-c03d.onrender.com/docs"
-    }
-
+# Dependency: Database session manager
 def get_db():
     db = SessionLocal()
     try:
@@ -30,16 +26,15 @@ def get_db():
     finally:
         db.close()
 
+# --- ROOT & HEALTHCHECK ---
+@app.get("/")
+def read_root():
+    return {
+        "message": "Welcome to the Transport Management System API!",
+        "docs_url": "/docs"
+    }
 
-@app.get("/drivers/", response_model=List[schemas.DriverResponse])
-def get_all_drivers(db: Session = Depends(get_db)):
-    return db.query(models.Driver).all()
-
-@app.get("/trips/", response_model=List[schemas.TripResponse])
-def get_all_trips(db: Session = Depends(get_db)):
-    return db.query(models.Trip).all()
-
-
+# --- DRIVER ENDPOINTS ---
 @app.post("/drivers/", response_model=schemas.DriverResponse)
 def create_driver(driver: schemas.DriverCreate, db: Session = Depends(get_db)):
     db_driver = models.Driver(**driver.model_dump())
@@ -48,6 +43,11 @@ def create_driver(driver: schemas.DriverCreate, db: Session = Depends(get_db)):
     db.refresh(db_driver)
     return db_driver
 
+@app.get("/drivers/", response_model=list[schemas.DriverResponse])
+def get_all_drivers(db: Session = Depends(get_db)):
+    return db.query(models.Driver).all()
+
+# --- TRIP ENDPOINTS ---
 @app.post("/trips/", response_model=schemas.TripResponse)
 def create_trip(trip: schemas.TripCreate, db: Session = Depends(get_db)):
     db_trip = models.Trip(**trip.model_dump())
@@ -55,6 +55,10 @@ def create_trip(trip: schemas.TripCreate, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(db_trip)
     return db_trip
+
+@app.get("/trips/", response_model=list[schemas.TripResponse])
+def get_all_trips(db: Session = Depends(get_db)):
+    return db.query(models.Trip).all()
 
 @app.post("/trips/{trip_id}/expenses/", response_model=schemas.ExpenseResponse)
 def add_expense(trip_id: int, expense: schemas.ExpenseCreate, db: Session = Depends(get_db)):
