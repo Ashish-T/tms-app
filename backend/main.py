@@ -12,8 +12,8 @@ app = FastAPI(title="Transport Management System API")
 # Configure CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["https://tms-app-web.onrender.com"],
-    allow_credentials=True,
+    allow_origins=["*"],
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
