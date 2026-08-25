@@ -1,7 +1,5 @@
 from pydantic import BaseModel, ConfigDict
-from typing import Optional
 
-# Sent by the Driver frontend
 class TripLogCreate(BaseModel):
     date: str
     vehicle_number: str
@@ -20,13 +18,11 @@ class TripLogCreate(BaseModel):
     fuel_price: float
     police_fines: float
 
-# Sent by the Admin frontend
 class TripLogAdminUpdate(BaseModel):
     driver_cost: float
     vehicle_charged: float
     billing_amount: float
 
-# Sent back to the frontend (Contains all 21 fields)
 class TripLogResponse(TripLogCreate):
     id: int
     driver_cost: float
@@ -35,4 +31,13 @@ class TripLogResponse(TripLogCreate):
     total_cost: float
     profit: float
     is_billed: bool
+    model_config = ConfigDict(from_attributes=True)
+
+# --- NEW SCHEMAS FOR ADMIN DROPDOWNS ---
+class DropdownItemCreate(BaseModel):
+    name: str
+
+class DropdownItemResponse(BaseModel):
+    id: int
+    name: str
     model_config = ConfigDict(from_attributes=True)

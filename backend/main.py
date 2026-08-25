@@ -59,3 +59,29 @@ def process_admin_billing(trip_id: int, billing: schemas.TripLogAdminUpdate, db:
     db.commit()
     db.refresh(db_trip)
     return db_trip
+
+# --- ADMIN DROPDOWN ENDPOINTS ---
+
+@app.get("/drivers_list/", response_model=list[schemas.DropdownItemResponse])
+def get_drivers(db: Session = Depends(get_db)):
+    return db.query(models.DriverList).all()
+
+@app.post("/drivers_list/", response_model=schemas.DropdownItemResponse)
+def add_driver(driver: schemas.DropdownItemCreate, db: Session = Depends(get_db)):
+    db_driver = models.DriverList(name=driver.name)
+    db.add(db_driver)
+    db.commit()
+    db.refresh(db_driver)
+    return db_driver
+
+@app.get("/vendors_list/", response_model=list[schemas.DropdownItemResponse])
+def get_vendors(db: Session = Depends(get_db)):
+    return db.query(models.VendorList).all()
+
+@app.post("/vendors_list/", response_model=schemas.DropdownItemResponse)
+def add_vendor(vendor: schemas.DropdownItemCreate, db: Session = Depends(get_db)):
+    db_vendor = models.VendorList(name=vendor.name)
+    db.add(db_vendor)
+    db.commit()
+    db.refresh(db_vendor)
+    return db_vendor
