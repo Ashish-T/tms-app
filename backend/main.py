@@ -78,6 +78,14 @@ def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depend
 def get_me(current_user: models.User = Depends(get_current_user)):
     return current_user
 
+@app.get("/users/all", response_model=List[schemas.UserResponse])
+def get_all_users(db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
+    if current_user.role == "admin":
+        return db.query(models.User).all()
+    elif current_user.role == "supervisor":
+        return db.query(models.User).filter(models.User.supervisor_id == current_user.id).all()
+    return []
+
 @app.post("/users/supervisor", response_model=schemas.UserResponse)
 def create_supervisor(user: schemas.UserCreate, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
     if current_user.role != "admin":
@@ -103,7 +111,6 @@ def create_driver(user: schemas.UserCreate, db: Session = Depends(get_db), curre
     return db_user
 
 # --- COLLABORATIVE TRIP PIPELINE ---
-
 @app.post("/trips/", response_model=schemas.TripLogResponse)
 def start_trip(trip: schemas.TripDriverCreate, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
     if current_user.role != "driver":
@@ -120,8 +127,6 @@ def start_trip(trip: schemas.TripDriverCreate, db: Session = Depends(get_db), cu
     db.refresh(db_trip)
     return db_trip
 
-
-# UPDATE: Both Drivers AND Supervisors can now end trips!
 @app.patch("/trips/{trip_id}/end", response_model=schemas.TripLogResponse)
 def end_trip(trip_id: int, trip_update: schemas.TripDriverUpdate, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
     if current_user.role not in ["driver", "supervisor"]:
@@ -138,7 +143,6 @@ def end_trip(trip_id: int, trip_update: schemas.TripDriverUpdate, db: Session = 
     db_trip.in_time = trip_update.in_time
     db_trip.in_km = trip_update.in_km
     
-    # Smart routing: If the supervisor already reviewed it earlier, jump straight to "Reviewed" so Admin can bill it.
     if db_trip.vehicle_type: 
         db_trip.status = "Reviewed"
     else:
@@ -148,8 +152,6 @@ def end_trip(trip_id: int, trip_update: schemas.TripDriverUpdate, db: Session = 
     db.refresh(db_trip)
     return db_trip
 
-
-# UPDATE: Review no longer overwrites the "Started" status
 @app.patch("/trips/{trip_id}/review", response_model=schemas.TripLogResponse)
 def supervisor_review(trip_id: int, review: schemas.TripSupervisorUpdate, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
     if current_user.role != "supervisor":
@@ -162,15 +164,12 @@ def supervisor_review(trip_id: int, review: schemas.TripSupervisorUpdate, db: Se
     for key, value in review.model_dump().items():
         setattr(db_trip, key, value)
         
-    # Only change the status to "Reviewed" if the driver has already ended the trip.
-    # If the trip is still "Started", leave the status as "Started" so it stays active!
     if db_trip.status == "Completed":
         db_trip.status = "Reviewed"
         
     db.commit()
     db.refresh(db_trip)
     return db_trip
-
 
 @app.patch("/trips/{trip_id}/finalize", response_model=schemas.TripLogResponse)
 def admin_finalize(trip_id: int, billing: schemas.TripAdminUpdate, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
@@ -184,7 +183,7 @@ def admin_finalize(trip_id: int, billing: schemas.TripAdminUpdate, db: Session =
     for key, value in billing.model_dump().items():
         setattr(db_trip, key, value)
     
-    # CALCULATE DRIVER COST: (Daily Salary * Days) + Bata + Food
+    # CALCULATE DRIVER COST
     db_trip.driver_total_cost = (billing.driver_daily_salary * billing.trip_days) + billing.driver_bata + billing.food_allowance
     
     # CALCULATE TOTAL RUNNING COST
@@ -195,7 +194,7 @@ def admin_finalize(trip_id: int, billing: schemas.TripAdminUpdate, db: Session =
         db_trip.other_expenses + db_trip.police_fines + db_trip.fixed_cost
     )
     
-    # CALCULATE PROFIT (Customer Revenue - Running Cost)
+    # CALCULATE PROFIT
     db_trip.profit = billing.billing_amount - db_trip.total_running_cost
     db_trip.status = "Billed"
     
@@ -203,7 +202,6 @@ def admin_finalize(trip_id: int, billing: schemas.TripAdminUpdate, db: Session =
     db.refresh(db_trip)
     return db_trip
 
-# NEW: Admin Editing Supervisor Inputs
 @app.patch("/trips/{trip_id}/admin_edit", response_model=schemas.TripLogResponse)
 def admin_edit_trip(trip_id: int, edit_data: schemas.TripSupervisorUpdate, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
     if current_user.role != "admin":
@@ -220,15 +218,18 @@ def admin_edit_trip(trip_id: int, edit_data: schemas.TripSupervisorUpdate, db: S
     db.refresh(db_trip)
     return db_trip
 
-
-@app.get("/users/all", response_model=List[schemas.UserResponse])
-def get_all_users(db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
+# --- THIS IS THE GET TRIPS ROUTE THAT WENT MISSING! ---
+@app.get("/trips/", response_model=List[schemas.TripLogResponse])
+def get_trips(db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
     if current_user.role == "admin":
-        return db.query(models.User).all()
+        return db.query(models.TripLog).order_by(models.TripLog.id.desc()).all()
     elif current_user.role == "supervisor":
-        return db.query(models.User).filter(models.User.supervisor_id == current_user.id).all()
+        return db.query(models.TripLog).filter(models.TripLog.supervisor_id == current_user.id).order_by(models.TripLog.id.desc()).all()
+    elif current_user.role == "driver":
+        return db.query(models.TripLog).filter(models.TripLog.driver_id == current_user.id).order_by(models.TripLog.id.desc()).all()
     return []
 
+# --- VEHICLE AND VENDOR MANAGEMENT ---
 @app.get("/vendors_list/", response_model=List[schemas.DropdownItemResponse])
 def get_vendors(db: Session = Depends(get_db)):
     return db.query(models.VendorList).all()
