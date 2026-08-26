@@ -1,317 +1,266 @@
 import React, { useState, useEffect } from 'react';
-import { BrowserRouter as Router, Routes, Route, Link, useLocation } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import API from './api';
 
-const blockInvalidChars = (e) => {
-  if (['e', 'E', '+', '-'].includes(e.key)) e.preventDefault();
-};
+// --- SHARED UI COMPONENTS ---
+const blockInvalidChars = (e) => { if (['e', 'E', '+', '-'].includes(e.key)) e.preventDefault(); };
 
-const InputField = ({ label, name, type = "text", value, onChange, placeholder, pattern, title, uppercase }) => (
+const InputField = ({ label, name, type = "text", value, onChange, placeholder, uppercase }) => (
   <div className="flex flex-col space-y-1.5">
     <label className="text-sm font-semibold text-slate-700">{label}</label>
-    <input
-      type={type} name={name} value={value} onChange={onChange} required
-      placeholder={placeholder} pattern={pattern} title={title}
-      min={type === "number" ? "0" : undefined}
-      onKeyDown={type === "number" ? blockInvalidChars : undefined}
-      className={`bg-slate-50 border border-slate-200 text-slate-900 rounded-xl focus:ring-4 focus:ring-indigo-500/20 focus:border-indigo-500 block w-full p-3 transition-all outline-none ${uppercase ? 'uppercase' : ''}`}
-    />
+    <input type={type} name={name} value={value} onChange={onChange} required placeholder={placeholder} min={type === "number" ? "0" : undefined} onKeyDown={type === "number" ? blockInvalidChars : undefined} className={`bg-slate-50 border border-slate-200 text-slate-900 rounded-xl focus:ring-4 focus:ring-indigo-500/20 block w-full p-3 outline-none ${uppercase ? 'uppercase' : ''}`} />
   </div>
 );
 
 const SelectField = ({ label, name, value, onChange, options }) => (
   <div className="flex flex-col space-y-1.5">
     <label className="text-sm font-semibold text-slate-700">{label}</label>
-    <select name={name} value={value} onChange={onChange} required className="bg-slate-50 border border-slate-200 text-slate-900 rounded-xl focus:ring-4 focus:ring-indigo-500/20 focus:border-indigo-500 block w-full p-3 transition-all outline-none max-h-48 overflow-y-auto">
+    <select name={name} value={value} onChange={onChange} required className="bg-slate-50 border border-slate-200 text-slate-900 rounded-xl focus:ring-4 focus:ring-indigo-500/20 block w-full p-3 outline-none">
       <option value="">-- Select --</option>
       {options.map((opt, i) => <option key={i} value={opt}>{opt}</option>)}
     </select>
   </div>
 );
 
-const Card = ({ title, icon, children }) => (
-  <div className="bg-white p-6 rounded-2xl shadow-xl shadow-slate-200/40 border border-slate-100">
-    <div className="flex items-center gap-3 mb-6 border-b border-slate-100 pb-4">
-      <span className="text-2xl">{icon}</span><h3 className="text-lg font-bold text-slate-800 tracking-tight">{title}</h3>
-    </div>
-    <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">{children}</div>
-  </div>
-);
-
-const DetailItem = ({ label, value }) => (
-  <div className="bg-slate-50 p-3 rounded-lg border border-slate-100">
-    <span className="block text-xs font-bold text-slate-400 uppercase tracking-wider">{label}</span>
-    <span className="block text-sm font-semibold text-slate-900 mt-1">{value || '-'}</span>
-  </div>
-);
-
-// --- HELPERS ---
 const getCurrentTime = () => new Date().toTimeString().slice(0, 5);
 const getCurrentDate = () => new Date().toISOString().split('T')[0];
 
-// --- DRIVER PANEL ---
-function DriverPanel() {
-  const [formData, setFormData] = useState({
-    date: '', vehicle_number: '', vehicle_type: '', vehicle_mode: '', body_type: '', reporting_time: '', out_time: '', out_km: '', in_time: '', in_km: '', driver_name: '', mobile_number: '', vendor_name: '', helper_name: '', toll_money: '', fuel_litres: '', fuel_price: '', police_fines: ''
-  });
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [drivers, setDrivers] = useState([]);
-  const [vendors, setVendors] = useState([]);
-  
-  // Updated Lists
-  const vehicleTypes = [
-    "Tata Ace", "Intra", "Bolero Pickup", "Verro", "Bara Dast", 
-    "10' FT", "14' FT", "17' FT", "20' FT", "22' FT", "32' FT SXL", "32' FT MXL"
-  ];
-  const vehicleModes = ["Adhoc", "Dedicated"];
-  const bodyTypes = ["Open", "Closed"];
+const StatusBadge = ({ status }) => {
+  const colors = {
+    'Initiated': 'bg-amber-100 text-amber-800',
+    'Started': 'bg-blue-100 text-blue-800',
+    'Completed': 'bg-indigo-100 text-indigo-800',
+    'Reviewed': 'bg-purple-100 text-purple-800',
+    'Billed': 'bg-emerald-100 text-emerald-800'
+  };
+  return <span className={`px-3 py-1 rounded-full text-xs font-bold ${colors[status] || 'bg-slate-100 text-slate-800'}`}>{status}</span>;
+};
 
-  useEffect(() => {
-    API.get('/drivers_list/').then(res => setDrivers(res.data.map(d => d.name))).catch(err => console.error(err));
-    API.get('/vendors_list/').then(res => setVendors(res.data.map(v => v.name))).catch(err => console.error(err));
-  }, []);
+// --- LOGIN SCREEN ---
+function LoginScreen({ onLogin }) {
+  const [credentials, setCredentials] = useState({ username: '', password: '' });
+  const [error, setError] = useState('');
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
-    // Strict KM Validation
-    if (Number(formData.in_km) > 0 && Number(formData.in_km) <= Number(formData.out_km)) {
-      alert("⚠️ Error: The 'In KM' reading must be higher than the 'Out KM' reading.");
-      return;
-    }
-
-    setIsSubmitting(true);
-    const payload = { ...formData, vehicle_number: formData.vehicle_number.toUpperCase() };
-    const numericFields = ['out_km', 'in_km', 'toll_money', 'fuel_litres', 'fuel_price', 'police_fines'];
-    numericFields.forEach(field => { payload[field] = payload[field] ? Number(payload[field]) : 0; });
+    setError('');
+    // FastAPI expects form-encoded data for OAuth2 login
+    const params = new URLSearchParams();
+    params.append('username', credentials.username);
+    params.append('password', credentials.password);
 
     try {
-      await API.post('/trips/', payload);
-      alert("✨ Journey Logged Successfully!");
-      setFormData({ date: '', vehicle_number: '', vehicle_type: '', vehicle_mode: '', body_type: '', reporting_time: '', out_time: '', out_km: '', in_time: '', in_km: '', driver_name: '', mobile_number: '', vendor_name: '', helper_name: '', toll_money: '', fuel_litres: '', fuel_price: '', police_fines: '' });
-      setIsSubmitting(false);
-      window.location.reload();
-    } catch (error) {
-      alert("❌ Error saving journey data.");
-      setIsSubmitting(false);
+      const res = await API.post('/login', params);
+      localStorage.setItem('tms_token', res.data.access_token);
+      localStorage.setItem('tms_role', res.data.role);
+      localStorage.setItem('tms_name', res.data.name);
+      onLogin(res.data.role, res.data.name);
+    } catch (err) {
+      setError('Invalid username or password.');
     }
   };
 
-  const handleChange = (e) => {
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-slate-900 p-4">
+      <div className="bg-white p-8 rounded-3xl shadow-2xl w-full max-w-md">
+        <div className="text-center mb-8">
+          <h1 className="font-black text-4xl text-slate-900 tracking-wide mb-2">TMS<span className="text-indigo-600">.</span></h1>
+          <p className="text-slate-500">Sign in to your account</p>
+        </div>
+        {error && <div className="bg-rose-50 text-rose-600 p-3 rounded-lg text-sm font-semibold mb-4 text-center">{error}</div>}
+        <form onSubmit={handleSubmit} className="space-y-5">
+          <InputField label="Username" name="username" value={credentials.username} onChange={e => setCredentials({...credentials, username: e.target.value})} />
+          <InputField label="Password" type="password" name="password" value={credentials.password} onChange={e => setCredentials({...credentials, password: e.target.value})} />
+          <button type="submit" className="w-full bg-indigo-600 text-white rounded-xl py-4 font-bold hover:bg-indigo-700 transition-all mt-4">Access System</button>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+// --- DRIVER PANEL ---
+function DriverPanel({ userName }) {
+  const [trips, setTrips] = useState([]);
+  const [formData, setFormData] = useState({ vehicle_number: '', reporting_time: '', out_km: '', out_time: '', date: '' });
+  const [endData, setEndData] = useState({ in_km: '', in_time: '' });
+  const [activeEndTrip, setActiveEndTrip] = useState(null);
+
+  useEffect(() => { fetchTrips(); }, []);
+  const fetchTrips = () => API.get('/trips/').then(res => setTrips(res.data)).catch(console.error);
+
+  const handleStartTrip = async (e) => {
+    e.preventDefault();
+    try {
+      await API.post('/trips/', { ...formData, vehicle_number: formData.vehicle_number.toUpperCase() });
+      setFormData({ vehicle_number: '', reporting_time: '', out_km: '', out_time: '', date: '' });
+      fetchTrips();
+    } catch (err) { alert("Failed to start trip."); }
+  };
+
+  const handleEndTrip = async (e, id) => {
+    e.preventDefault();
+    try {
+      await API.patch(`/trips/${id}/end`, endData);
+      setActiveEndTrip(null); setEndData({ in_km: '', in_time: '' });
+      fetchTrips();
+    } catch (err) { alert("Failed to end trip."); }
+  };
+
+  const handleStartChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => {
       const newData = { ...prev, [name]: value };
-
-      // Auto-fill time AND Date when KMs are typed
-      if (name === 'out_km' && value !== '') {
+      if (name === 'out_km' && value) {
         if (!prev.out_time) newData.out_time = getCurrentTime();
-        if (!prev.date) newData.date = getCurrentDate();
-      }
-      if (name === 'in_km' && value !== '') {
-        if (!prev.in_time) newData.in_time = getCurrentTime();
         if (!prev.date) newData.date = getCurrentDate();
       }
       return newData;
     });
   };
 
-  return (
-    <div className="p-4 md:p-8 max-w-7xl mx-auto animate-fade-in-up">
-      <div className="mb-10 text-center md:text-left">
-        <h2 className="text-4xl font-extrabold text-slate-900 tracking-tight">Driver Logbook</h2>
-        <p className="text-slate-500 mt-2 text-lg">Securely record your journey details below.</p>
-      </div>
-      <form onSubmit={handleSubmit} className="space-y-6">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8">
-          <Card title="Trip Details" icon="🚛">
-            <InputField label="Vehicle Number" name="vehicle_number" value={formData.vehicle_number} onChange={handleChange} uppercase placeholder="WB 12 3456" pattern="^WB[-\s]?\d{1,2}[-\s]?[A-Za-z]{0,2}[-\s]?\d{4}$" title="Must start with WB, followed by 1 or 2 digits, and end with 4 digits. (e.g., WB123456, WB 12 AB 3456)" />
-            <SelectField label="Vehicle Type" name="vehicle_type" value={formData.vehicle_type} onChange={handleChange} options={vehicleTypes} />
-            <SelectField label="Vehicle Mode" name="vehicle_mode" value={formData.vehicle_mode} onChange={handleChange} options={vehicleModes} />
-            <SelectField label="Body Type" name="body_type" value={formData.body_type} onChange={handleChange} options={bodyTypes} />
-            <SelectField label="Vendor Name" name="vendor_name" value={formData.vendor_name} onChange={handleChange} options={vendors} />
-          </Card>
-          
-          <Card title="Time & Odometer" icon="⏱️">
-            <InputField label="Trip Date (Auto-fills)" name="date" type="date" value={formData.date} onChange={handleChange} />
-            <InputField label="Reporting Time" name="reporting_time" type="time" value={formData.reporting_time} onChange={handleChange} />
-            
-            <InputField label="Out KM" name="out_km" type="number" value={formData.out_km} onChange={handleChange} />
-            <InputField label="Out Time (Auto-fills)" name="out_time" type="time" value={formData.out_time} onChange={handleChange} />
-            
-            <InputField label="In KM" name="in_km" type="number" value={formData.in_km} onChange={handleChange} />
-            <InputField label="In Time (Auto-fills)" name="in_time" type="time" value={formData.in_time} onChange={handleChange} />
-            
-            {/* Visual warning if time rolls over to next day */}
-            {formData.out_time && formData.in_time && (formData.in_time < formData.out_time) && (
-              <div className="col-span-full mt-2 bg-amber-50 text-amber-700 p-2 rounded-lg text-sm border border-amber-200">
-                ℹ️ Notice: Arrival time is earlier than departure time. Assuming arrival is on the next date.
-              </div>
-            )}
-          </Card>
+  const handleEndChange = (e) => {
+    const { name, value } = e.target;
+    setEndData(prev => {
+      const newData = { ...prev, [name]: value };
+      if (name === 'in_km' && value && !prev.in_time) newData.in_time = getCurrentTime();
+      return newData;
+    });
+  };
 
-          <Card title="Personnel" icon="👥">
-            <SelectField label="Driver Name" name="driver_name" value={formData.driver_name} onChange={handleChange} options={drivers} />
-            <InputField label="Mobile Number" name="mobile_number" type="number" value={formData.mobile_number} onChange={handleChange} placeholder="10 Digit Mobile" />
-            <InputField label="Helper Name" name="helper_name" value={formData.helper_name} onChange={handleChange} />
-          </Card>
-          <Card title="Expenses (Digits Only)" icon="💳">
-            <InputField label="Toll Money (₹)" name="toll_money" type="number" value={formData.toll_money} onChange={handleChange} />
-            <InputField label="Fuel Consumed (Litres)" name="fuel_litres" type="number" value={formData.fuel_litres} onChange={handleChange} />
-            <InputField label="Fuel Price / L (₹)" name="fuel_price" type="number" value={formData.fuel_price} onChange={handleChange} />
-            <InputField label="Police Fines (₹)" name="police_fines" type="number" value={formData.police_fines} onChange={handleChange} />
-          </Card>
-        </div>
-        <div className="mt-8">
-          <button type="submit" disabled={isSubmitting} className="w-full bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-700 hover:to-blue-700 text-white shadow-lg shadow-indigo-500/30 rounded-xl px-5 py-4 font-bold tracking-wide transform hover:-translate-y-0.5 transition-all text-lg">
-            {isSubmitting ? 'Syncing to Database...' : 'Submit Journey Report 🚀'}
-          </button>
-        </div>
-      </form>
+  return (
+    <div className="p-4 md:p-8 max-w-5xl mx-auto">
+      <h2 className="text-3xl font-extrabold mb-6">Welcome, {userName} 🚛</h2>
+      
+      {/* Start New Trip */}
+      <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 mb-8">
+        <h3 className="text-xl font-bold border-b pb-3 mb-4">Start New Trip</h3>
+        <form onSubmit={handleStartTrip} className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
+          <InputField label="Vehicle Number" name="vehicle_number" value={formData.vehicle_number} onChange={handleStartChange} uppercase />
+          <InputField label="Reporting Time" type="time" name="reporting_time" value={formData.reporting_time} onChange={handleStartChange} />
+          <InputField label="Out KM" type="number" name="out_km" value={formData.out_km} onChange={handleStartChange} />
+          <InputField label="Date (Auto)" type="date" name="date" value={formData.date} onChange={handleStartChange} />
+          <InputField label="Out Time (Auto)" type="time" name="out_time" value={formData.out_time} onChange={handleStartChange} />
+          <button type="submit" className="bg-indigo-600 text-white font-bold py-3 rounded-xl hover:bg-indigo-700">Start Journey</button>
+        </form>
+      </div>
+
+      {/* Active Trips needing End KM */}
+      <h3 className="text-xl font-bold mb-4">Your Active Trips</h3>
+      <div className="grid gap-4">
+        {trips.filter(t => t.status === 'Started').map(trip => (
+          <div key={trip.id} className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
+            <div className="flex justify-between items-center mb-4">
+              <div><span className="font-bold text-lg">{trip.vehicle_number}</span><span className="text-slate-500 ml-2">({trip.date})</span></div>
+              <StatusBadge status={trip.status} />
+            </div>
+            
+            {activeEndTrip === trip.id ? (
+              <form onSubmit={(e) => handleEndTrip(e, trip.id)} className="flex gap-4 items-end bg-slate-50 p-4 rounded-xl">
+                <div className="flex-1"><InputField label="In KM" type="number" name="in_km" value={endData.in_km} onChange={handleEndChange} /></div>
+                <div className="flex-1"><InputField label="In Time (Auto)" type="time" name="in_time" value={endData.in_time} onChange={handleEndChange} /></div>
+                <button type="submit" className="bg-emerald-600 text-white px-6 py-3 rounded-xl font-bold">Complete</button>
+                <button type="button" onClick={() => setActiveEndTrip(null)} className="text-slate-500 px-4">Cancel</button>
+              </form>
+            ) : (
+              <button onClick={() => setActiveEndTrip(trip.id)} className="bg-slate-900 text-white px-6 py-2 rounded-lg font-semibold">Log Arrival (In KM)</button>
+            )}
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
 
-// --- ADMIN PANEL ---
-function AdminPanel() {
-  const [activeTab, setActiveTab] = useState('trips'); 
-  
+// --- SUPERVISOR PANEL ---
+function SupervisorPanel() {
+  const [activeTab, setActiveTab] = useState('trips');
   const [trips, setTrips] = useState([]);
-  const [expandedTrip, setExpandedTrip] = useState(null);
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [selectedTrip, setSelectedTrip] = useState(null);
-  const [billingData, setBillingData] = useState({ driver_cost: '', vehicle_charged: '', billing_amount: '' });
+  const [reviewTrip, setReviewTrip] = useState(null);
+  const [reviewData, setReviewData] = useState({ vehicle_type: '', vehicle_mode: '', body_type: '', vendor_name: '', helper_name: '' });
+  const [driverForm, setDriverForm] = useState({ username: '', password: '', name: '', phone: '' });
 
-  const [drivers, setDrivers] = useState([]);
-  const [vendors, setVendors] = useState([]);
-  const [newItemName, setNewItemName] = useState('');
-
-  useEffect(() => { 
-    fetchTrips(); 
-    fetchLists();
-  }, []);
-
+  const vehicleTypes = ["Tata Ace", "Intra", "Bolero Pickup", "Verro", "Bara Dast", "10' FT", "14' FT", "17' FT", "20' FT", "22' FT", "32' FT SXL", "32' FT MXL"];
+  
+  useEffect(() => { fetchTrips(); }, []);
   const fetchTrips = () => API.get('/trips/').then(res => setTrips(res.data)).catch(console.error);
-  const fetchLists = () => {
-    API.get('/drivers_list/').then(res => setDrivers(res.data)).catch(console.error);
-    API.get('/vendors_list/').then(res => setVendors(res.data)).catch(console.error);
-  };
 
-  const openBillingModal = (trip) => { setSelectedTrip(trip); setBillingData({ driver_cost: '', vehicle_charged: '', billing_amount: '' }); setIsModalOpen(true); };
-
-  const handleProcessBilling = async (e) => {
+  const handleReviewSubmit = async (e) => {
     e.preventDefault();
     try {
-      await API.patch(`/trips/${selectedTrip.id}/billing`, { driver_cost: Number(billingData.driver_cost), vehicle_charged: Number(billingData.vehicle_charged), billing_amount: Number(billingData.billing_amount) });
-      setIsModalOpen(false); fetchTrips();
-    } catch (err) { alert("Failed to process billing."); }
+      await API.patch(`/trips/${reviewTrip.id}/review`, reviewData);
+      setReviewTrip(null); fetchTrips();
+    } catch (err) { alert("Error saving review."); }
   };
 
-  const handleAddListItem = async (e, type) => {
+  const handleCreateDriver = async (e) => {
     e.preventDefault();
     try {
-      await API.post(`/${type}_list/`, { name: newItemName });
-      setNewItemName(''); fetchLists();
-    } catch (err) { alert("Error adding item or name already exists."); }
+      await API.post('/users/driver', { ...driverForm, role: 'driver' });
+      alert("Driver Account Created!");
+      setDriverForm({ username: '', password: '', name: '', phone: '' });
+    } catch (err) { alert("Failed to create driver. Username might exist."); }
   };
 
   return (
     <div className="p-4 md:p-8 max-w-7xl mx-auto">
-      <div className="mb-8">
-        <h2 className="text-4xl font-extrabold text-slate-900 tracking-tight">Admin Control Center</h2>
-        <p className="text-slate-500 mt-2 text-lg">Manage financial data and dropdown menus.</p>
-      </div>
-
+      <h2 className="text-3xl font-extrabold mb-6">Supervisor Dispatch Center</h2>
       <div className="flex space-x-2 mb-6 bg-slate-200/50 p-1.5 rounded-xl inline-flex">
-        <button onClick={() => setActiveTab('trips')} className={`px-5 py-2.5 rounded-lg font-bold transition-all ${activeTab === 'trips' ? 'bg-white text-indigo-700 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}>📊 Financials</button>
-        <button onClick={() => setActiveTab('drivers')} className={`px-5 py-2.5 rounded-lg font-bold transition-all ${activeTab === 'drivers' ? 'bg-white text-indigo-700 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}>🧑‍✈️ Manage Drivers</button>
-        <button onClick={() => setActiveTab('vendors')} className={`px-5 py-2.5 rounded-lg font-bold transition-all ${activeTab === 'vendors' ? 'bg-white text-indigo-700 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}>🏢 Manage Vendors</button>
+        <button onClick={() => setActiveTab('trips')} className={`px-5 py-2.5 rounded-lg font-bold transition-all ${activeTab === 'trips' ? 'bg-white text-indigo-700 shadow-sm' : 'text-slate-500'}`}>Review Trips</button>
+        <button onClick={() => setActiveTab('drivers')} className={`px-5 py-2.5 rounded-lg font-bold transition-all ${activeTab === 'drivers' ? 'bg-white text-indigo-700 shadow-sm' : 'text-slate-500'}`}>Add New Driver</button>
       </div>
 
       {activeTab === 'trips' && (
-        <div className="bg-white rounded-2xl shadow-xl shadow-slate-200/40 border border-slate-100 overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="min-w-full text-left text-sm whitespace-nowrap">
-              <thead className="bg-slate-50 text-slate-600 border-b border-slate-100">
-                <tr><th className="p-4 font-bold uppercase text-xs">Trip ID</th><th className="p-4 font-bold uppercase text-xs">Driver/Vendor</th><th className="p-4 font-bold uppercase text-xs">Distance</th><th className="p-4 font-bold uppercase text-xs text-right">Total Cost</th><th className="p-4 font-bold uppercase text-xs text-right">Billed Amount</th><th className="p-4 font-bold uppercase text-xs text-right">Net Profit</th><th className="p-4 font-bold uppercase text-xs text-center">Actions</th></tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {trips.map(trip => (
-                  <React.Fragment key={trip.id}>
-                    <tr className="hover:bg-slate-50/80 transition-colors">
-                      <td className="p-4"><span className="font-bold text-indigo-600 bg-indigo-50 px-2 py-1 rounded-md">#{trip.id}</span><div className="text-slate-400 text-xs mt-1.5 font-medium">{trip.date}</div></td>
-                      <td className="p-4"><span className="font-bold text-slate-900 block">{trip.driver_name}</span><span className="text-slate-500 text-xs">{trip.vendor_name} ({trip.vehicle_number})</span></td>
-                      <td className="p-4 text-slate-600 font-medium">{trip.in_km - trip.out_km} km</td>
-                      <td className="p-4 font-bold text-rose-600 text-right text-base">₹{trip.total_cost.toLocaleString()}</td>
-                      <td className="p-4 font-bold text-indigo-600 text-right text-base">₹{trip.billing_amount.toLocaleString()}</td>
-                      <td className="p-4 font-bold text-emerald-600 text-right text-base">₹{trip.profit.toLocaleString()}</td>
-                      <td className="p-4">
-                        <div className="flex justify-center gap-2">
-                          <button onClick={() => setExpandedTrip(expandedTrip === trip.id ? null : trip.id)} className="bg-slate-100 text-slate-700 px-4 py-2 rounded-lg font-semibold hover:bg-slate-200">Details</button>
-                          {!trip.is_billed ? (<button onClick={() => openBillingModal(trip)} className="bg-slate-900 text-white px-4 py-2 rounded-lg font-semibold hover:bg-indigo-600">Process</button>) : (<span className="inline-flex items-center justify-center bg-emerald-100 text-emerald-700 px-4 py-2 rounded-lg font-bold">✓ Billed</span>)}
-                        </div>
-                      </td>
-                    </tr>
-                    {expandedTrip === trip.id && (
-                      <tr>
-                        <td colSpan="7" className="bg-slate-50 border-b-2 border-indigo-100 p-6 shadow-inner">
-                          <h4 className="text-indigo-800 font-bold mb-4 flex items-center gap-2">Full Driver Log Details</h4>
-                          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
-                            <DetailItem label="Vendor" value={trip.vendor_name} />
-                            <DetailItem label="Vehicle Type" value={trip.vehicle_type} />
-                            <DetailItem label="Mode" value={trip.vehicle_mode} />
-                            <DetailItem label="Body Type" value={trip.body_type} />
-                            <DetailItem label="Mobile" value={trip.mobile_number} />
-                            
-                            <DetailItem label="Helper" value={trip.helper_name} />
-                            <DetailItem label="Reporting Time" value={trip.reporting_time} />
-                            <DetailItem label="Out Time" value={trip.out_time} />
-                            <DetailItem label="In Time" value={trip.in_time} />
-                            <DetailItem label="Out KM" value={trip.out_km} />
-                            
-                            <DetailItem label="In KM" value={trip.in_km} />
-                            <DetailItem label="Toll Paid" value={`₹${trip.toll_money}`} />
-                            <DetailItem label="Fuel (Litres)" value={`${trip.fuel_litres} L`} />
-                            <DetailItem label="Fuel Rate" value={`₹${trip.fuel_price}/L`} />
-                            <DetailItem label="Police Fines" value={`₹${trip.police_fines}`} />
-                            
-                            {trip.is_billed && (<><DetailItem label="Admin: Driver Cost" value={`₹${trip.driver_cost}`} /><DetailItem label="Admin: Vehicle Chrg." value={`₹${trip.vehicle_charged}`} /></>)}
-                          </div>
-                        </td>
-                      </tr>
+        <div className="bg-white rounded-2xl shadow-xl border border-slate-100 overflow-x-auto">
+          <table className="min-w-full text-left text-sm whitespace-nowrap">
+            <thead className="bg-slate-50 border-b">
+              <tr><th className="p-4">ID / Date</th><th className="p-4">Vehicle</th><th className="p-4">Route KM</th><th className="p-4">Status</th><th className="p-4">Action</th></tr>
+            </thead>
+            <tbody>
+              {trips.map(trip => (
+                <tr key={trip.id} className="border-b">
+                  <td className="p-4 font-bold">#{trip.id} <span className="text-slate-400 block font-normal">{trip.date}</span></td>
+                  <td className="p-4">{trip.vehicle_number}</td>
+                  <td className="p-4">{trip.in_km ? trip.in_km - trip.out_km + ' km' : 'In Transit'}</td>
+                  <td className="p-4"><StatusBadge status={trip.status} /></td>
+                  <td className="p-4">
+                    {(trip.status === 'Started' || trip.status === 'Completed') && (
+                       <button onClick={() => { setReviewTrip(trip); setReviewData({ vehicle_type: '', vehicle_mode: '', body_type: '', vendor_name: '', helper_name: '' }); }} className="bg-indigo-100 text-indigo-700 px-4 py-2 rounded-lg font-bold hover:bg-indigo-200">Review & Assign</button>
                     )}
-                  </React.Fragment>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       )}
 
-      {(activeTab === 'drivers' || activeTab === 'vendors') && (
-        <div className="bg-white p-8 rounded-2xl shadow-xl shadow-slate-200/40 border border-slate-100 max-w-2xl">
-          <h3 className="text-2xl font-bold mb-6">Add New {activeTab === 'drivers' ? 'Driver' : 'Vendor'}</h3>
-          <form onSubmit={(e) => handleAddListItem(e, activeTab)} className="flex gap-4 mb-8">
-            <input type="text" value={newItemName} onChange={e => setNewItemName(e.target.value)} required placeholder={`Enter ${activeTab === 'drivers' ? 'Driver' : 'Vendor'} Name...`} className="flex-1 bg-slate-50 border border-slate-200 rounded-xl p-3 outline-none focus:ring-4 focus:ring-indigo-500/20" />
-            <button type="submit" className="bg-indigo-600 text-white px-6 py-3 rounded-xl font-bold hover:bg-indigo-700">Add to List</button>
+      {activeTab === 'drivers' && (
+        <div className="bg-white p-8 rounded-2xl shadow-xl max-w-lg border border-slate-100">
+          <h3 className="text-xl font-bold mb-4">Create Driver Account</h3>
+          <form onSubmit={handleCreateDriver} className="space-y-4">
+            <InputField label="Full Name" value={driverForm.name} onChange={e => setDriverForm({...driverForm, name: e.target.value})} />
+            <InputField label="Phone Number" type="number" value={driverForm.phone} onChange={e => setDriverForm({...driverForm, phone: e.target.value})} />
+            <InputField label="Login Username" value={driverForm.username} onChange={e => setDriverForm({...driverForm, username: e.target.value})} />
+            <InputField label="Login Password" type="password" value={driverForm.password} onChange={e => setDriverForm({...driverForm, password: e.target.value})} />
+            <button type="submit" className="w-full bg-indigo-600 text-white py-3 rounded-xl font-bold">Create Account</button>
           </form>
-          <h4 className="text-sm font-bold text-slate-400 uppercase tracking-wider border-b pb-2 mb-4">Current Active {activeTab === 'drivers' ? 'Drivers' : 'Vendors'}</h4>
-          <ul className="grid grid-cols-2 gap-3">
-            {(activeTab === 'drivers' ? drivers : vendors).map(item => (
-              <li key={item.id} className="bg-slate-50 p-3 rounded-lg border border-slate-100 font-semibold text-slate-700 flex items-center gap-3"><span className="w-2 h-2 rounded-full bg-emerald-500"></span>{item.name}</li>
-            ))}
-          </ul>
         </div>
       )}
 
-      {isModalOpen && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <div className="bg-white p-8 rounded-3xl shadow-2xl w-full max-w-md">
-            <div className="flex justify-between items-center mb-6"><h3 className="text-2xl font-extrabold">Finalize Billing</h3><button onClick={() => setIsModalOpen(false)} className="bg-slate-100 rounded-full p-2">✕</button></div>
-            <form onSubmit={handleProcessBilling} className="space-y-5">
-              <InputField label="Driver Cost (Wage/Contract) ₹" type="number" name="driver_cost" value={billingData.driver_cost} onChange={e => setBillingData({...billingData, driver_cost: e.target.value})} />
-              <InputField label="Vehicle Charged (Transport) ₹" type="number" name="vehicle_charged" value={billingData.vehicle_charged} onChange={e => setBillingData({...billingData, vehicle_charged: e.target.value})} />
-              <InputField label="Final Client Invoice Amount ₹" type="number" name="billing_amount" value={billingData.billing_amount} onChange={e => setBillingData({...billingData, billing_amount: e.target.value})} />
-              <button type="submit" className="w-full bg-gradient-to-r from-indigo-600 to-blue-600 text-white rounded-xl py-4 font-bold shadow-lg transition-all mt-6 text-lg">Calculate Profit & Save</button>
+      {reviewTrip && (
+        <div className="fixed inset-0 bg-slate-900/60 flex items-center justify-center p-4 z-50">
+          <div className="bg-white p-8 rounded-3xl w-full max-w-lg">
+            <h3 className="text-2xl font-bold mb-6">Review Trip #{reviewTrip.id}</h3>
+            <form onSubmit={handleReviewSubmit} className="space-y-4">
+              <SelectField label="Vehicle Type" value={reviewData.vehicle_type} onChange={e => setReviewData({...reviewData, vehicle_type: e.target.value})} options={vehicleTypes} />
+              <SelectField label="Vehicle Mode" value={reviewData.vehicle_mode} onChange={e => setReviewData({...reviewData, vehicle_mode: e.target.value})} options={['Adhoc', 'Dedicated']} />
+              <SelectField label="Body Type" value={reviewData.body_type} onChange={e => setReviewData({...reviewData, body_type: e.target.value})} options={['Open', 'Closed']} />
+              <InputField label="Vendor Name" value={reviewData.vendor_name} onChange={e => setReviewData({...reviewData, vendor_name: e.target.value})} />
+              <InputField label="Helper Name" value={reviewData.helper_name} onChange={e => setReviewData({...reviewData, helper_name: e.target.value})} />
+              <div className="flex gap-4 mt-6">
+                <button type="button" onClick={() => setReviewTrip(null)} className="flex-1 bg-slate-100 py-3 rounded-xl font-bold text-slate-600">Cancel</button>
+                <button type="submit" className="flex-1 bg-indigo-600 text-white py-3 rounded-xl font-bold">Save Review</button>
+              </div>
             </form>
           </div>
         </div>
@@ -320,24 +269,147 @@ function AdminPanel() {
   );
 }
 
-// --- MAIN ROUTER & NAVIGATION ---
-function TopNav() {
-  const location = useLocation();
-  const navItemClass = (path) => `px-5 py-2.5 rounded-xl font-semibold transition-all duration-200 ${location.pathname === path ? 'bg-indigo-600 text-white shadow-md shadow-indigo-500/20' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`;
+// --- ADMIN PANEL ---
+function AdminPanel() {
+  const [activeTab, setActiveTab] = useState('trips');
+  const [trips, setTrips] = useState([]);
+  const [billingTrip, setBillingTrip] = useState(null);
+  const [billData, setBillData] = useState({ toll_money: '', fuel_litres: '', fuel_price: '', police_fines: '', overtime_money: '', driver_cost: '', vehicle_charged: '', billing_amount: '' });
+  const [supForm, setSupForm] = useState({ username: '', password: '', name: '', phone: '' });
+
+  useEffect(() => { fetchTrips(); }, []);
+  const fetchTrips = () => API.get('/trips/').then(res => setTrips(res.data)).catch(console.error);
+
+  const handleBillSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      const payload = {};
+      Object.keys(billData).forEach(k => payload[k] = Number(billData[k]) || 0);
+      await API.patch(`/trips/${billingTrip.id}/finalize`, payload);
+      setBillingTrip(null); fetchTrips();
+    } catch (err) { alert("Failed to finalize billing."); }
+  };
+
+  const handleCreateSupervisor = async (e) => {
+    e.preventDefault();
+    try {
+      await API.post('/users/supervisor', { ...supForm, role: 'supervisor' });
+      alert("Supervisor Account Created!");
+      setSupForm({ username: '', password: '', name: '', phone: '' });
+    } catch (err) { alert("Failed to create supervisor."); }
+  };
+
   return (
-    <nav className="bg-slate-900 px-6 py-4 sticky top-0 z-40 shadow-xl">
-      <div className="max-w-7xl mx-auto flex justify-between items-center">
-        <h1 className="font-black text-2xl text-white tracking-wide">TMS<span className="text-indigo-500">.</span></h1>
-        <div className="flex gap-2 bg-slate-800/50 p-1.5 rounded-2xl"><Link to="/" className={navItemClass('/')}>Driver Log</Link><Link to="/admin" className={navItemClass('/admin')}>Admin</Link></div>
+    <div className="p-4 md:p-8 max-w-7xl mx-auto">
+      <h2 className="text-3xl font-extrabold mb-6">Master Admin Dashboard</h2>
+      <div className="flex space-x-2 mb-6 bg-slate-200/50 p-1.5 rounded-xl inline-flex">
+        <button onClick={() => setActiveTab('trips')} className={`px-5 py-2.5 rounded-lg font-bold transition-all ${activeTab === 'trips' ? 'bg-white text-indigo-700 shadow-sm' : 'text-slate-500'}`}>Financial Billing</button>
+        <button onClick={() => setActiveTab('supervisors')} className={`px-5 py-2.5 rounded-lg font-bold transition-all ${activeTab === 'supervisors' ? 'bg-white text-indigo-700 shadow-sm' : 'text-slate-500'}`}>Add Supervisor</button>
       </div>
-    </nav>
+
+      {activeTab === 'trips' && (
+        <div className="bg-white rounded-2xl shadow-xl border border-slate-100 overflow-x-auto">
+          <table className="min-w-full text-left text-sm whitespace-nowrap">
+            <thead className="bg-slate-50 border-b">
+              <tr><th className="p-4">ID</th><th className="p-4">Vehicle & Vendor</th><th className="p-4">Status</th><th className="p-4">Profit</th><th className="p-4">Action</th></tr>
+            </thead>
+            <tbody>
+              {trips.map(trip => (
+                <tr key={trip.id} className="border-b">
+                  <td className="p-4 font-bold">#{trip.id}</td>
+                  <td className="p-4">{trip.vehicle_number} <span className="block text-slate-500 text-xs">{trip.vendor_name || 'Unassigned'}</span></td>
+                  <td className="p-4"><StatusBadge status={trip.status} /></td>
+                  <td className="p-4 font-bold text-emerald-600">₹{trip.profit}</td>
+                  <td className="p-4">
+                    {trip.status === 'Reviewed' && (
+                       <button onClick={() => { setBillingTrip(trip); setBillData({ toll_money: '', fuel_litres: '', fuel_price: '', police_fines: '', overtime_money: '', driver_cost: '', vehicle_charged: '', billing_amount: '' }); }} className="bg-emerald-100 text-emerald-700 px-4 py-2 rounded-lg font-bold hover:bg-emerald-200">Finalize Finances</button>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {activeTab === 'supervisors' && (
+        <div className="bg-white p-8 rounded-2xl shadow-xl max-w-lg border border-slate-100">
+          <h3 className="text-xl font-bold mb-4">Create Supervisor Account</h3>
+          <form onSubmit={handleCreateSupervisor} className="space-y-4">
+            <InputField label="Full Name" value={supForm.name} onChange={e => setSupForm({...supForm, name: e.target.value})} />
+            <InputField label="Phone Number" type="number" value={supForm.phone} onChange={e => setSupForm({...supForm, phone: e.target.value})} />
+            <InputField label="Login Username" value={supForm.username} onChange={e => setSupForm({...supForm, username: e.target.value})} />
+            <InputField label="Login Password" type="password" value={supForm.password} onChange={e => setSupForm({...supForm, password: e.target.value})} />
+            <button type="submit" className="w-full bg-indigo-600 text-white py-3 rounded-xl font-bold">Create Account</button>
+          </form>
+        </div>
+      )}
+
+      {billingTrip && (
+        <div className="fixed inset-0 bg-slate-900/60 flex items-center justify-center p-4 z-50">
+          <div className="bg-white p-8 rounded-3xl w-full max-w-2xl max-h-screen overflow-y-auto">
+            <h3 className="text-2xl font-bold mb-6">Finalize Billing (Trip #{billingTrip.id})</h3>
+            <form onSubmit={handleBillSubmit} className="grid grid-cols-2 gap-4">
+              <div className="col-span-2 border-b pb-2 mb-2 font-bold text-slate-500">Expenses (₹)</div>
+              <InputField label="Toll Money" type="number" value={billData.toll_money} onChange={e => setBillData({...billData, toll_money: e.target.value})} />
+              <InputField label="Police Fines" type="number" value={billData.police_fines} onChange={e => setBillData({...billData, police_fines: e.target.value})} />
+              <InputField label="Fuel Litres" type="number" value={billData.fuel_litres} onChange={e => setBillData({...billData, fuel_litres: e.target.value})} />
+              <InputField label="Fuel Price / L" type="number" value={billData.fuel_price} onChange={e => setBillData({...billData, fuel_price: e.target.value})} />
+              <InputField label="Overtime Money" type="number" value={billData.overtime_money} onChange={e => setBillData({...billData, overtime_money: e.target.value})} />
+              <InputField label="Driver Base Cost" type="number" value={billData.driver_cost} onChange={e => setBillData({...billData, driver_cost: e.target.value})} />
+              
+              <div className="col-span-2 border-b pb-2 mb-2 mt-4 font-bold text-slate-500">Client Billing (₹)</div>
+              <InputField label="Vehicle Charged" type="number" value={billData.vehicle_charged} onChange={e => setBillData({...billData, vehicle_charged: e.target.value})} />
+              <InputField label="Final Billing Amount" type="number" value={billData.billing_amount} onChange={e => setBillData({...billData, billing_amount: e.target.value})} />
+              
+              <div className="col-span-2 flex gap-4 mt-6">
+                <button type="button" onClick={() => setBillingTrip(null)} className="flex-1 bg-slate-100 py-4 rounded-xl font-bold text-slate-600">Cancel</button>
+                <button type="submit" className="flex-1 bg-emerald-600 text-white py-4 rounded-xl font-bold">Calculate & Save</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+    </div>
   );
 }
 
+// --- MAIN APP COMPONENT ---
 export default function App() {
+  const [role, setRole] = useState(localStorage.getItem('tms_role'));
+  const [name, setName] = useState(localStorage.getItem('tms_name'));
+
+  const handleLogin = (newRole, newName) => { setRole(newRole); setName(newName); };
+  
+  const handleLogout = () => {
+    localStorage.clear();
+    setRole(null); setName(null);
+  };
+
+  if (!role) return <LoginScreen onLogin={handleLogin} />;
+
   return (
     <Router>
-      <div className="min-h-screen bg-slate-50/50 font-sans text-slate-900"><TopNav /><main className="pb-12"><Routes><Route path="/" element={<DriverPanel />} /><Route path="/admin" element={<AdminPanel />} /></Routes></main></div>
+      <div className="min-h-screen bg-slate-50 font-sans text-slate-900">
+        <nav className="bg-slate-900 px-6 py-4 sticky top-0 z-40 shadow-xl flex justify-between items-center text-white">
+          <h1 className="font-black text-2xl tracking-wide">TMS<span className="text-indigo-500">.</span></h1>
+          <div className="flex items-center gap-6">
+            <div className="text-sm">Logged in as <span className="font-bold text-indigo-400">{name}</span> ({role.toUpperCase()})</div>
+            <button onClick={handleLogout} className="bg-slate-800 hover:bg-rose-600 px-4 py-2 rounded-lg font-bold transition-colors text-sm">Logout</button>
+          </div>
+        </nav>
+        
+        <main className="pb-12 pt-6">
+          <Routes>
+            <Route path="/" element={
+              role === 'admin' ? <AdminPanel /> : 
+              role === 'supervisor' ? <SupervisorPanel /> : 
+              <DriverPanel userName={name} />
+            } />
+            <Route path="*" element={<Navigate to="/" />} />
+          </Routes>
+        </main>
+      </div>
     </Router>
   );
 }
