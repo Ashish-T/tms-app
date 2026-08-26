@@ -43,15 +43,20 @@ class TripSupervisorUpdate(BaseModel):
     helper_name: str
 
 class TripAdminUpdate(BaseModel):
-    toll_money: float
     fuel_litres: float
     fuel_price: float
+    toll_charges: float
+    parking_charges: float
+    entry_charges: float
+    loading_charges: float
+    unloading_charges: float
     police_fines: float
-    overtime_money: float
-    miscellaneous_cost: float # <--- NEW
-    fixed_cost: float         # <--- NEW
-    driver_cost: float
-    vehicle_charged: float
+    other_expenses: float
+    driver_daily_salary: float
+    trip_days: float
+    driver_bata: float
+    food_allowance: float
+    fixed_cost: float
     billing_amount: float
 
 class TripLogResponse(BaseModel):
@@ -71,17 +76,23 @@ class TripLogResponse(BaseModel):
     body_type: Optional[str]
     vendor_name: Optional[str]
     helper_name: Optional[str]
-    toll_money: float
     fuel_litres: float
     fuel_price: float
+    toll_charges: float
+    parking_charges: float
+    entry_charges: float
+    loading_charges: float
+    unloading_charges: float
     police_fines: float
-    miscellaneous_cost: float # <--- NEW
-    fixed_cost: float         # <--- NEW
-    overtime_money: float
-    driver_cost: float
-    vehicle_charged: float
+    other_expenses: float
+    driver_daily_salary: float
+    trip_days: float
+    driver_bata: float
+    food_allowance: float
+    driver_total_cost: float
+    fixed_cost: float
+    total_running_cost: float
     billing_amount: float
-    total_cost: float
     profit: float
     model_config = ConfigDict(from_attributes=True)
 

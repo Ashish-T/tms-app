@@ -5,10 +5,10 @@ import API from './api';
 // --- SHARED UI COMPONENTS ---
 const blockInvalidChars = (e) => { if (['e', 'E', '+', '-'].includes(e.key)) e.preventDefault(); };
 
-const InputField = ({ label, name, type = "text", value, onChange, placeholder, uppercase, pattern, title }) => (
+const InputField = ({ label, name, type = "text", value, onChange, placeholder, uppercase }) => (
   <div className="flex flex-col space-y-1.5">
     <label className="text-sm font-semibold text-slate-700">{label}</label>
-    <input type={type} name={name} value={value} onChange={onChange} required placeholder={placeholder} pattern={pattern} title={title} min={type === "number" ? "0" : undefined} onKeyDown={type === "number" ? blockInvalidChars : undefined} className={`bg-slate-50 border border-slate-200 text-slate-900 rounded-xl focus:ring-4 focus:ring-indigo-500/20 block w-full p-3 outline-none ${uppercase ? 'uppercase' : ''}`} />
+    <input type={type} name={name} value={value} onChange={onChange} required placeholder={placeholder} min={type === "number" ? "0" : undefined} onKeyDown={type === "number" ? blockInvalidChars : undefined} className={`bg-slate-50 border border-slate-200 text-slate-900 rounded-xl focus:ring-4 focus:ring-indigo-500/20 block w-full p-3 outline-none ${uppercase ? 'uppercase' : ''}`} />
   </div>
 );
 
@@ -22,11 +22,18 @@ const SelectField = ({ label, name, value, onChange, options }) => (
   </div>
 );
 
+const DetailItem = ({ label, value }) => (
+  <div className="bg-slate-50 p-3 rounded-lg border border-slate-100">
+    <span className="block text-xs font-bold text-slate-400 uppercase tracking-wider">{label}</span>
+    <span className="block text-sm font-semibold text-slate-900 mt-1">{value || '-'}</span>
+  </div>
+);
+
 const getCurrentTime = () => new Date().toTimeString().slice(0, 5);
 const getCurrentDate = () => new Date().toISOString().split('T')[0];
 
 const StatusBadge = ({ status }) => {
-  const colors = { 'Initiated': 'bg-amber-100 text-amber-800', 'Started': 'bg-blue-100 text-blue-800', 'Completed': 'bg-indigo-100 text-indigo-800', 'Reviewed': 'bg-purple-100 text-purple-800', 'Billed': 'bg-emerald-100 text-emerald-800' };
+  const colors = { 'Started': 'bg-blue-100 text-blue-800', 'Completed': 'bg-indigo-100 text-indigo-800', 'Reviewed': 'bg-purple-100 text-purple-800', 'Billed': 'bg-emerald-100 text-emerald-800' };
   return <span className={`px-3 py-1 rounded-full text-xs font-bold ${colors[status] || 'bg-slate-100 text-slate-800'}`}>{status}</span>;
 };
 
@@ -51,10 +58,7 @@ function LoginScreen({ onLogin }) {
   return (
     <div className="min-h-screen flex items-center justify-center bg-slate-900 p-4">
       <div className="bg-white p-8 rounded-3xl shadow-2xl w-full max-w-md">
-        <div className="text-center mb-8">
-          <h1 className="font-black text-4xl text-slate-900 tracking-wide mb-2">TMS<span className="text-indigo-600">.</span></h1>
-          <p className="text-slate-500">Sign in to your account</p>
-        </div>
+        <div className="text-center mb-8"><h1 className="font-black text-4xl text-slate-900 tracking-wide mb-2">TMS<span className="text-indigo-600">.</span></h1><p className="text-slate-500">Sign in to your account</p></div>
         {error && <div className="bg-rose-50 text-rose-600 p-3 rounded-lg text-sm font-semibold mb-4 text-center">{error}</div>}
         <form onSubmit={handleSubmit} className="space-y-5">
           <InputField label="Username" name="username" value={credentials.username} onChange={e => setCredentials({...credentials, username: e.target.value})} />
@@ -91,10 +95,7 @@ function DriverPanel({ userName }) {
 
   const handleEndTrip = async (e, trip) => {
     e.preventDefault();
-    if (Number(endData.in_km) <= trip.out_km) {
-      alert(`⚠️ Error: The 'In KM' reading must be higher than your starting KM (${trip.out_km}).`);
-      return;
-    }
+    if (Number(endData.in_km) <= trip.out_km) { alert(`⚠️ Error: The 'In KM' reading must be higher than your starting KM (${trip.out_km}).`); return; }
     try {
       await API.patch(`/trips/${trip.id}/end`, endData);
       setActiveEndTrip(null); setEndData({ in_km: '', in_time: '' }); fetchTrips();
@@ -144,11 +145,7 @@ function DriverPanel({ userName }) {
               <div><span className="font-bold text-xl">{trip.vehicle_number}</span><span className="text-slate-500 ml-2 font-medium">({trip.date})</span></div>
               <StatusBadge status={trip.status} />
             </div>
-            
-            <div className="mb-6 text-sm font-semibold text-slate-700 bg-slate-50 p-3 rounded-lg border border-slate-200 inline-block">
-              🚀 Started Journey at: <span className="text-indigo-600 font-bold text-base ml-1">{trip.out_km} KM</span>
-            </div>
-
+            <div className="mb-6 text-sm font-semibold text-slate-700 bg-slate-50 p-3 rounded-lg border border-slate-200 inline-block">🚀 Started Journey at: <span className="text-indigo-600 font-bold text-base ml-1">{trip.out_km} KM</span></div>
             {activeEndTrip === trip.id ? (
               <form onSubmit={(e) => handleEndTrip(e, trip)} className="flex flex-col md:flex-row gap-4 items-end bg-slate-50 p-4 rounded-xl border border-slate-200">
                 <div className="flex-1 w-full"><InputField label="In KM" type="number" name="in_km" value={endData.in_km} onChange={handleEndChange} /></div>
@@ -157,9 +154,7 @@ function DriverPanel({ userName }) {
                 <button type="button" onClick={() => setActiveEndTrip(null)} className="text-slate-500 px-4 font-semibold w-full md:w-auto">Cancel</button>
               </form>
             ) : (
-              <div>
-                <button onClick={() => setActiveEndTrip(trip.id)} className="bg-slate-900 text-white px-6 py-3 rounded-xl font-bold shadow-md hover:bg-slate-800 transition-colors">Log Arrival (In KM)</button>
-              </div>
+              <div><button onClick={() => setActiveEndTrip(trip.id)} className="bg-slate-900 text-white px-6 py-3 rounded-xl font-bold shadow-md hover:bg-slate-800 transition-colors">Log Arrival (In KM)</button></div>
             )}
           </div>
         ))}
@@ -177,6 +172,7 @@ function SupervisorPanel() {
   const [vehicles, setVehicles] = useState([]);
   
   const [reviewTrip, setReviewTrip] = useState(null);
+  const [viewingTrip, setViewingTrip] = useState(null);
   const [reviewData, setReviewData] = useState({ vehicle_type: '', vehicle_mode: '', body_type: '', vendor_name: '', helper_name: '' });
   
   const [endingTrip, setEndingTrip] = useState(null);
@@ -205,10 +201,7 @@ function SupervisorPanel() {
 
   const handleEndTrip = async (e) => {
     e.preventDefault();
-    if (Number(endData.in_km) <= endingTrip.out_km) {
-      alert(`⚠️ Error: The 'In KM' reading must be higher than starting KM (${endingTrip.out_km}).`);
-      return;
-    }
+    if (Number(endData.in_km) <= endingTrip.out_km) { alert(`⚠️ Error: The 'In KM' reading must be higher than starting KM (${endingTrip.out_km}).`); return; }
     try {
       await API.patch(`/trips/${endingTrip.id}/end`, endData);
       setEndingTrip(null); setEndData({ in_km: '', in_time: '' }); fetchAllData();
@@ -268,11 +261,14 @@ function SupervisorPanel() {
                   <td className="p-4"><StatusBadge status={trip.status} /></td>
                   <td className="p-4">
                     <div className="flex gap-2">
+                      {/* Only allow Review if the trip has NOT been reviewed yet */}
                       {(trip.status === 'Started' || trip.status === 'Completed') && (
-                         <button onClick={() => { 
-                           setReviewTrip(trip); 
-                           setReviewData({ vehicle_type: trip.vehicle_type || '', vehicle_mode: trip.vehicle_mode || '', body_type: trip.body_type || '', vendor_name: trip.vendor_name || '', helper_name: trip.helper_name || '' }); 
-                         }} className="bg-indigo-100 text-indigo-700 px-3 py-1.5 rounded-lg font-bold hover:bg-indigo-200 text-xs shadow-sm">Review Details</button>
+                         <button onClick={() => { setReviewTrip(trip); setReviewData({ vehicle_type: trip.vehicle_type || '', vehicle_mode: trip.vehicle_mode || '', body_type: trip.body_type || '', vendor_name: trip.vendor_name || '', helper_name: trip.helper_name || '' }); }} className="bg-indigo-100 text-indigo-700 px-3 py-1.5 rounded-lg font-bold hover:bg-indigo-200 text-xs shadow-sm">Review & Assign</button>
+                      )}
+                      
+                      {/* READ ONLY view for finalized trips */}
+                      {(trip.status === 'Reviewed' || trip.status === 'Billed') && (
+                         <button onClick={() => setViewingTrip(trip)} className="bg-slate-100 text-slate-700 px-3 py-1.5 rounded-lg font-bold hover:bg-slate-200 text-xs shadow-sm">View Details</button>
                       )}
                       
                       {trip.status === 'Started' && (
@@ -287,6 +283,31 @@ function SupervisorPanel() {
         </div>
       )}
 
+      {/* READ ONLY DETAILS MODAL FOR SUPERVISOR */}
+      {viewingTrip && (
+        <div className="fixed inset-0 bg-slate-900/60 flex items-center justify-center p-4 z-50">
+          <div className="bg-white p-8 rounded-3xl w-full max-w-3xl">
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="text-2xl font-bold">Details (Trip #{viewingTrip.id})</h3>
+              <button onClick={() => setViewingTrip(null)} className="text-slate-400 font-bold bg-slate-100 p-2 rounded-full">✕</button>
+            </div>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <DetailItem label="Vehicle" value={viewingTrip.vehicle_number} />
+              <DetailItem label="Vehicle Type" value={viewingTrip.vehicle_type} />
+              <DetailItem label="Mode" value={viewingTrip.vehicle_mode} />
+              <DetailItem label="Vendor" value={viewingTrip.vendor_name} />
+              <DetailItem label="Out KM / Time" value={`${viewingTrip.out_km} km / ${viewingTrip.out_time}`} />
+              <DetailItem label="In KM / Time" value={`${viewingTrip.in_km} km / ${viewingTrip.in_time}`} />
+              <DetailItem label="Total Route" value={`${viewingTrip.in_km - viewingTrip.out_km} km`} />
+              <DetailItem label="Status" value={viewingTrip.status} />
+            </div>
+            <div className="mt-6 text-sm text-amber-600 bg-amber-50 p-3 rounded-lg border border-amber-200">
+              ℹ️ This trip has been submitted to Admin. Contact Admin to make any corrections.
+            </div>
+          </div>
+        </div>
+      )}
+
       {activeTab === 'fleet' && (
         <div className="bg-white p-6 rounded-2xl shadow-xl border border-slate-100">
           <h3 className="text-xl font-bold mb-4 border-b pb-2">Drivers Active Under You</h3>
@@ -298,37 +319,6 @@ function SupervisorPanel() {
                 <div className="bg-white p-2 rounded-lg text-xs font-semibold border">
                   Current Vehicle: <span className={getActiveVehicle(driver.id).includes('Available') ? 'text-emerald-600' : 'text-blue-600'}>{getActiveVehicle(driver.id)}</span>
                 </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {activeTab === 'drivers' && (
-        <div className="bg-white p-8 rounded-2xl shadow-xl max-w-lg border border-slate-100">
-          <h3 className="text-xl font-bold mb-4">Create Driver Account</h3>
-          <form onSubmit={handleCreateDriver} className="space-y-4">
-            <InputField label="Full Name" value={driverForm.name} onChange={e => setDriverForm({...driverForm, name: e.target.value})} />
-            <InputField label="Phone Number" type="number" value={driverForm.phone} onChange={e => setDriverForm({...driverForm, phone: e.target.value})} />
-            <InputField label="Login Username" value={driverForm.username} onChange={e => setDriverForm({...driverForm, username: e.target.value})} />
-            <InputField label="Login Password" type="password" value={driverForm.password} onChange={e => setDriverForm({...driverForm, password: e.target.value})} />
-            <button type="submit" className="w-full bg-indigo-600 text-white py-3 rounded-xl font-bold">Create Account</button>
-          </form>
-        </div>
-      )}
-
-      {activeTab === 'vehicles' && (
-        <div className="bg-white p-8 rounded-2xl shadow-xl max-w-lg border border-slate-100">
-          <h3 className="text-xl font-bold mb-4">Register New Vehicle</h3>
-          <form onSubmit={handleAddVehicle} className="flex flex-col gap-4 mb-6">
-            <InputField label="Vehicle Number (e.g., WB 12 3456)" value={vehicleForm} onChange={e => setVehicleForm(e.target.value)} uppercase pattern="^WB[-\s]?\d{1,2}[-\s]?[A-Za-z]{0,2}[-\s]?\d{4}$" title="Must start with WB, followed by digits and letters (e.g., WB123456, WB 12 AB 3456)" />
-            <button type="submit" className="bg-indigo-600 text-white py-3 rounded-xl font-bold hover:bg-indigo-700">Add to System</button>
-          </form>
-          <h4 className="text-sm font-bold text-slate-400 uppercase tracking-wider border-b pb-2 mb-4">Approved Vehicles</h4>
-          <div className="grid grid-cols-2 gap-2">
-            {vehicles.map(v => (
-              <div key={v.id} className="bg-slate-50 p-2 rounded-lg border text-sm font-bold text-slate-700 flex items-center gap-2">
-                <span className="w-2 h-2 rounded-full bg-emerald-500"></span>{v.vehicle_number}
               </div>
             ))}
           </div>
@@ -355,14 +345,12 @@ function SupervisorPanel() {
         </div>
       )}
 
-      {/* SUPERVISOR ARRIVAL LOG MODAL */}
+      {/* END TRIP / CREATE DRIVER / ETC FORMS ... */}
       {endingTrip && (
         <div className="fixed inset-0 bg-slate-900/60 flex items-center justify-center p-4 z-50">
           <div className="bg-white p-8 rounded-3xl w-full max-w-sm">
             <h3 className="text-2xl font-bold mb-6">Log Arrival (Trip #{endingTrip.id})</h3>
-            <div className="mb-4 text-sm font-semibold text-slate-700 bg-slate-50 p-3 rounded-lg border">
-              Started at: <span className="text-indigo-600 text-lg">{endingTrip.out_km} KM</span>
-            </div>
+            <div className="mb-4 text-sm font-semibold text-slate-700 bg-slate-50 p-3 rounded-lg border">Started at: <span className="text-indigo-600 text-lg">{endingTrip.out_km} KM</span></div>
             <form onSubmit={handleEndTrip} className="space-y-4">
               <InputField label="In KM" type="number" name="in_km" value={endData.in_km} onChange={handleEndChange} />
               <InputField label="In Time (Auto)" type="time" name="in_time" value={endData.in_time} onChange={handleEndChange} />
@@ -375,6 +363,28 @@ function SupervisorPanel() {
         </div>
       )}
 
+      {activeTab === 'drivers' && (
+        <div className="bg-white p-8 rounded-2xl shadow-xl max-w-lg border border-slate-100">
+          <h3 className="text-xl font-bold mb-4">Create Driver Account</h3>
+          <form onSubmit={handleCreateDriver} className="space-y-4">
+            <InputField label="Full Name" value={driverForm.name} onChange={e => setDriverForm({...driverForm, name: e.target.value})} />
+            <InputField label="Phone Number" type="number" value={driverForm.phone} onChange={e => setDriverForm({...driverForm, phone: e.target.value})} />
+            <InputField label="Login Username" value={driverForm.username} onChange={e => setDriverForm({...driverForm, username: e.target.value})} />
+            <InputField label="Login Password" type="password" value={driverForm.password} onChange={e => setDriverForm({...driverForm, password: e.target.value})} />
+            <button type="submit" className="w-full bg-indigo-600 text-white py-3 rounded-xl font-bold">Create Account</button>
+          </form>
+        </div>
+      )}
+
+      {activeTab === 'vehicles' && (
+        <div className="bg-white p-8 rounded-2xl shadow-xl max-w-lg border border-slate-100">
+          <h3 className="text-xl font-bold mb-4">Register New Vehicle</h3>
+          <form onSubmit={handleAddVehicle} className="flex flex-col gap-4 mb-6">
+            <InputField label="Vehicle Number (e.g., WB 12 3456)" value={vehicleForm} onChange={e => setVehicleForm(e.target.value)} uppercase pattern="^WB[-\s]?\d{1,2}[-\s]?[A-Za-z]{0,2}[-\s]?\d{4}$" title="Must start with WB, followed by digits and letters (e.g., WB123456, WB 12 AB 3456)" />
+            <button type="submit" className="bg-indigo-600 text-white py-3 rounded-xl font-bold hover:bg-indigo-700">Add to System</button>
+          </form>
+        </div>
+      )}
     </div>
   );
 }
@@ -388,7 +398,19 @@ function AdminPanel() {
   const [vehicles, setVehicles] = useState([]);
   
   const [billingTrip, setBillingTrip] = useState(null);
-  const [billData, setBillData] = useState({ toll_money: '', fuel_litres: '', fuel_price: '', police_fines: '', overtime_money: '', miscellaneous_cost: '', fixed_cost: '', driver_cost: '', vehicle_charged: '', billing_amount: '' });
+  const [editDetailsTrip, setEditDetailsTrip] = useState(null);
+  const [editDetailsData, setEditDetailsData] = useState({ vehicle_type: '', vehicle_mode: '', body_type: '', vendor_name: '', helper_name: '' });
+  const [viewingTrip, setViewingTrip] = useState(null);
+
+  const vehicleTypes = ["Tata Ace", "Intra", "Bolero Pickup", "Verro", "Bara Dast", "10' FT", "14' FT", "17' FT", "20' FT", "22' FT", "32' FT SXL", "32' FT MXL"];
+
+  // The massive new financial state
+  const [billData, setBillData] = useState({ 
+    fuel_litres: '', fuel_price: '', toll_charges: '', parking_charges: '', entry_charges: '', 
+    loading_charges: '', unloading_charges: '', police_fines: '', other_expenses: '', 
+    driver_daily_salary: '', trip_days: '', driver_bata: '', food_allowance: '', fixed_cost: '', billing_amount: '' 
+  });
+  
   const [supForm, setSupForm] = useState({ username: '', password: '', name: '', phone: '' });
   const [vendorName, setVendorName] = useState('');
   const [vehicleForm, setVehicleForm] = useState('');
@@ -401,6 +423,18 @@ function AdminPanel() {
     API.get('/vehicles_list/').then(res => setVehicles(res.data)).catch(console.error);
   };
 
+  const openBillingModal = (trip) => {
+    setBillingTrip(trip);
+    // Pre-fill the data if it was already billed so Admin can edit!
+    setBillData({
+      fuel_litres: trip.fuel_litres || '', fuel_price: trip.fuel_price || '', toll_charges: trip.toll_charges || '',
+      parking_charges: trip.parking_charges || '', entry_charges: trip.entry_charges || '', loading_charges: trip.loading_charges || '',
+      unloading_charges: trip.unloading_charges || '', police_fines: trip.police_fines || '', other_expenses: trip.other_expenses || '',
+      driver_daily_salary: trip.driver_daily_salary || '', trip_days: trip.trip_days || '', driver_bata: trip.driver_bata || '',
+      food_allowance: trip.food_allowance || '', fixed_cost: trip.fixed_cost || '', billing_amount: trip.billing_amount || ''
+    });
+  };
+
   const handleBillSubmit = async (e) => {
     e.preventDefault();
     try {
@@ -409,6 +443,24 @@ function AdminPanel() {
       setBillingTrip(null); fetchAllData();
     } catch (err) { alert("Failed to finalize billing."); }
   };
+
+  const handleEditDetailsSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      await API.patch(`/trips/${editDetailsTrip.id}/admin_edit`, editDetailsData);
+      setEditDetailsTrip(null); fetchAllData();
+    } catch (err) { alert("Failed to save changes."); }
+  };
+
+  // --- LIVE MATH PREVIEWS FOR ADMIN ---
+  const calculateLiveTotals = () => {
+    const fuel = (Number(billData.fuel_litres)||0) * (Number(billData.fuel_price)||0);
+    const drvCost = ((Number(billData.driver_daily_salary)||0) * (Number(billData.trip_days)||0)) + (Number(billData.driver_bata)||0) + (Number(billData.food_allowance)||0);
+    const runCost = fuel + (Number(billData.toll_charges)||0) + (Number(billData.parking_charges)||0) + (Number(billData.entry_charges)||0) + drvCost + (Number(billData.loading_charges)||0) + (Number(billData.unloading_charges)||0) + (Number(billData.other_expenses)||0) + (Number(billData.police_fines)||0) + (Number(billData.fixed_cost)||0);
+    const pft = (Number(billData.billing_amount)||0) - runCost;
+    return { fuel, drvCost, runCost, pft };
+  };
+  const liveStats = calculateLiveTotals();
 
   const handleCreateSupervisor = async (e) => {
     e.preventDefault();
@@ -420,17 +472,12 @@ function AdminPanel() {
 
   const handleAddVendor = async (e) => {
     e.preventDefault();
-    try {
-      await API.post('/vendors_list/', { name: vendorName }); setVendorName(''); fetchAllData();
-    } catch (err) { alert("Error adding vendor."); }
+    try { await API.post('/vendors_list/', { name: vendorName }); setVendorName(''); fetchAllData(); } catch (err) { alert("Error adding vendor."); }
   };
 
   const handleAddVehicle = async (e) => {
     e.preventDefault();
-    try {
-      await API.post('/vehicles_list/', { vehicle_number: vehicleForm.toUpperCase() });
-      setVehicleForm(''); fetchAllData(); alert("Vehicle Added Successfully!");
-    } catch (err) { alert("Error adding vehicle. It might already exist."); }
+    try { await API.post('/vehicles_list/', { vehicle_number: vehicleForm.toUpperCase() }); setVehicleForm(''); fetchAllData(); alert("Vehicle Added Successfully!"); } catch (err) { alert("Error adding vehicle. It might already exist."); }
   };
 
   const getDriverName = (driverId) => { const driver = users.find(u => u.id === driverId); return driver ? driver.name : 'Unknown'; };
@@ -464,15 +511,19 @@ function AdminPanel() {
                   </td>
                   <td className="p-4">{trip.vehicle_number} <span className="block text-slate-500 text-xs">{trip.vendor_name || 'Unassigned'}</span></td>
                   <td className="p-4"><StatusBadge status={trip.status} /></td>
-                  <td className="p-4 font-bold text-rose-600">₹{trip.total_cost}</td>
-                  <td className="p-4 font-bold text-emerald-600">₹{trip.profit}</td>
+                  <td className="p-4 font-bold text-rose-600">₹{trip.total_running_cost || 0}</td>
+                  <td className="p-4 font-bold text-emerald-600">₹{trip.profit || 0}</td>
                   <td className="p-4">
-                    {trip.status === 'Reviewed' && (
-                       <button onClick={() => { 
-                         setBillingTrip(trip); 
-                         setBillData({ toll_money: '', fuel_litres: '', fuel_price: '', police_fines: '', overtime_money: '', miscellaneous_cost: '', fixed_cost: '', driver_cost: '', vehicle_charged: '', billing_amount: '' }); 
-                       }} className="bg-emerald-100 text-emerald-700 px-4 py-2 rounded-lg font-bold hover:bg-emerald-200">Finalize Finances</button>
-                    )}
+                    <div className="flex gap-2">
+                      <button onClick={() => setViewingTrip(trip)} className="bg-slate-100 text-slate-700 px-3 py-1.5 rounded-lg font-bold hover:bg-slate-200 text-xs shadow-sm">View Log</button>
+                      
+                      {(trip.status === 'Reviewed' || trip.status === 'Billed') && (
+                         <>
+                           <button onClick={() => { setEditDetailsTrip(trip); setEditDetailsData({ vehicle_type: trip.vehicle_type, vehicle_mode: trip.vehicle_mode, body_type: trip.body_type, vendor_name: trip.vendor_name, helper_name: trip.helper_name }); }} className="bg-amber-100 text-amber-700 px-3 py-1.5 rounded-lg font-bold hover:bg-amber-200 text-xs shadow-sm">Edit Details</button>
+                           <button onClick={() => openBillingModal(trip)} className="bg-emerald-100 text-emerald-700 px-3 py-1.5 rounded-lg font-bold hover:bg-emerald-200 text-xs shadow-sm">{trip.status === 'Billed' ? 'Edit Finances' : 'Finalize Finances'}</button>
+                         </>
+                      )}
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -481,6 +532,167 @@ function AdminPanel() {
         </div>
       )}
 
+      {/* ADMIN READ ONLY LOG */}
+      {viewingTrip && (
+        <div className="fixed inset-0 bg-slate-900/60 flex items-center justify-center p-4 z-50">
+          <div className="bg-white p-8 rounded-3xl w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="text-2xl font-bold">Complete Trip Log (#{viewingTrip.id})</h3>
+              <button onClick={() => setViewingTrip(null)} className="text-slate-400 font-bold bg-slate-100 p-2 rounded-full">✕</button>
+            </div>
+            
+            <h4 className="font-bold border-b pb-1 mb-4 text-slate-500">Supervisor & Driver Inputs</h4>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+              <DetailItem label="Driver" value={getDriverName(viewingTrip.driver_id)} />
+              <DetailItem label="Supervisor" value={getSupervisorName(viewingTrip.supervisor_id)} />
+              <DetailItem label="Vehicle" value={viewingTrip.vehicle_number} />
+              <DetailItem label="Vehicle Mode" value={viewingTrip.vehicle_mode} />
+              <DetailItem label="Vehicle Type" value={viewingTrip.vehicle_type} />
+              <DetailItem label="Vendor" value={viewingTrip.vendor_name} />
+              <DetailItem label="Helper" value={viewingTrip.helper_name} />
+              <DetailItem label="Date" value={viewingTrip.date} />
+              <DetailItem label="Out KM / Time" value={`${viewingTrip.out_km} km / ${viewingTrip.out_time}`} />
+              <DetailItem label="In KM / Time" value={`${viewingTrip.in_km} km / ${viewingTrip.in_time}`} />
+              <DetailItem label="Total Distance" value={`${viewingTrip.in_km - viewingTrip.out_km} km`} />
+              <DetailItem label="Status" value={viewingTrip.status} />
+            </div>
+
+            {viewingTrip.status === 'Billed' && (
+              <>
+                <h4 className="font-bold border-b pb-1 mb-4 text-slate-500">Financial Breakdown</h4>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <DetailItem label="Tolls" value={`₹${viewingTrip.toll_charges}`} />
+                  <DetailItem label="Parking" value={`₹${viewingTrip.parking_charges}`} />
+                  <DetailItem label="Entry Charges" value={`₹${viewingTrip.entry_charges}`} />
+                  <DetailItem label="Loading" value={`₹${viewingTrip.loading_charges}`} />
+                  <DetailItem label="Unloading" value={`₹${viewingTrip.unloading_charges}`} />
+                  <DetailItem label="Police Fines" value={`₹${viewingTrip.police_fines}`} />
+                  <DetailItem label="Other Exp." value={`₹${viewingTrip.other_expenses}`} />
+                  <DetailItem label="Fuel Total" value={`₹${viewingTrip.fuel_litres * viewingTrip.fuel_price}`} />
+                  <DetailItem label="Driver Salary" value={`₹${viewingTrip.driver_daily_salary} /day`} />
+                  <DetailItem label="Trip Days" value={viewingTrip.trip_days} />
+                  <DetailItem label="Driver Bata" value={`₹${viewingTrip.driver_bata}`} />
+                  <DetailItem label="Food Allowance" value={`₹${viewingTrip.food_allowance}`} />
+                </div>
+                
+                <div className="mt-6 flex flex-col md:flex-row gap-4">
+                  <div className="flex-1 bg-rose-50 p-4 rounded-xl border border-rose-200">
+                    <div className="text-sm font-bold text-rose-500">TOTAL RUNNING COST</div>
+                    <div className="text-3xl font-black text-rose-700">₹{viewingTrip.total_running_cost}</div>
+                  </div>
+                  <div className="flex-1 bg-indigo-50 p-4 rounded-xl border border-indigo-200">
+                    <div className="text-sm font-bold text-indigo-500">CUSTOMER BILLING</div>
+                    <div className="text-3xl font-black text-indigo-700">₹{viewingTrip.billing_amount}</div>
+                  </div>
+                  <div className="flex-1 bg-emerald-50 p-4 rounded-xl border border-emerald-200">
+                    <div className="text-sm font-bold text-emerald-500">NET PROFIT</div>
+                    <div className="text-3xl font-black text-emerald-700">₹{viewingTrip.profit}</div>
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ADMIN EDIT DETAILS MODAL */}
+      {editDetailsTrip && (
+        <div className="fixed inset-0 bg-slate-900/60 flex items-center justify-center p-4 z-50">
+          <div className="bg-white p-8 rounded-3xl w-full max-w-lg">
+            <h3 className="text-2xl font-bold mb-6">Admin Override: Trip #{editDetailsTrip.id} Details</h3>
+            <form onSubmit={handleEditDetailsSubmit} className="space-y-4">
+              <SelectField label="Vehicle Type" value={editDetailsData.vehicle_type} onChange={e => setEditDetailsData({...editDetailsData, vehicle_type: e.target.value})} options={vehicleTypes} />
+              <SelectField label="Vehicle Mode" value={editDetailsData.vehicle_mode} onChange={e => setEditDetailsData({...editDetailsData, vehicle_mode: e.target.value})} options={['Adhoc', 'Dedicated']} />
+              <SelectField label="Body Type" value={editDetailsData.body_type} onChange={e => setEditDetailsData({...editDetailsData, body_type: e.target.value})} options={['Open', 'Closed']} />
+              <SelectField label="Vendor Name" value={editDetailsData.vendor_name} onChange={e => setEditDetailsData({...editDetailsData, vendor_name: e.target.value})} options={vendors.map(v => v.name)} />
+              <InputField label="Helper Name" value={editDetailsData.helper_name} onChange={e => setEditDetailsData({...editDetailsData, helper_name: e.target.value})} />
+              <div className="flex gap-4 mt-6">
+                <button type="button" onClick={() => setEditDetailsTrip(null)} className="flex-1 bg-slate-100 py-3 rounded-xl font-bold text-slate-600">Cancel</button>
+                <button type="submit" className="flex-1 bg-amber-500 text-white py-3 rounded-xl font-bold">Override Data</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* MASSIVE ADMIN FINANCIAL MODAL */}
+      {billingTrip && (
+        <div className="fixed inset-0 bg-slate-900/60 flex items-center justify-center p-4 z-50">
+          <div className="bg-white p-8 rounded-3xl w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+            <h3 className="text-2xl font-bold mb-6">Financial Reconciliation (Trip #{billingTrip.id})</h3>
+            
+            <div className={`p-4 rounded-xl font-bold mb-6 border ${billingTrip.vehicle_mode === 'Dedicated' ? 'bg-purple-50 text-purple-800 border-purple-200' : 'bg-slate-50 text-slate-800 border-slate-200'}`}>
+              Mode: {billingTrip.vehicle_mode || 'Unspecified'} | Vehicle: {billingTrip.vehicle_number} | Route: {billingTrip.in_km - billingTrip.out_km} KM
+            </div>
+
+            <form onSubmit={handleBillSubmit} className="grid grid-cols-1 md:grid-cols-3 gap-x-6 gap-y-4">
+              
+              {/* SECTION 1: Fuel & Transport */}
+              <div className="space-y-4 bg-slate-50 p-4 rounded-xl border border-slate-100">
+                <div className="font-bold text-indigo-800 border-b pb-2 mb-4">⛽ Fuel & Transport</div>
+                <InputField label="Fuel Litres" type="number" value={billData.fuel_litres} onChange={e => setBillData({...billData, fuel_litres: e.target.value})} />
+                <InputField label="Fuel Price / L" type="number" value={billData.fuel_price} onChange={e => setBillData({...billData, fuel_price: e.target.value})} />
+                <div className="text-sm font-bold text-slate-500">Live Fuel Cost: ₹{liveStats.fuel}</div>
+                <InputField label="Toll Charges" type="number" value={billData.toll_charges} onChange={e => setBillData({...billData, toll_charges: e.target.value})} />
+                <InputField label="Parking Charges" type="number" value={billData.parking_charges} onChange={e => setBillData({...billData, parking_charges: e.target.value})} />
+                <InputField label="Entry/Border Charges" type="number" value={billData.entry_charges} onChange={e => setBillData({...billData, entry_charges: e.target.value})} />
+              </div>
+
+              {/* SECTION 2: Driver & Labor */}
+              <div className="space-y-4 bg-slate-50 p-4 rounded-xl border border-slate-100">
+                <div className="font-bold text-indigo-800 border-b pb-2 mb-4">🧑‍✈️ Driver & Labor</div>
+                <InputField label="Driver Daily Salary" type="number" value={billData.driver_daily_salary} onChange={e => setBillData({...billData, driver_daily_salary: e.target.value})} />
+                <InputField label="Number of Days on Trip" type="number" value={billData.trip_days} onChange={e => setBillData({...billData, trip_days: e.target.value})} />
+                <InputField label="Driver Bata/Allowance" type="number" value={billData.driver_bata} onChange={e => setBillData({...billData, driver_bata: e.target.value})} />
+                <InputField label="Food Allowance" type="number" value={billData.food_allowance} onChange={e => setBillData({...billData, food_allowance: e.target.value})} />
+                <div className="text-sm font-bold text-slate-500">Live Driver Cost: ₹{liveStats.drvCost}</div>
+                <InputField label="Loading Charges" type="number" value={billData.loading_charges} onChange={e => setBillData({...billData, loading_charges: e.target.value})} />
+                <InputField label="Unloading Charges" type="number" value={billData.unloading_charges} onChange={e => setBillData({...billData, unloading_charges: e.target.value})} />
+              </div>
+
+              {/* SECTION 3: Misc & Billing */}
+              <div className="space-y-4 bg-slate-50 p-4 rounded-xl border border-slate-100">
+                <div className="font-bold text-indigo-800 border-b pb-2 mb-4">💰 Misc & Billing</div>
+                <InputField label="Other Trip Expenses" type="number" value={billData.other_expenses} onChange={e => setBillData({...billData, other_expenses: e.target.value})} />
+                <InputField label="Police Fines" type="number" value={billData.police_fines} onChange={e => setBillData({...billData, police_fines: e.target.value})} />
+                
+                {billingTrip.vehicle_mode === 'Dedicated' && (
+                  <div className="bg-purple-100 p-3 rounded-lg border border-purple-200">
+                    <InputField label="Fixed Cost (Dedicated)" type="number" value={billData.fixed_cost} onChange={e => setBillData({...billData, fixed_cost: e.target.value})} />
+                  </div>
+                )}
+                
+                <div className="mt-8">
+                  <InputField label="Customer Revenue (Billing)" type="number" value={billData.billing_amount} onChange={e => setBillData({...billData, billing_amount: e.target.value})} />
+                </div>
+              </div>
+
+              {/* LIVE TOTALS FOOTER */}
+              <div className="col-span-1 md:col-span-3 mt-6 flex flex-col md:flex-row gap-4 border-t pt-6">
+                <div className="flex-1 bg-slate-100 p-4 rounded-xl text-center">
+                  <div className="text-xs font-bold text-slate-500 tracking-wider">TOTAL RUNNING COST</div>
+                  <div className="text-2xl font-black text-rose-600">₹{liveStats.runCost}</div>
+                </div>
+                <div className="flex-1 bg-slate-100 p-4 rounded-xl text-center">
+                  <div className="text-xs font-bold text-slate-500 tracking-wider">CUSTOMER BILLING</div>
+                  <div className="text-2xl font-black text-indigo-600">₹{Number(billData.billing_amount) || 0}</div>
+                </div>
+                <div className={`flex-1 p-4 rounded-xl text-center ${liveStats.pft >= 0 ? 'bg-emerald-100' : 'bg-rose-100'}`}>
+                  <div className={`text-xs font-bold tracking-wider ${liveStats.pft >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>TRIP PROFIT</div>
+                  <div className={`text-2xl font-black ${liveStats.pft >= 0 ? 'text-emerald-700' : 'text-rose-700'}`}>₹{liveStats.pft}</div>
+                </div>
+              </div>
+              
+              <div className="col-span-1 md:col-span-3 flex gap-4 mt-6">
+                <button type="button" onClick={() => setBillingTrip(null)} className="flex-1 bg-slate-100 py-4 rounded-xl font-bold text-slate-600 hover:bg-slate-200">Cancel</button>
+                <button type="submit" className="flex-1 bg-emerald-600 text-white py-4 rounded-xl font-bold hover:bg-emerald-700">Save to Database</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* FLEET / SUPERVISORS / VENDORS / VEHICLES TABS ... */}
       {activeTab === 'fleet' && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {users.filter(u => u.role === 'supervisor').map(supervisor => (
@@ -555,43 +767,6 @@ function AdminPanel() {
         </div>
       )}
 
-      {billingTrip && (
-        <div className="fixed inset-0 bg-slate-900/60 flex items-center justify-center p-4 z-50">
-          <div className="bg-white p-8 rounded-3xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-            <h3 className="text-2xl font-bold mb-6">Finalize Billing (Trip #{billingTrip.id})</h3>
-            
-            <div className={`p-3 rounded-lg font-bold mb-6 ${billingTrip.vehicle_mode === 'Dedicated' ? 'bg-purple-100 text-purple-800' : 'bg-slate-100 text-slate-800'}`}>
-              Vehicle Mode: {billingTrip.vehicle_mode || 'Not Specified'}
-            </div>
-
-            <form onSubmit={handleBillSubmit} className="grid grid-cols-2 gap-4">
-              <div className="col-span-2 border-b pb-2 mb-2 font-bold text-slate-500">Expenses (₹)</div>
-              <InputField label="Toll Money" type="number" value={billData.toll_money} onChange={e => setBillData({...billData, toll_money: e.target.value})} />
-              <InputField label="Police Fines" type="number" value={billData.police_fines} onChange={e => setBillData({...billData, police_fines: e.target.value})} />
-              <InputField label="Fuel Litres" type="number" value={billData.fuel_litres} onChange={e => setBillData({...billData, fuel_litres: e.target.value})} />
-              <InputField label="Fuel Price / L" type="number" value={billData.fuel_price} onChange={e => setBillData({...billData, fuel_price: e.target.value})} />
-              <InputField label="Overtime Money" type="number" value={billData.overtime_money} onChange={e => setBillData({...billData, overtime_money: e.target.value})} />
-              <InputField label="Driver Base Cost" type="number" value={billData.driver_cost} onChange={e => setBillData({...billData, driver_cost: e.target.value})} />
-              <InputField label="Miscellaneous Cost" type="number" value={billData.miscellaneous_cost} onChange={e => setBillData({...billData, miscellaneous_cost: e.target.value})} />
-              
-              {billingTrip.vehicle_mode === 'Dedicated' && (
-                <div className="col-span-2 md:col-span-1 bg-purple-50 p-2 rounded-xl border border-purple-200">
-                  <InputField label="Dedicated Fixed Cost" type="number" value={billData.fixed_cost} onChange={e => setBillData({...billData, fixed_cost: e.target.value})} />
-                </div>
-              )}
-              
-              <div className="col-span-2 border-b pb-2 mb-2 mt-4 font-bold text-slate-500">Client Billing (₹)</div>
-              <InputField label="Vehicle Charged" type="number" value={billData.vehicle_charged} onChange={e => setBillData({...billData, vehicle_charged: e.target.value})} />
-              <InputField label="Final Billing Amount" type="number" value={billData.billing_amount} onChange={e => setBillData({...billData, billing_amount: e.target.value})} />
-              
-              <div className="col-span-2 flex gap-4 mt-6">
-                <button type="button" onClick={() => setBillingTrip(null)} className="flex-1 bg-slate-100 py-4 rounded-xl font-bold text-slate-600">Cancel</button>
-                <button type="submit" className="flex-1 bg-emerald-600 text-white py-4 rounded-xl font-bold">Calculate & Save</button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

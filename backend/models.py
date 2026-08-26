@@ -19,19 +19,20 @@ class User(Base):
     id = Column(Integer, primary_key=True)
     username = Column(String, unique=True)
     password = Column(String) 
-    role = Column(String) 
+    role = Column(String)
     name = Column(String)
     phone = Column(String, nullable=True)
     supervisor_id = Column(Integer, ForeignKey('users.id'), nullable=True)
 
 class TripLog(Base):
-    __tablename__ = 'trip_logs_v4' # <--- UPGRADED TABLE FOR NEW COLUMNS
+    __tablename__ = 'trip_logs_v4' # <--- V4 Database Upgrade
     id = Column(Integer, primary_key=True)
     
     driver_id = Column(Integer, ForeignKey('users.id'))
     supervisor_id = Column(Integer, ForeignKey('users.id'))
-    status = Column(String, default="Initiated") 
+    status = Column(String, default="Started") 
     
+    # DRIVER INPUTS
     date = Column(String)
     vehicle_number = Column(String)
     reporting_time = Column(String)
@@ -40,39 +41,36 @@ class TripLog(Base):
     in_time = Column(String)
     in_km = Column(Float, default=0.0)
     
+    # SUPERVISOR INPUTS
     vehicle_type = Column(String, nullable=True)
     vehicle_mode = Column(String, nullable=True)
     body_type = Column(String, nullable=True)
     vendor_name = Column(String, nullable=True)
     helper_name = Column(String, nullable=True)
     
-    toll_money = Column(Float, default=0.0)
+    # ADMIN EXPENSE INPUTS (NEW)
     fuel_litres = Column(Float, default=0.0)
     fuel_price = Column(Float, default=0.0)
+    toll_charges = Column(Float, default=0.0)
+    parking_charges = Column(Float, default=0.0)
+    entry_charges = Column(Float, default=0.0)
+    loading_charges = Column(Float, default=0.0)
+    unloading_charges = Column(Float, default=0.0)
     police_fines = Column(Float, default=0.0)
+    other_expenses = Column(Float, default=0.0)
     
-    # --- NEW EXPENSE COLUMNS ---
-    misc_cost = Column(Float, default=0.0)
-    fixed_cost = Column(Float, default=0.0) 
+    # ADMIN DRIVER COST (NEW)
+    driver_daily_salary = Column(Float, default=0.0)
+    trip_days = Column(Float, default=0.0)
+    driver_bata = Column(Float, default=0.0)
+    food_allowance = Column(Float, default=0.0)
+    driver_total_cost = Column(Float, default=0.0) # Calculated
     
-    overtime_money = Column(Float, default=0.0)
-    driver_cost = Column(Float, default=0.0)
-    vehicle_charged = Column(Float, default=0.0)
+    # ADMIN FINAL BILLING
+    fixed_cost = Column(Float, default=0.0) # Only if Dedicated
+    total_running_cost = Column(Float, default=0.0) # Calculated
     billing_amount = Column(Float, default=0.0)
-    total_cost = Column(Float, default=0.0)
-    profit = Column(Float, default=0.0)
-
-    # ... inside class TripLog(Base):
-    
-    # 4. ADMIN FINANCIALS
-    overtime_money = Column(Float, default=0.0) 
-    miscellaneous_cost = Column(Float, default=0.0) # <--- NEW
-    fixed_cost = Column(Float, default=0.0)         # <--- NEW
-    driver_cost = Column(Float, default=0.0)
-    vehicle_charged = Column(Float, default=0.0)
-    billing_amount = Column(Float, default=0.0)
-    total_cost = Column(Float, default=0.0)
-    profit = Column(Float, default=0.0)
+    profit = Column(Float, default=0.0) # Calculated
 
 class VendorList(Base):
     __tablename__ = 'vendor_list'

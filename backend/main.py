@@ -184,19 +184,42 @@ def admin_finalize(trip_id: int, billing: schemas.TripAdminUpdate, db: Session =
     for key, value in billing.model_dump().items():
         setattr(db_trip, key, value)
     
+    # CALCULATE DRIVER COST: (Daily Salary * Days) + Bata + Food
+    db_trip.driver_total_cost = (billing.driver_daily_salary * billing.trip_days) + billing.driver_bata + billing.food_allowance
+    
+    # CALCULATE TOTAL RUNNING COST
     fuel_cost = db_trip.fuel_litres * db_trip.fuel_price
-    db_trip.total_cost = (
-        db_trip.toll_money + fuel_cost + db_trip.police_fines + 
-        billing.driver_cost + billing.overtime_money + 
-        billing.miscellaneous_cost + billing.fixed_cost
+    db_trip.total_running_cost = (
+        fuel_cost + db_trip.toll_charges + db_trip.parking_charges + db_trip.entry_charges + 
+        db_trip.driver_total_cost + db_trip.loading_charges + db_trip.unloading_charges + 
+        db_trip.other_expenses + db_trip.police_fines + db_trip.fixed_cost
     )
     
-    db_trip.profit = billing.billing_amount - db_trip.total_cost
+    # CALCULATE PROFIT (Customer Revenue - Running Cost)
+    db_trip.profit = billing.billing_amount - db_trip.total_running_cost
     db_trip.status = "Billed"
     
     db.commit()
     db.refresh(db_trip)
     return db_trip
+
+# NEW: Admin Editing Supervisor Inputs
+@app.patch("/trips/{trip_id}/admin_edit", response_model=schemas.TripLogResponse)
+def admin_edit_trip(trip_id: int, edit_data: schemas.TripSupervisorUpdate, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
+    if current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="Only admins can edit trip details")
+        
+    db_trip = db.query(models.TripLog).filter(models.TripLog.id == trip_id).first()
+    if not db_trip:
+        raise HTTPException(status_code=404, detail="Trip not found")
+        
+    for key, value in edit_data.model_dump().items():
+        setattr(db_trip, key, value)
+        
+    db.commit()
+    db.refresh(db_trip)
+    return db_trip
+
 
 # --- FETCH ROUTES ---
 @app.get("/trips/", response_model=List[schemas.TripLogResponse])
