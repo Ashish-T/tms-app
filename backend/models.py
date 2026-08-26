@@ -50,3 +50,13 @@ class VendorList(Base):
     __tablename__ = 'vendor_list'
     id = Column(Integer, primary_key=True)
     name = Column(String, unique=True)
+
+class TripLog(Base):
+    __tablename__ = 'trip_logs'
+    id = Column(Integer, primary_key=True)
+    date = Column(String)
+    vehicle_number = Column(String)
+    vehicle_type = Column(String)
+    vehicle_mode = Column(String) # <--- ADD THIS LINE
+    reporting_time = Column(String)
+    # ... (keep the rest of the file exactly the same)

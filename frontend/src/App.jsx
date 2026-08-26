@@ -3,7 +3,6 @@ import { BrowserRouter as Router, Routes, Route, Link, useLocation } from 'react
 import API from './api';
 
 // --- STRICT NUMBER INPUT HANDLER ---
-// Blocks 'e', 'E', '+', '-' from being typed into number fields
 const blockInvalidChars = (e) => {
   if (['e', 'E', '+', '-'].includes(e.key)) e.preventDefault();
 };
@@ -50,12 +49,13 @@ const DetailItem = ({ label, value }) => (
 // --- DRIVER PANEL ---
 function DriverPanel() {
   const [formData, setFormData] = useState({
-    date: '', vehicle_number: '', vehicle_type: '', reporting_time: '', out_time: '', out_km: '', in_time: '', in_km: '', driver_name: '', mobile_number: '', vendor_name: '', helper_name: '', toll_money: '', fuel_litres: '', fuel_price: '', police_fines: ''
+    date: '', vehicle_number: '', vehicle_type: '', vehicle_mode: '', reporting_time: '', out_time: '', out_km: '', in_time: '', in_km: '', driver_name: '', mobile_number: '', vendor_name: '', helper_name: '', toll_money: '', fuel_litres: '', fuel_price: '', police_fines: ''
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [drivers, setDrivers] = useState([]);
   const [vendors, setVendors] = useState([]);
   const vehicleTypes = ["Truck - 18 Wheeler", "Truck - 10 Wheeler", "Mini Truck", "Van", "Flatbed", "Refrigerated"];
+  const vehicleModes = ["Adhoc", "Dedicated"];
 
   useEffect(() => {
     API.get('/drivers_list/').then(res => setDrivers(res.data.map(d => d.name))).catch(err => console.error(err));
@@ -72,6 +72,8 @@ function DriverPanel() {
     try {
       await API.post('/trips/', payload);
       alert("✨ Journey Logged Successfully!");
+      setFormData({ date: '', vehicle_number: '', vehicle_type: '', vehicle_mode: '', reporting_time: '', out_time: '', out_km: '', in_time: '', in_km: '', driver_name: '', mobile_number: '', vendor_name: '', helper_name: '', toll_money: '', fuel_litres: '', fuel_price: '', police_fines: '' });
+      setIsSubmitting(false);
       window.location.reload();
     } catch (error) {
       alert("❌ Error saving journey data.");
@@ -91,11 +93,9 @@ function DriverPanel() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8">
           <Card title="Trip Details" icon="🚛">
             <InputField label="Date" name="date" type="date" value={formData.date} onChange={handleChange} />
-            <InputField label="Vehicle Number" name="vehicle_number" value={formData.vehicle_number} onChange={handleChange} 
-              uppercase placeholder="WB 12 3456" 
-              pattern="^WB[-\s]?\d{1,2}[-\s]?[A-Za-z]{0,2}[-\s]?\d{4}$" 
-              title="Must start with WB, followed by 1 or 2 digits, and end with 4 digits. (e.g., WB123456, WB 12 AB 3456)" />
+            <InputField label="Vehicle Number" name="vehicle_number" value={formData.vehicle_number} onChange={handleChange} uppercase placeholder="WB 12 3456" pattern="^WB[-\s]?\d{1,2}[-\s]?[A-Za-z]{0,2}[-\s]?\d{4}$" title="Must start with WB, followed by 1 or 2 digits, and end with 4 digits. (e.g., WB123456, WB 12 AB 3456)" />
             <SelectField label="Vehicle Type" name="vehicle_type" value={formData.vehicle_type} onChange={handleChange} options={vehicleTypes} />
+            <SelectField label="Vehicle Mode" name="vehicle_mode" value={formData.vehicle_mode} onChange={handleChange} options={vehicleModes} />
             <SelectField label="Vendor Name" name="vendor_name" value={formData.vendor_name} onChange={handleChange} options={vendors} />
           </Card>
           <Card title="Time & Odometer (Digits Only)" icon="⏱️">
@@ -130,16 +130,14 @@ function DriverPanel() {
 
 // --- ADMIN PANEL ---
 function AdminPanel() {
-  const [activeTab, setActiveTab] = useState('trips'); // 'trips', 'drivers', 'vendors'
+  const [activeTab, setActiveTab] = useState('trips'); 
   
-  // Trip State
   const [trips, setTrips] = useState([]);
   const [expandedTrip, setExpandedTrip] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedTrip, setSelectedTrip] = useState(null);
   const [billingData, setBillingData] = useState({ driver_cost: '', vehicle_charged: '', billing_amount: '' });
 
-  // List State
   const [drivers, setDrivers] = useState([]);
   const [vendors, setVendors] = useState([]);
   const [newItemName, setNewItemName] = useState('');
@@ -180,14 +178,12 @@ function AdminPanel() {
         <p className="text-slate-500 mt-2 text-lg">Manage financial data and dropdown menus.</p>
       </div>
 
-      {/* ADMIN TABS */}
       <div className="flex space-x-2 mb-6 bg-slate-200/50 p-1.5 rounded-xl inline-flex">
         <button onClick={() => setActiveTab('trips')} className={`px-5 py-2.5 rounded-lg font-bold transition-all ${activeTab === 'trips' ? 'bg-white text-indigo-700 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}>📊 Financials</button>
         <button onClick={() => setActiveTab('drivers')} className={`px-5 py-2.5 rounded-lg font-bold transition-all ${activeTab === 'drivers' ? 'bg-white text-indigo-700 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}>🧑‍✈️ Manage Drivers</button>
         <button onClick={() => setActiveTab('vendors')} className={`px-5 py-2.5 rounded-lg font-bold transition-all ${activeTab === 'vendors' ? 'bg-white text-indigo-700 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}>🏢 Manage Vendors</button>
       </div>
 
-      {/* TAB 1: FINANCIALS */}
       {activeTab === 'trips' && (
         <div className="bg-white rounded-2xl shadow-xl shadow-slate-200/40 border border-slate-100 overflow-hidden">
           <div className="overflow-x-auto">
@@ -219,6 +215,7 @@ function AdminPanel() {
                           <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
                             <DetailItem label="Vendor" value={trip.vendor_name} />
                             <DetailItem label="Vehicle Type" value={trip.vehicle_type} />
+                            <DetailItem label="Mode" value={trip.vehicle_mode} />
                             <DetailItem label="Mobile" value={trip.mobile_number} />
                             <DetailItem label="Helper" value={trip.helper_name} />
                             <DetailItem label="Reporting Time" value={trip.reporting_time} />
@@ -243,7 +240,6 @@ function AdminPanel() {
         </div>
       )}
 
-      {/* TAB 2 & 3: MANAGE DRIVERS / VENDORS */}
       {(activeTab === 'drivers' || activeTab === 'vendors') && (
         <div className="bg-white p-8 rounded-2xl shadow-xl shadow-slate-200/40 border border-slate-100 max-w-2xl">
           <h3 className="text-2xl font-bold mb-6">Add New {activeTab === 'drivers' ? 'Driver' : 'Vendor'}</h3>
@@ -260,7 +256,6 @@ function AdminPanel() {
         </div>
       )}
 
-      {/* BILLING MODAL OVERLAY */}
       {isModalOpen && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
           <div className="bg-white p-8 rounded-3xl shadow-2xl w-full max-w-md">

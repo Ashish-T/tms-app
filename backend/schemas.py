@@ -4,6 +4,7 @@ class TripLogCreate(BaseModel):
     date: str
     vehicle_number: str
     vehicle_type: str
+    vehicle_mode: str # <--- ADD THIS LINE
     reporting_time: str
     out_time: str
     out_km: float
@@ -41,3 +42,4 @@ class DropdownItemResponse(BaseModel):
     id: int
     name: str
     model_config = ConfigDict(from_attributes=True)
+
