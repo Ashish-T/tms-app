@@ -46,6 +46,12 @@ const DetailItem = ({ label, value }) => (
   </div>
 );
 
+// --- HELPER: GET CURRENT TIME ---
+const getCurrentTime = () => {
+  const now = new Date();
+  return now.toTimeString().slice(0, 5); // Formats to HH:MM for time inputs
+};
+
 // --- DRIVER PANEL ---
 function DriverPanel() {
   const [formData, setFormData] = useState({
@@ -81,7 +87,25 @@ function DriverPanel() {
     }
   };
 
-  const handleChange = (e) => setFormData(prev => ({ ...prev, [e.target.name]: e.target.value }));
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    
+    setFormData(prev => {
+      const newData = { ...prev, [name]: value };
+
+      // Auto-fill Out Time when Out KM is typed (if empty)
+      if (name === 'out_km' && value !== '' && !prev.out_time) {
+        newData.out_time = getCurrentTime();
+      }
+      
+      // Auto-fill In Time when In KM is typed (if empty)
+      if (name === 'in_km' && value !== '' && !prev.in_time) {
+        newData.in_time = getCurrentTime();
+      }
+
+      return newData;
+    });
+  };
 
   return (
     <div className="p-4 md:p-8 max-w-7xl mx-auto animate-fade-in-up">
@@ -100,11 +124,11 @@ function DriverPanel() {
           </Card>
           <Card title="Time & Odometer (Digits Only)" icon="⏱️">
             <InputField label="Reporting Time" name="reporting_time" type="time" value={formData.reporting_time} onChange={handleChange} />
-            <InputField label="Out Time" name="out_time" type="time" value={formData.out_time} onChange={handleChange} />
-            <InputField label="In Time" name="in_time" type="time" value={formData.in_time} onChange={handleChange} />
-            <div className="hidden sm:block"></div>
+            <div className="hidden sm:block"></div> {/* Spacer to align fields properly */}
             <InputField label="Out KM" name="out_km" type="number" value={formData.out_km} onChange={handleChange} />
+            <InputField label="Out Time (Auto-fills)" name="out_time" type="time" value={formData.out_time} onChange={handleChange} />
             <InputField label="In KM" name="in_km" type="number" value={formData.in_km} onChange={handleChange} />
+            <InputField label="In Time (Auto-fills)" name="in_time" type="time" value={formData.in_time} onChange={handleChange} />
           </Card>
           <Card title="Personnel" icon="👥">
             <SelectField label="Driver Name" name="driver_name" value={formData.driver_name} onChange={handleChange} options={drivers} />
