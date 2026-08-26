@@ -221,16 +221,6 @@ def admin_edit_trip(trip_id: int, edit_data: schemas.TripSupervisorUpdate, db: S
     return db_trip
 
 
-# --- FETCH ROUTES ---
-@app.get("/trips/", response_model=List[schemas.TripLogResponse])
-def get_trips(db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
-    if current_user.role == "admin":
-        return db.query(models.TripLog).order_by(models.TripLog.id.desc()).all()
-    elif current_user.role == "supervisor":
-        return db.query(models.TripLog).filter(models.TripLog.supervisor_id == current_user.id).order_by(models.TripLog.id.desc()).all()
-    elif current_user.role == "driver":
-        return db.query(models.TripLog).filter(models.TripLog.driver_id == current_user.id).order_by(models.TripLog.id.desc()).all()
-
 @app.get("/users/all", response_model=List[schemas.UserResponse])
 def get_all_users(db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
     if current_user.role == "admin":
