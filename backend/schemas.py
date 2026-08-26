@@ -1,7 +1,6 @@
 from pydantic import BaseModel, ConfigDict
 from typing import Optional
 
-# --- AUTHENTICATION & USERS ---
 class Token(BaseModel):
     access_token: str
     token_type: str
@@ -22,9 +21,9 @@ class UserResponse(BaseModel):
     name: str
     role: str
     phone: Optional[str] = None
+    supervisor_id: Optional[int] = None
     model_config = ConfigDict(from_attributes=True)
 
-# --- TRIP STAGE 1: DRIVER INPUTS ---
 class TripDriverCreate(BaseModel):
     date: str
     vehicle_number: str
@@ -36,7 +35,6 @@ class TripDriverUpdate(BaseModel):
     in_time: str
     in_km: float
 
-# --- TRIP STAGE 2: SUPERVISOR INPUTS ---
 class TripSupervisorUpdate(BaseModel):
     vehicle_type: str
     vehicle_mode: str
@@ -44,18 +42,16 @@ class TripSupervisorUpdate(BaseModel):
     vendor_name: str
     helper_name: str
 
-# --- TRIP STAGE 3: ADMIN INPUTS ---
 class TripAdminUpdate(BaseModel):
     toll_money: float
     fuel_litres: float
     fuel_price: float
     police_fines: float
-    overtime_money: float  # Newly added!
+    overtime_money: float
     driver_cost: float
     vehicle_charged: float
     billing_amount: float
 
-# --- FULL TRIP RESPONSE ---
 class TripLogResponse(BaseModel):
     id: int
     driver_id: Optional[int]
@@ -83,4 +79,13 @@ class TripLogResponse(BaseModel):
     billing_amount: float
     total_cost: float
     profit: float
+    model_config = ConfigDict(from_attributes=True)
+
+# --- RE-ADDED FOR DROPDOWNS ---
+class DropdownItemCreate(BaseModel):
+    name: str
+
+class DropdownItemResponse(BaseModel):
+    id: int
+    name: str
     model_config = ConfigDict(from_attributes=True)

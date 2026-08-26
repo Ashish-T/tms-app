@@ -26,13 +26,7 @@ const getCurrentTime = () => new Date().toTimeString().slice(0, 5);
 const getCurrentDate = () => new Date().toISOString().split('T')[0];
 
 const StatusBadge = ({ status }) => {
-  const colors = {
-    'Initiated': 'bg-amber-100 text-amber-800',
-    'Started': 'bg-blue-100 text-blue-800',
-    'Completed': 'bg-indigo-100 text-indigo-800',
-    'Reviewed': 'bg-purple-100 text-purple-800',
-    'Billed': 'bg-emerald-100 text-emerald-800'
-  };
+  const colors = { 'Initiated': 'bg-amber-100 text-amber-800', 'Started': 'bg-blue-100 text-blue-800', 'Completed': 'bg-indigo-100 text-indigo-800', 'Reviewed': 'bg-purple-100 text-purple-800', 'Billed': 'bg-emerald-100 text-emerald-800' };
   return <span className={`px-3 py-1 rounded-full text-xs font-bold ${colors[status] || 'bg-slate-100 text-slate-800'}`}>{status}</span>;
 };
 
@@ -42,22 +36,16 @@ function LoginScreen({ onLogin }) {
   const [error, setError] = useState('');
 
   const handleSubmit = async (e) => {
-    e.preventDefault();
-    setError('');
-    // FastAPI expects form-encoded data for OAuth2 login
+    e.preventDefault(); setError('');
     const params = new URLSearchParams();
-    params.append('username', credentials.username);
-    params.append('password', credentials.password);
-
+    params.append('username', credentials.username); params.append('password', credentials.password);
     try {
       const res = await API.post('/login', params);
       localStorage.setItem('tms_token', res.data.access_token);
       localStorage.setItem('tms_role', res.data.role);
       localStorage.setItem('tms_name', res.data.name);
       onLogin(res.data.role, res.data.name);
-    } catch (err) {
-      setError('Invalid username or password.');
-    }
+    } catch (err) { setError('Invalid username or password.'); }
   };
 
   return (
@@ -92,8 +80,7 @@ function DriverPanel({ userName }) {
     e.preventDefault();
     try {
       await API.post('/trips/', { ...formData, vehicle_number: formData.vehicle_number.toUpperCase() });
-      setFormData({ vehicle_number: '', reporting_time: '', out_km: '', out_time: '', date: '' });
-      fetchTrips();
+      setFormData({ vehicle_number: '', reporting_time: '', out_km: '', out_time: '', date: '' }); fetchTrips();
     } catch (err) { alert("Failed to start trip."); }
   };
 
@@ -101,8 +88,7 @@ function DriverPanel({ userName }) {
     e.preventDefault();
     try {
       await API.patch(`/trips/${id}/end`, endData);
-      setActiveEndTrip(null); setEndData({ in_km: '', in_time: '' });
-      fetchTrips();
+      setActiveEndTrip(null); setEndData({ in_km: '', in_time: '' }); fetchTrips();
     } catch (err) { alert("Failed to end trip."); }
   };
 
@@ -130,8 +116,6 @@ function DriverPanel({ userName }) {
   return (
     <div className="p-4 md:p-8 max-w-5xl mx-auto">
       <h2 className="text-3xl font-extrabold mb-6">Welcome, {userName} 🚛</h2>
-      
-      {/* Start New Trip */}
       <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 mb-8">
         <h3 className="text-xl font-bold border-b pb-3 mb-4">Start New Trip</h3>
         <form onSubmit={handleStartTrip} className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
@@ -143,8 +127,6 @@ function DriverPanel({ userName }) {
           <button type="submit" className="bg-indigo-600 text-white font-bold py-3 rounded-xl hover:bg-indigo-700">Start Journey</button>
         </form>
       </div>
-
-      {/* Active Trips needing End KM */}
       <h3 className="text-xl font-bold mb-4">Your Active Trips</h3>
       <div className="grid gap-4">
         {trips.filter(t => t.status === 'Started').map(trip => (
@@ -153,7 +135,6 @@ function DriverPanel({ userName }) {
               <div><span className="font-bold text-lg">{trip.vehicle_number}</span><span className="text-slate-500 ml-2">({trip.date})</span></div>
               <StatusBadge status={trip.status} />
             </div>
-            
             {activeEndTrip === trip.id ? (
               <form onSubmit={(e) => handleEndTrip(e, trip.id)} className="flex gap-4 items-end bg-slate-50 p-4 rounded-xl">
                 <div className="flex-1"><InputField label="In KM" type="number" name="in_km" value={endData.in_km} onChange={handleEndChange} /></div>
@@ -175,20 +156,26 @@ function DriverPanel({ userName }) {
 function SupervisorPanel() {
   const [activeTab, setActiveTab] = useState('trips');
   const [trips, setTrips] = useState([]);
+  const [users, setUsers] = useState([]);
+  const [vendors, setVendors] = useState([]);
   const [reviewTrip, setReviewTrip] = useState(null);
   const [reviewData, setReviewData] = useState({ vehicle_type: '', vehicle_mode: '', body_type: '', vendor_name: '', helper_name: '' });
   const [driverForm, setDriverForm] = useState({ username: '', password: '', name: '', phone: '' });
 
   const vehicleTypes = ["Tata Ace", "Intra", "Bolero Pickup", "Verro", "Bara Dast", "10' FT", "14' FT", "17' FT", "20' FT", "22' FT", "32' FT SXL", "32' FT MXL"];
   
-  useEffect(() => { fetchTrips(); }, []);
-  const fetchTrips = () => API.get('/trips/').then(res => setTrips(res.data)).catch(console.error);
+  useEffect(() => { fetchAllData(); }, []);
+  const fetchAllData = () => {
+    API.get('/trips/').then(res => setTrips(res.data)).catch(console.error);
+    API.get('/users/all').then(res => setUsers(res.data)).catch(console.error);
+    API.get('/vendors_list/').then(res => setVendors(res.data.map(v => v.name))).catch(console.error);
+  };
 
   const handleReviewSubmit = async (e) => {
     e.preventDefault();
     try {
       await API.patch(`/trips/${reviewTrip.id}/review`, reviewData);
-      setReviewTrip(null); fetchTrips();
+      setReviewTrip(null); fetchAllData();
     } catch (err) { alert("Error saving review."); }
   };
 
@@ -196,9 +183,20 @@ function SupervisorPanel() {
     e.preventDefault();
     try {
       await API.post('/users/driver', { ...driverForm, role: 'driver' });
-      alert("Driver Account Created!");
-      setDriverForm({ username: '', password: '', name: '', phone: '' });
-    } catch (err) { alert("Failed to create driver. Username might exist."); }
+      alert("Driver Account Created!"); setDriverForm({ username: '', password: '', name: '', phone: '' }); fetchAllData();
+    } catch (err) { alert("Failed to create driver."); }
+  };
+
+  // Helper to find driver name
+  const getDriverName = (driverId) => {
+    const driver = users.find(u => u.id === driverId);
+    return driver ? driver.name : 'Unknown Driver';
+  };
+
+  // Helper to find what vehicle a driver is currently driving
+  const getActiveVehicle = (driverId) => {
+    const active = trips.find(t => t.driver_id === driverId && t.status === 'Started');
+    return active ? active.vehicle_number : 'Available (No Active Trip)';
   };
 
   return (
@@ -206,6 +204,7 @@ function SupervisorPanel() {
       <h2 className="text-3xl font-extrabold mb-6">Supervisor Dispatch Center</h2>
       <div className="flex space-x-2 mb-6 bg-slate-200/50 p-1.5 rounded-xl inline-flex">
         <button onClick={() => setActiveTab('trips')} className={`px-5 py-2.5 rounded-lg font-bold transition-all ${activeTab === 'trips' ? 'bg-white text-indigo-700 shadow-sm' : 'text-slate-500'}`}>Review Trips</button>
+        <button onClick={() => setActiveTab('fleet')} className={`px-5 py-2.5 rounded-lg font-bold transition-all ${activeTab === 'fleet' ? 'bg-white text-indigo-700 shadow-sm' : 'text-slate-500'}`}>My Fleet Overview</button>
         <button onClick={() => setActiveTab('drivers')} className={`px-5 py-2.5 rounded-lg font-bold transition-all ${activeTab === 'drivers' ? 'bg-white text-indigo-700 shadow-sm' : 'text-slate-500'}`}>Add New Driver</button>
       </div>
 
@@ -213,14 +212,14 @@ function SupervisorPanel() {
         <div className="bg-white rounded-2xl shadow-xl border border-slate-100 overflow-x-auto">
           <table className="min-w-full text-left text-sm whitespace-nowrap">
             <thead className="bg-slate-50 border-b">
-              <tr><th className="p-4">ID / Date</th><th className="p-4">Vehicle</th><th className="p-4">Route KM</th><th className="p-4">Status</th><th className="p-4">Action</th></tr>
+              <tr><th className="p-4">ID / Date</th><th className="p-4">Driver</th><th className="p-4">Vehicle</th><th className="p-4">Status</th><th className="p-4">Action</th></tr>
             </thead>
             <tbody>
               {trips.map(trip => (
                 <tr key={trip.id} className="border-b">
                   <td className="p-4 font-bold">#{trip.id} <span className="text-slate-400 block font-normal">{trip.date}</span></td>
+                  <td className="p-4 font-bold text-indigo-600">{getDriverName(trip.driver_id)}</td>
                   <td className="p-4">{trip.vehicle_number}</td>
-                  <td className="p-4">{trip.in_km ? trip.in_km - trip.out_km + ' km' : 'In Transit'}</td>
                   <td className="p-4"><StatusBadge status={trip.status} /></td>
                   <td className="p-4">
                     {(trip.status === 'Started' || trip.status === 'Completed') && (
@@ -231,6 +230,23 @@ function SupervisorPanel() {
               ))}
             </tbody>
           </table>
+        </div>
+      )}
+
+      {activeTab === 'fleet' && (
+        <div className="bg-white p-6 rounded-2xl shadow-xl border border-slate-100">
+          <h3 className="text-xl font-bold mb-4 border-b pb-2">Drivers Active Under You</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {users.filter(u => u.role === 'driver').map(driver => (
+              <div key={driver.id} className="bg-slate-50 p-4 rounded-xl border border-slate-200">
+                <div className="font-bold text-lg text-slate-800">{driver.name}</div>
+                <div className="text-sm text-slate-500 mb-2">📞 {driver.phone || 'N/A'}</div>
+                <div className="bg-white p-2 rounded-lg text-xs font-semibold border">
+                  Current Vehicle: <span className={getActiveVehicle(driver.id).includes('Available') ? 'text-emerald-600' : 'text-blue-600'}>{getActiveVehicle(driver.id)}</span>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       )}
 
@@ -255,7 +271,7 @@ function SupervisorPanel() {
               <SelectField label="Vehicle Type" value={reviewData.vehicle_type} onChange={e => setReviewData({...reviewData, vehicle_type: e.target.value})} options={vehicleTypes} />
               <SelectField label="Vehicle Mode" value={reviewData.vehicle_mode} onChange={e => setReviewData({...reviewData, vehicle_mode: e.target.value})} options={['Adhoc', 'Dedicated']} />
               <SelectField label="Body Type" value={reviewData.body_type} onChange={e => setReviewData({...reviewData, body_type: e.target.value})} options={['Open', 'Closed']} />
-              <InputField label="Vendor Name" value={reviewData.vendor_name} onChange={e => setReviewData({...reviewData, vendor_name: e.target.value})} />
+              <SelectField label="Vendor Name" value={reviewData.vendor_name} onChange={e => setReviewData({...reviewData, vendor_name: e.target.value})} options={vendors} />
               <InputField label="Helper Name" value={reviewData.helper_name} onChange={e => setReviewData({...reviewData, helper_name: e.target.value})} />
               <div className="flex gap-4 mt-6">
                 <button type="button" onClick={() => setReviewTrip(null)} className="flex-1 bg-slate-100 py-3 rounded-xl font-bold text-slate-600">Cancel</button>
@@ -273,20 +289,26 @@ function SupervisorPanel() {
 function AdminPanel() {
   const [activeTab, setActiveTab] = useState('trips');
   const [trips, setTrips] = useState([]);
+  const [users, setUsers] = useState([]);
+  const [vendors, setVendors] = useState([]);
   const [billingTrip, setBillingTrip] = useState(null);
   const [billData, setBillData] = useState({ toll_money: '', fuel_litres: '', fuel_price: '', police_fines: '', overtime_money: '', driver_cost: '', vehicle_charged: '', billing_amount: '' });
   const [supForm, setSupForm] = useState({ username: '', password: '', name: '', phone: '' });
+  const [vendorName, setVendorName] = useState('');
 
-  useEffect(() => { fetchTrips(); }, []);
-  const fetchTrips = () => API.get('/trips/').then(res => setTrips(res.data)).catch(console.error);
+  useEffect(() => { fetchAllData(); }, []);
+  const fetchAllData = () => {
+    API.get('/trips/').then(res => setTrips(res.data)).catch(console.error);
+    API.get('/users/all').then(res => setUsers(res.data)).catch(console.error);
+    API.get('/vendors_list/').then(res => setVendors(res.data)).catch(console.error);
+  };
 
   const handleBillSubmit = async (e) => {
     e.preventDefault();
     try {
-      const payload = {};
-      Object.keys(billData).forEach(k => payload[k] = Number(billData[k]) || 0);
+      const payload = {}; Object.keys(billData).forEach(k => payload[k] = Number(billData[k]) || 0);
       await API.patch(`/trips/${billingTrip.id}/finalize`, payload);
-      setBillingTrip(null); fetchTrips();
+      setBillingTrip(null); fetchAllData();
     } catch (err) { alert("Failed to finalize billing."); }
   };
 
@@ -294,29 +316,57 @@ function AdminPanel() {
     e.preventDefault();
     try {
       await API.post('/users/supervisor', { ...supForm, role: 'supervisor' });
-      alert("Supervisor Account Created!");
-      setSupForm({ username: '', password: '', name: '', phone: '' });
+      alert("Supervisor Account Created!"); setSupForm({ username: '', password: '', name: '', phone: '' }); fetchAllData();
     } catch (err) { alert("Failed to create supervisor."); }
+  };
+
+  const handleAddVendor = async (e) => {
+    e.preventDefault();
+    try {
+      await API.post('/vendors_list/', { name: vendorName });
+      setVendorName(''); fetchAllData();
+    } catch (err) { alert("Error adding vendor."); }
+  };
+
+  const getDriverName = (driverId) => {
+    const driver = users.find(u => u.id === driverId);
+    return driver ? driver.name : 'Unknown';
+  };
+
+  const getSupervisorName = (supId) => {
+    const sup = users.find(u => u.id === supId);
+    return sup ? sup.name : 'Unknown';
+  };
+
+  const getActiveVehicle = (driverId) => {
+    const active = trips.find(t => t.driver_id === driverId && t.status === 'Started');
+    return active ? active.vehicle_number : 'Available (No active trip)';
   };
 
   return (
     <div className="p-4 md:p-8 max-w-7xl mx-auto">
       <h2 className="text-3xl font-extrabold mb-6">Master Admin Dashboard</h2>
-      <div className="flex space-x-2 mb-6 bg-slate-200/50 p-1.5 rounded-xl inline-flex">
+      <div className="flex flex-wrap gap-2 mb-6 bg-slate-200/50 p-1.5 rounded-xl inline-flex">
         <button onClick={() => setActiveTab('trips')} className={`px-5 py-2.5 rounded-lg font-bold transition-all ${activeTab === 'trips' ? 'bg-white text-indigo-700 shadow-sm' : 'text-slate-500'}`}>Financial Billing</button>
+        <button onClick={() => setActiveTab('fleet')} className={`px-5 py-2.5 rounded-lg font-bold transition-all ${activeTab === 'fleet' ? 'bg-white text-indigo-700 shadow-sm' : 'text-slate-500'}`}>Fleet Overview</button>
         <button onClick={() => setActiveTab('supervisors')} className={`px-5 py-2.5 rounded-lg font-bold transition-all ${activeTab === 'supervisors' ? 'bg-white text-indigo-700 shadow-sm' : 'text-slate-500'}`}>Add Supervisor</button>
+        <button onClick={() => setActiveTab('vendors')} className={`px-5 py-2.5 rounded-lg font-bold transition-all ${activeTab === 'vendors' ? 'bg-white text-indigo-700 shadow-sm' : 'text-slate-500'}`}>Manage Vendors</button>
       </div>
 
       {activeTab === 'trips' && (
         <div className="bg-white rounded-2xl shadow-xl border border-slate-100 overflow-x-auto">
           <table className="min-w-full text-left text-sm whitespace-nowrap">
             <thead className="bg-slate-50 border-b">
-              <tr><th className="p-4">ID</th><th className="p-4">Vehicle & Vendor</th><th className="p-4">Status</th><th className="p-4">Profit</th><th className="p-4">Action</th></tr>
+              <tr><th className="p-4">ID</th><th className="p-4">Personnel</th><th className="p-4">Vehicle & Vendor</th><th className="p-4">Status</th><th className="p-4">Profit</th><th className="p-4">Action</th></tr>
             </thead>
             <tbody>
               {trips.map(trip => (
                 <tr key={trip.id} className="border-b">
                   <td className="p-4 font-bold">#{trip.id}</td>
+                  <td className="p-4">
+                    <span className="font-bold text-slate-800 block">D: {getDriverName(trip.driver_id)}</span>
+                    <span className="text-slate-500 text-xs">S: {getSupervisorName(trip.supervisor_id)}</span>
+                  </td>
                   <td className="p-4">{trip.vehicle_number} <span className="block text-slate-500 text-xs">{trip.vendor_name || 'Unassigned'}</span></td>
                   <td className="p-4"><StatusBadge status={trip.status} /></td>
                   <td className="p-4 font-bold text-emerald-600">₹{trip.profit}</td>
@@ -332,6 +382,32 @@ function AdminPanel() {
         </div>
       )}
 
+      {activeTab === 'fleet' && (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {users.filter(u => u.role === 'supervisor').map(supervisor => (
+            <div key={supervisor.id} className="bg-white rounded-2xl shadow-xl border border-slate-100 p-6">
+              <h3 className="text-xl font-bold border-b pb-2 mb-4 text-indigo-700 flex justify-between">
+                {supervisor.name} <span className="text-xs bg-indigo-100 px-2 py-1 rounded-full text-indigo-800">Supervisor</span>
+              </h3>
+              <div className="space-y-4">
+                {users.filter(u => u.supervisor_id === supervisor.id).map(driver => (
+                  <div key={driver.id} className="bg-slate-50 p-3 rounded-lg border border-slate-200">
+                    <div className="font-bold text-slate-800">{driver.name}</div>
+                    <div className="text-xs text-slate-500 mb-1">📞 {driver.phone || 'N/A'}</div>
+                    <div className="text-xs font-semibold bg-white p-1.5 rounded border inline-block">
+                      🚗 {getActiveVehicle(driver.id)}
+                    </div>
+                  </div>
+                ))}
+                {users.filter(u => u.supervisor_id === supervisor.id).length === 0 && (
+                  <div className="text-slate-400 text-sm italic">No drivers assigned yet.</div>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
       {activeTab === 'supervisors' && (
         <div className="bg-white p-8 rounded-2xl shadow-xl max-w-lg border border-slate-100">
           <h3 className="text-xl font-bold mb-4">Create Supervisor Account</h3>
@@ -342,6 +418,23 @@ function AdminPanel() {
             <InputField label="Login Password" type="password" value={supForm.password} onChange={e => setSupForm({...supForm, password: e.target.value})} />
             <button type="submit" className="w-full bg-indigo-600 text-white py-3 rounded-xl font-bold">Create Account</button>
           </form>
+        </div>
+      )}
+
+      {activeTab === 'vendors' && (
+        <div className="bg-white p-8 rounded-2xl shadow-xl max-w-lg border border-slate-100">
+          <h3 className="text-xl font-bold mb-4">Manage Vendors</h3>
+          <form onSubmit={handleAddVendor} className="flex gap-4 mb-6">
+            <input type="text" value={vendorName} onChange={e => setVendorName(e.target.value)} required placeholder="Add Vendor Name..." className="flex-1 bg-slate-50 border border-slate-200 rounded-xl p-3 outline-none" />
+            <button type="submit" className="bg-indigo-600 text-white px-6 rounded-xl font-bold">Add</button>
+          </form>
+          <div className="grid grid-cols-2 gap-2">
+            {vendors.map(v => (
+              <div key={v.id} className="bg-slate-50 p-2 rounded-lg border text-sm font-semibold flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-emerald-500"></span>{v.name}
+              </div>
+            ))}
+          </div>
         </div>
       )}
 
@@ -381,10 +474,7 @@ export default function App() {
 
   const handleLogin = (newRole, newName) => { setRole(newRole); setName(newName); };
   
-  const handleLogout = () => {
-    localStorage.clear();
-    setRole(null); setName(null);
-  };
+  const handleLogout = () => { localStorage.clear(); setRole(null); setName(null); };
 
   if (!role) return <LoginScreen onLogin={handleLogin} />;
 
@@ -394,11 +484,10 @@ export default function App() {
         <nav className="bg-slate-900 px-6 py-4 sticky top-0 z-40 shadow-xl flex justify-between items-center text-white">
           <h1 className="font-black text-2xl tracking-wide">TMS<span className="text-indigo-500">.</span></h1>
           <div className="flex items-center gap-6">
-            <div className="text-sm">Logged in as <span className="font-bold text-indigo-400">{name}</span> ({role.toUpperCase()})</div>
+            <div className="text-sm hidden sm:block">Logged in as <span className="font-bold text-indigo-400">{name}</span> ({role.toUpperCase()})</div>
             <button onClick={handleLogout} className="bg-slate-800 hover:bg-rose-600 px-4 py-2 rounded-lg font-bold transition-colors text-sm">Logout</button>
           </div>
         </nav>
-        
         <main className="pb-12 pt-6">
           <Routes>
             <Route path="/" element={

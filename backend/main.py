@@ -199,3 +199,26 @@ def on_startup():
     db = SessionLocal()
     create_initial_admin(db)
     db.close()
+
+# --- FETCH FLEET & VENDORS ---
+@app.get("/users/all", response_model=List[schemas.UserResponse])
+def get_all_users(db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
+    if current_user.role == "admin":
+        return db.query(models.User).all()
+    elif current_user.role == "supervisor":
+        return db.query(models.User).filter(models.User.supervisor_id == current_user.id).all()
+    return []
+
+@app.get("/vendors_list/", response_model=List[schemas.DropdownItemResponse])
+def get_vendors(db: Session = Depends(get_db)):
+    return db.query(models.VendorList).all()
+
+@app.post("/vendors_list/", response_model=schemas.DropdownItemResponse)
+def add_vendor(vendor: schemas.DropdownItemCreate, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
+    if current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="Only admins can manage vendors")
+    db_vendor = models.VendorList(name=vendor.name)
+    db.add(db_vendor)
+    db.commit()
+    db.refresh(db_vendor)
+    return db_vendor
