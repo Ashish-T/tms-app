@@ -178,6 +178,10 @@ function SupervisorPanel() {
   
   const [reviewTrip, setReviewTrip] = useState(null);
   const [reviewData, setReviewData] = useState({ vehicle_type: '', vehicle_mode: '', body_type: '', vendor_name: '', helper_name: '' });
+  
+  const [endingTrip, setEndingTrip] = useState(null);
+  const [endData, setEndData] = useState({ in_km: '', in_time: '' });
+
   const [driverForm, setDriverForm] = useState({ username: '', password: '', name: '', phone: '' });
   const [vehicleForm, setVehicleForm] = useState('');
 
@@ -197,6 +201,27 @@ function SupervisorPanel() {
       await API.patch(`/trips/${reviewTrip.id}/review`, reviewData);
       setReviewTrip(null); fetchAllData();
     } catch (err) { alert("Error saving review."); }
+  };
+
+  const handleEndTrip = async (e) => {
+    e.preventDefault();
+    if (Number(endData.in_km) <= endingTrip.out_km) {
+      alert(`⚠️ Error: The 'In KM' reading must be higher than starting KM (${endingTrip.out_km}).`);
+      return;
+    }
+    try {
+      await API.patch(`/trips/${endingTrip.id}/end`, endData);
+      setEndingTrip(null); setEndData({ in_km: '', in_time: '' }); fetchAllData();
+    } catch (err) { alert("Failed to end trip."); }
+  };
+
+  const handleEndChange = (e) => {
+    const { name, value } = e.target;
+    setEndData(prev => {
+      const newData = { ...prev, [name]: value };
+      if (name === 'in_km' && value && !prev.in_time) newData.in_time = getCurrentTime();
+      return newData;
+    });
   };
 
   const handleCreateDriver = async (e) => {
@@ -242,9 +267,18 @@ function SupervisorPanel() {
                   <td className="p-4">{trip.vehicle_number}</td>
                   <td className="p-4"><StatusBadge status={trip.status} /></td>
                   <td className="p-4">
-                    {(trip.status === 'Started' || trip.status === 'Completed') && (
-                       <button onClick={() => { setReviewTrip(trip); setReviewData({ vehicle_type: '', vehicle_mode: '', body_type: '', vendor_name: '', helper_name: '' }); }} className="bg-indigo-100 text-indigo-700 px-4 py-2 rounded-lg font-bold hover:bg-indigo-200">Review & Assign</button>
-                    )}
+                    <div className="flex gap-2">
+                      {(trip.status === 'Started' || trip.status === 'Completed') && (
+                         <button onClick={() => { 
+                           setReviewTrip(trip); 
+                           setReviewData({ vehicle_type: trip.vehicle_type || '', vehicle_mode: trip.vehicle_mode || '', body_type: trip.body_type || '', vendor_name: trip.vendor_name || '', helper_name: trip.helper_name || '' }); 
+                         }} className="bg-indigo-100 text-indigo-700 px-3 py-1.5 rounded-lg font-bold hover:bg-indigo-200 text-xs shadow-sm">Review Details</button>
+                      )}
+                      
+                      {trip.status === 'Started' && (
+                        <button onClick={() => { setEndingTrip(trip); setEndData({ in_km: '', in_time: '' }); }} className="bg-emerald-100 text-emerald-700 px-3 py-1.5 rounded-lg font-bold hover:bg-emerald-200 text-xs shadow-sm">Log Arrival</button>
+                      )}
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -301,6 +335,7 @@ function SupervisorPanel() {
         </div>
       )}
 
+      {/* SUPERVISOR REVIEW MODAL */}
       {reviewTrip && (
         <div className="fixed inset-0 bg-slate-900/60 flex items-center justify-center p-4 z-50">
           <div className="bg-white p-8 rounded-3xl w-full max-w-lg">
@@ -319,6 +354,27 @@ function SupervisorPanel() {
           </div>
         </div>
       )}
+
+      {/* SUPERVISOR ARRIVAL LOG MODAL */}
+      {endingTrip && (
+        <div className="fixed inset-0 bg-slate-900/60 flex items-center justify-center p-4 z-50">
+          <div className="bg-white p-8 rounded-3xl w-full max-w-sm">
+            <h3 className="text-2xl font-bold mb-6">Log Arrival (Trip #{endingTrip.id})</h3>
+            <div className="mb-4 text-sm font-semibold text-slate-700 bg-slate-50 p-3 rounded-lg border">
+              Started at: <span className="text-indigo-600 text-lg">{endingTrip.out_km} KM</span>
+            </div>
+            <form onSubmit={handleEndTrip} className="space-y-4">
+              <InputField label="In KM" type="number" name="in_km" value={endData.in_km} onChange={handleEndChange} />
+              <InputField label="In Time (Auto)" type="time" name="in_time" value={endData.in_time} onChange={handleEndChange} />
+              <div className="flex gap-4 mt-6">
+                <button type="button" onClick={() => setEndingTrip(null)} className="flex-1 bg-slate-100 py-3 rounded-xl font-bold text-slate-600">Cancel</button>
+                <button type="submit" className="flex-1 bg-emerald-600 text-white py-3 rounded-xl font-bold">Complete</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }
@@ -332,14 +388,7 @@ function AdminPanel() {
   const [vehicles, setVehicles] = useState([]);
   
   const [billingTrip, setBillingTrip] = useState(null);
-  
-  // Updated state with miscellaneous_cost and fixed_cost
-  const [billData, setBillData] = useState({ 
-    toll_money: '', fuel_litres: '', fuel_price: '', police_fines: '', 
-    overtime_money: '', miscellaneous_cost: '', fixed_cost: '', 
-    driver_cost: '', vehicle_charged: '', billing_amount: '' 
-  });
-  
+  const [billData, setBillData] = useState({ toll_money: '', fuel_litres: '', fuel_price: '', police_fines: '', overtime_money: '', miscellaneous_cost: '', fixed_cost: '', driver_cost: '', vehicle_charged: '', billing_amount: '' });
   const [supForm, setSupForm] = useState({ username: '', password: '', name: '', phone: '' });
   const [vendorName, setVendorName] = useState('');
   const [vehicleForm, setVehicleForm] = useState('');
@@ -511,7 +560,6 @@ function AdminPanel() {
           <div className="bg-white p-8 rounded-3xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
             <h3 className="text-2xl font-bold mb-6">Finalize Billing (Trip #{billingTrip.id})</h3>
             
-            {/* Show Mode Alert for Context */}
             <div className={`p-3 rounded-lg font-bold mb-6 ${billingTrip.vehicle_mode === 'Dedicated' ? 'bg-purple-100 text-purple-800' : 'bg-slate-100 text-slate-800'}`}>
               Vehicle Mode: {billingTrip.vehicle_mode || 'Not Specified'}
             </div>
@@ -526,7 +574,6 @@ function AdminPanel() {
               <InputField label="Driver Base Cost" type="number" value={billData.driver_cost} onChange={e => setBillData({...billData, driver_cost: e.target.value})} />
               <InputField label="Miscellaneous Cost" type="number" value={billData.miscellaneous_cost} onChange={e => setBillData({...billData, miscellaneous_cost: e.target.value})} />
               
-              {/* Only show Fixed Cost if the vehicle mode is Dedicated */}
               {billingTrip.vehicle_mode === 'Dedicated' && (
                 <div className="col-span-2 md:col-span-1 bg-purple-50 p-2 rounded-xl border border-purple-200">
                   <InputField label="Dedicated Fixed Cost" type="number" value={billData.fixed_cost} onChange={e => setBillData({...billData, fixed_cost: e.target.value})} />

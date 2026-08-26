@@ -37,7 +37,6 @@ def get_db():
     finally:
         db.close()
 
-# Auto-create the Master Admin on startup
 def create_initial_admin(db: Session):
     admin = db.query(models.User).filter(models.User.username == "admin").first()
     if not admin:
@@ -105,7 +104,6 @@ def create_driver(user: schemas.UserCreate, db: Session = Depends(get_db), curre
 
 # --- COLLABORATIVE TRIP PIPELINE ---
 
-# 1. Driver Starts Trip
 @app.post("/trips/", response_model=schemas.TripLogResponse)
 def start_trip(trip: schemas.TripDriverCreate, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
     if current_user.role != "driver":
@@ -122,24 +120,36 @@ def start_trip(trip: schemas.TripDriverCreate, db: Session = Depends(get_db), cu
     db.refresh(db_trip)
     return db_trip
 
-# 1b. Driver Ends Trip (Updates In KM/Time)
+
+# UPDATE: Both Drivers AND Supervisors can now end trips!
 @app.patch("/trips/{trip_id}/end", response_model=schemas.TripLogResponse)
 def end_trip(trip_id: int, trip_update: schemas.TripDriverUpdate, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
-    if current_user.role != "driver":
-        raise HTTPException(status_code=403, detail="Only drivers can end trips")
+    if current_user.role not in ["driver", "supervisor"]:
+        raise HTTPException(status_code=403, detail="Only drivers and supervisors can end trips")
         
-    db_trip = db.query(models.TripLog).filter(models.TripLog.id == trip_id, models.TripLog.driver_id == current_user.id).first()
+    if current_user.role == "driver":
+        db_trip = db.query(models.TripLog).filter(models.TripLog.id == trip_id, models.TripLog.driver_id == current_user.id).first()
+    else:
+        db_trip = db.query(models.TripLog).filter(models.TripLog.id == trip_id, models.TripLog.supervisor_id == current_user.id).first()
+        
     if not db_trip:
         raise HTTPException(status_code=404, detail="Trip not found")
         
     db_trip.in_time = trip_update.in_time
     db_trip.in_km = trip_update.in_km
-    db_trip.status = "Completed"
+    
+    # Smart routing: If the supervisor already reviewed it earlier, jump straight to "Reviewed" so Admin can bill it.
+    if db_trip.vehicle_type: 
+        db_trip.status = "Reviewed"
+    else:
+        db_trip.status = "Completed"
+        
     db.commit()
     db.refresh(db_trip)
     return db_trip
 
-# 2. Supervisor Reviews Trip
+
+# UPDATE: Review no longer overwrites the "Started" status
 @app.patch("/trips/{trip_id}/review", response_model=schemas.TripLogResponse)
 def supervisor_review(trip_id: int, review: schemas.TripSupervisorUpdate, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
     if current_user.role != "supervisor":
@@ -152,12 +162,16 @@ def supervisor_review(trip_id: int, review: schemas.TripSupervisorUpdate, db: Se
     for key, value in review.model_dump().items():
         setattr(db_trip, key, value)
         
-    db_trip.status = "Reviewed"
+    # Only change the status to "Reviewed" if the driver has already ended the trip.
+    # If the trip is still "Started", leave the status as "Started" so it stays active!
+    if db_trip.status == "Completed":
+        db_trip.status = "Reviewed"
+        
     db.commit()
     db.refresh(db_trip)
     return db_trip
 
-# 3. Admin Finalizes Billing & Expenses
+
 @app.patch("/trips/{trip_id}/finalize", response_model=schemas.TripLogResponse)
 def admin_finalize(trip_id: int, billing: schemas.TripAdminUpdate, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
     if current_user.role != "admin":
@@ -167,11 +181,9 @@ def admin_finalize(trip_id: int, billing: schemas.TripAdminUpdate, db: Session =
     if not db_trip:
         raise HTTPException(status_code=404, detail="Trip not found")
     
-    # Save all admin inputs
     for key, value in billing.model_dump().items():
         setattr(db_trip, key, value)
     
-    # Auto-Calculate Total Cost (Now includes Misc & Fixed Costs!)
     fuel_cost = db_trip.fuel_litres * db_trip.fuel_price
     db_trip.total_cost = (
         db_trip.toll_money + fuel_cost + db_trip.police_fines + 
@@ -179,7 +191,6 @@ def admin_finalize(trip_id: int, billing: schemas.TripAdminUpdate, db: Session =
         billing.miscellaneous_cost + billing.fixed_cost
     )
     
-    # Auto-Calculate Profit
     db_trip.profit = billing.billing_amount - db_trip.total_cost
     db_trip.status = "Billed"
     
@@ -187,7 +198,7 @@ def admin_finalize(trip_id: int, billing: schemas.TripAdminUpdate, db: Session =
     db.refresh(db_trip)
     return db_trip
 
-# --- FETCH TRIPS BASED ON ROLE ---
+# --- FETCH ROUTES ---
 @app.get("/trips/", response_model=List[schemas.TripLogResponse])
 def get_trips(db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
     if current_user.role == "admin":
@@ -197,30 +208,6 @@ def get_trips(db: Session = Depends(get_db), current_user: models.User = Depends
     elif current_user.role == "driver":
         return db.query(models.TripLog).filter(models.TripLog.driver_id == current_user.id).order_by(models.TripLog.id.desc()).all()
 
-# --- VEHICLE MANAGEMENT ---
-@app.get("/vehicles_list/", response_model=List[schemas.VehicleResponse])
-def get_vehicles(db: Session = Depends(get_db)):
-    return db.query(models.VehicleList).all()
-
-@app.post("/vehicles_list/", response_model=schemas.VehicleResponse)
-def add_vehicle(vehicle: schemas.VehicleCreate, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
-    if current_user.role not in ["admin", "supervisor"]:
-        raise HTTPException(status_code=403, detail="Only admins and supervisors can add vehicles")
-    
-    db_vehicle = models.VehicleList(vehicle_number=vehicle.vehicle_number)
-    db.add(db_vehicle)
-    db.commit()
-    db.refresh(db_vehicle)
-    return db_vehicle
-
-# BOOT SEQUENCE
-@app.on_event("startup")
-def on_startup():
-    db = SessionLocal()
-    create_initial_admin(db)
-    db.close()
-
-# --- FETCH FLEET & VENDORS ---
 @app.get("/users/all", response_model=List[schemas.UserResponse])
 def get_all_users(db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
     if current_user.role == "admin":
@@ -242,3 +229,24 @@ def add_vendor(vendor: schemas.DropdownItemCreate, db: Session = Depends(get_db)
     db.commit()
     db.refresh(db_vendor)
     return db_vendor
+
+@app.get("/vehicles_list/", response_model=List[schemas.VehicleResponse])
+def get_vehicles(db: Session = Depends(get_db)):
+    return db.query(models.VehicleList).all()
+
+@app.post("/vehicles_list/", response_model=schemas.VehicleResponse)
+def add_vehicle(vehicle: schemas.VehicleCreate, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
+    if current_user.role not in ["admin", "supervisor"]:
+        raise HTTPException(status_code=403, detail="Only admins and supervisors can add vehicles")
+    db_vehicle = models.VehicleList(vehicle_number=vehicle.vehicle_number)
+    db.add(db_vehicle)
+    db.commit()
+    db.refresh(db_vehicle)
+    return db_vehicle
+
+# BOOT SEQUENCE
+@app.on_event("startup")
+def on_startup():
+    db = SessionLocal()
+    create_initial_admin(db)
+    db.close()
