@@ -171,9 +171,13 @@ def admin_finalize(trip_id: int, billing: schemas.TripAdminUpdate, db: Session =
     for key, value in billing.model_dump().items():
         setattr(db_trip, key, value)
     
-    # Auto-Calculate Total Cost (Now includes Overtime!)
+    # Auto-Calculate Total Cost (Now includes Misc & Fixed Costs!)
     fuel_cost = db_trip.fuel_litres * db_trip.fuel_price
-    db_trip.total_cost = db_trip.toll_money + fuel_cost + db_trip.police_fines + billing.driver_cost + billing.overtime_money
+    db_trip.total_cost = (
+        db_trip.toll_money + fuel_cost + db_trip.police_fines + 
+        billing.driver_cost + billing.overtime_money + 
+        billing.miscellaneous_cost + billing.fixed_cost
+    )
     
     # Auto-Calculate Profit
     db_trip.profit = billing.billing_amount - db_trip.total_cost
@@ -192,6 +196,22 @@ def get_trips(db: Session = Depends(get_db), current_user: models.User = Depends
         return db.query(models.TripLog).filter(models.TripLog.supervisor_id == current_user.id).order_by(models.TripLog.id.desc()).all()
     elif current_user.role == "driver":
         return db.query(models.TripLog).filter(models.TripLog.driver_id == current_user.id).order_by(models.TripLog.id.desc()).all()
+
+# --- VEHICLE MANAGEMENT ---
+@app.get("/vehicles_list/", response_model=List[schemas.VehicleResponse])
+def get_vehicles(db: Session = Depends(get_db)):
+    return db.query(models.VehicleList).all()
+
+@app.post("/vehicles_list/", response_model=schemas.VehicleResponse)
+def add_vehicle(vehicle: schemas.VehicleCreate, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
+    if current_user.role not in ["admin", "supervisor"]:
+        raise HTTPException(status_code=403, detail="Only admins and supervisors can add vehicles")
+    
+    db_vehicle = models.VehicleList(vehicle_number=vehicle.vehicle_number)
+    db.add(db_vehicle)
+    db.commit()
+    db.refresh(db_vehicle)
+    return db_vehicle
 
 # BOOT SEQUENCE
 @app.on_event("startup")

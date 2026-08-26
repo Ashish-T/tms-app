@@ -5,10 +5,10 @@ import API from './api';
 // --- SHARED UI COMPONENTS ---
 const blockInvalidChars = (e) => { if (['e', 'E', '+', '-'].includes(e.key)) e.preventDefault(); };
 
-const InputField = ({ label, name, type = "text", value, onChange, placeholder, uppercase }) => (
+const InputField = ({ label, name, type = "text", value, onChange, placeholder, uppercase, pattern, title }) => (
   <div className="flex flex-col space-y-1.5">
     <label className="text-sm font-semibold text-slate-700">{label}</label>
-    <input type={type} name={name} value={value} onChange={onChange} required placeholder={placeholder} min={type === "number" ? "0" : undefined} onKeyDown={type === "number" ? blockInvalidChars : undefined} className={`bg-slate-50 border border-slate-200 text-slate-900 rounded-xl focus:ring-4 focus:ring-indigo-500/20 block w-full p-3 outline-none ${uppercase ? 'uppercase' : ''}`} />
+    <input type={type} name={name} value={value} onChange={onChange} required placeholder={placeholder} pattern={pattern} title={title} min={type === "number" ? "0" : undefined} onKeyDown={type === "number" ? blockInvalidChars : undefined} className={`bg-slate-50 border border-slate-200 text-slate-900 rounded-xl focus:ring-4 focus:ring-indigo-500/20 block w-full p-3 outline-none ${uppercase ? 'uppercase' : ''}`} />
   </div>
 );
 
@@ -69,25 +69,34 @@ function LoginScreen({ onLogin }) {
 // --- DRIVER PANEL ---
 function DriverPanel({ userName }) {
   const [trips, setTrips] = useState([]);
+  const [vehicles, setVehicles] = useState([]);
   const [formData, setFormData] = useState({ vehicle_number: '', reporting_time: '', out_km: '', out_time: '', date: '' });
   const [endData, setEndData] = useState({ in_km: '', in_time: '' });
   const [activeEndTrip, setActiveEndTrip] = useState(null);
 
-  useEffect(() => { fetchTrips(); }, []);
+  useEffect(() => { 
+    fetchTrips(); 
+    API.get('/vehicles_list/').then(res => setVehicles(res.data.map(v => v.vehicle_number))).catch(console.error);
+  }, []);
+  
   const fetchTrips = () => API.get('/trips/').then(res => setTrips(res.data)).catch(console.error);
 
   const handleStartTrip = async (e) => {
     e.preventDefault();
     try {
-      await API.post('/trips/', { ...formData, vehicle_number: formData.vehicle_number.toUpperCase() });
+      await API.post('/trips/', formData);
       setFormData({ vehicle_number: '', reporting_time: '', out_km: '', out_time: '', date: '' }); fetchTrips();
     } catch (err) { alert("Failed to start trip."); }
   };
 
-  const handleEndTrip = async (e, id) => {
+  const handleEndTrip = async (e, trip) => {
     e.preventDefault();
+    if (Number(endData.in_km) <= trip.out_km) {
+      alert(`⚠️ Error: The 'In KM' reading must be higher than your starting KM (${trip.out_km}).`);
+      return;
+    }
     try {
-      await API.patch(`/trips/${id}/end`, endData);
+      await API.patch(`/trips/${trip.id}/end`, endData);
       setActiveEndTrip(null); setEndData({ in_km: '', in_time: '' }); fetchTrips();
     } catch (err) { alert("Failed to end trip."); }
   };
@@ -119,7 +128,7 @@ function DriverPanel({ userName }) {
       <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 mb-8">
         <h3 className="text-xl font-bold border-b pb-3 mb-4">Start New Trip</h3>
         <form onSubmit={handleStartTrip} className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
-          <InputField label="Vehicle Number" name="vehicle_number" value={formData.vehicle_number} onChange={handleStartChange} uppercase />
+          <SelectField label="Vehicle Number" name="vehicle_number" value={formData.vehicle_number} onChange={handleStartChange} options={vehicles} />
           <InputField label="Reporting Time" type="time" name="reporting_time" value={formData.reporting_time} onChange={handleStartChange} />
           <InputField label="Out KM" type="number" name="out_km" value={formData.out_km} onChange={handleStartChange} />
           <InputField label="Date (Auto)" type="date" name="date" value={formData.date} onChange={handleStartChange} />
@@ -132,18 +141,25 @@ function DriverPanel({ userName }) {
         {trips.filter(t => t.status === 'Started').map(trip => (
           <div key={trip.id} className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
             <div className="flex justify-between items-center mb-4">
-              <div><span className="font-bold text-lg">{trip.vehicle_number}</span><span className="text-slate-500 ml-2">({trip.date})</span></div>
+              <div><span className="font-bold text-xl">{trip.vehicle_number}</span><span className="text-slate-500 ml-2 font-medium">({trip.date})</span></div>
               <StatusBadge status={trip.status} />
             </div>
+            
+            <div className="mb-6 text-sm font-semibold text-slate-700 bg-slate-50 p-3 rounded-lg border border-slate-200 inline-block">
+              🚀 Started Journey at: <span className="text-indigo-600 font-bold text-base ml-1">{trip.out_km} KM</span>
+            </div>
+
             {activeEndTrip === trip.id ? (
-              <form onSubmit={(e) => handleEndTrip(e, trip.id)} className="flex gap-4 items-end bg-slate-50 p-4 rounded-xl">
-                <div className="flex-1"><InputField label="In KM" type="number" name="in_km" value={endData.in_km} onChange={handleEndChange} /></div>
-                <div className="flex-1"><InputField label="In Time (Auto)" type="time" name="in_time" value={endData.in_time} onChange={handleEndChange} /></div>
-                <button type="submit" className="bg-emerald-600 text-white px-6 py-3 rounded-xl font-bold">Complete</button>
-                <button type="button" onClick={() => setActiveEndTrip(null)} className="text-slate-500 px-4">Cancel</button>
+              <form onSubmit={(e) => handleEndTrip(e, trip)} className="flex flex-col md:flex-row gap-4 items-end bg-slate-50 p-4 rounded-xl border border-slate-200">
+                <div className="flex-1 w-full"><InputField label="In KM" type="number" name="in_km" value={endData.in_km} onChange={handleEndChange} /></div>
+                <div className="flex-1 w-full"><InputField label="In Time (Auto)" type="time" name="in_time" value={endData.in_time} onChange={handleEndChange} /></div>
+                <button type="submit" className="bg-emerald-600 text-white px-6 py-3 rounded-xl font-bold w-full md:w-auto">Complete</button>
+                <button type="button" onClick={() => setActiveEndTrip(null)} className="text-slate-500 px-4 font-semibold w-full md:w-auto">Cancel</button>
               </form>
             ) : (
-              <button onClick={() => setActiveEndTrip(trip.id)} className="bg-slate-900 text-white px-6 py-2 rounded-lg font-semibold">Log Arrival (In KM)</button>
+              <div>
+                <button onClick={() => setActiveEndTrip(trip.id)} className="bg-slate-900 text-white px-6 py-3 rounded-xl font-bold shadow-md hover:bg-slate-800 transition-colors">Log Arrival (In KM)</button>
+              </div>
             )}
           </div>
         ))}
@@ -158,9 +174,12 @@ function SupervisorPanel() {
   const [trips, setTrips] = useState([]);
   const [users, setUsers] = useState([]);
   const [vendors, setVendors] = useState([]);
+  const [vehicles, setVehicles] = useState([]);
+  
   const [reviewTrip, setReviewTrip] = useState(null);
   const [reviewData, setReviewData] = useState({ vehicle_type: '', vehicle_mode: '', body_type: '', vendor_name: '', helper_name: '' });
   const [driverForm, setDriverForm] = useState({ username: '', password: '', name: '', phone: '' });
+  const [vehicleForm, setVehicleForm] = useState('');
 
   const vehicleTypes = ["Tata Ace", "Intra", "Bolero Pickup", "Verro", "Bara Dast", "10' FT", "14' FT", "17' FT", "20' FT", "22' FT", "32' FT SXL", "32' FT MXL"];
   
@@ -169,6 +188,7 @@ function SupervisorPanel() {
     API.get('/trips/').then(res => setTrips(res.data)).catch(console.error);
     API.get('/users/all').then(res => setUsers(res.data)).catch(console.error);
     API.get('/vendors_list/').then(res => setVendors(res.data.map(v => v.name))).catch(console.error);
+    API.get('/vehicles_list/').then(res => setVehicles(res.data)).catch(console.error);
   };
 
   const handleReviewSubmit = async (e) => {
@@ -187,25 +207,25 @@ function SupervisorPanel() {
     } catch (err) { alert("Failed to create driver."); }
   };
 
-  // Helper to find driver name
-  const getDriverName = (driverId) => {
-    const driver = users.find(u => u.id === driverId);
-    return driver ? driver.name : 'Unknown Driver';
+  const handleAddVehicle = async (e) => {
+    e.preventDefault();
+    try {
+      await API.post('/vehicles_list/', { vehicle_number: vehicleForm.toUpperCase() });
+      setVehicleForm(''); fetchAllData(); alert("Vehicle Added Successfully!");
+    } catch (err) { alert("Error adding vehicle. It might already exist."); }
   };
 
-  // Helper to find what vehicle a driver is currently driving
-  const getActiveVehicle = (driverId) => {
-    const active = trips.find(t => t.driver_id === driverId && t.status === 'Started');
-    return active ? active.vehicle_number : 'Available (No Active Trip)';
-  };
+  const getDriverName = (driverId) => { const driver = users.find(u => u.id === driverId); return driver ? driver.name : 'Unknown Driver'; };
+  const getActiveVehicle = (driverId) => { const active = trips.find(t => t.driver_id === driverId && t.status === 'Started'); return active ? active.vehicle_number : 'Available (No Active Trip)'; };
 
   return (
     <div className="p-4 md:p-8 max-w-7xl mx-auto">
       <h2 className="text-3xl font-extrabold mb-6">Supervisor Dispatch Center</h2>
-      <div className="flex space-x-2 mb-6 bg-slate-200/50 p-1.5 rounded-xl inline-flex">
+      <div className="flex flex-wrap gap-2 mb-6 bg-slate-200/50 p-1.5 rounded-xl inline-flex">
         <button onClick={() => setActiveTab('trips')} className={`px-5 py-2.5 rounded-lg font-bold transition-all ${activeTab === 'trips' ? 'bg-white text-indigo-700 shadow-sm' : 'text-slate-500'}`}>Review Trips</button>
         <button onClick={() => setActiveTab('fleet')} className={`px-5 py-2.5 rounded-lg font-bold transition-all ${activeTab === 'fleet' ? 'bg-white text-indigo-700 shadow-sm' : 'text-slate-500'}`}>My Fleet Overview</button>
         <button onClick={() => setActiveTab('drivers')} className={`px-5 py-2.5 rounded-lg font-bold transition-all ${activeTab === 'drivers' ? 'bg-white text-indigo-700 shadow-sm' : 'text-slate-500'}`}>Add New Driver</button>
+        <button onClick={() => setActiveTab('vehicles')} className={`px-5 py-2.5 rounded-lg font-bold transition-all ${activeTab === 'vehicles' ? 'bg-white text-indigo-700 shadow-sm' : 'text-slate-500'}`}>Manage Vehicles</button>
       </div>
 
       {activeTab === 'trips' && (
@@ -263,6 +283,24 @@ function SupervisorPanel() {
         </div>
       )}
 
+      {activeTab === 'vehicles' && (
+        <div className="bg-white p-8 rounded-2xl shadow-xl max-w-lg border border-slate-100">
+          <h3 className="text-xl font-bold mb-4">Register New Vehicle</h3>
+          <form onSubmit={handleAddVehicle} className="flex flex-col gap-4 mb-6">
+            <InputField label="Vehicle Number (e.g., WB 12 3456)" value={vehicleForm} onChange={e => setVehicleForm(e.target.value)} uppercase pattern="^WB[-\s]?\d{1,2}[-\s]?[A-Za-z]{0,2}[-\s]?\d{4}$" title="Must start with WB, followed by digits and letters (e.g., WB123456, WB 12 AB 3456)" />
+            <button type="submit" className="bg-indigo-600 text-white py-3 rounded-xl font-bold hover:bg-indigo-700">Add to System</button>
+          </form>
+          <h4 className="text-sm font-bold text-slate-400 uppercase tracking-wider border-b pb-2 mb-4">Approved Vehicles</h4>
+          <div className="grid grid-cols-2 gap-2">
+            {vehicles.map(v => (
+              <div key={v.id} className="bg-slate-50 p-2 rounded-lg border text-sm font-bold text-slate-700 flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-emerald-500"></span>{v.vehicle_number}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {reviewTrip && (
         <div className="fixed inset-0 bg-slate-900/60 flex items-center justify-center p-4 z-50">
           <div className="bg-white p-8 rounded-3xl w-full max-w-lg">
@@ -291,16 +329,27 @@ function AdminPanel() {
   const [trips, setTrips] = useState([]);
   const [users, setUsers] = useState([]);
   const [vendors, setVendors] = useState([]);
+  const [vehicles, setVehicles] = useState([]);
+  
   const [billingTrip, setBillingTrip] = useState(null);
-  const [billData, setBillData] = useState({ toll_money: '', fuel_litres: '', fuel_price: '', police_fines: '', overtime_money: '', driver_cost: '', vehicle_charged: '', billing_amount: '' });
+  
+  // Updated state with miscellaneous_cost and fixed_cost
+  const [billData, setBillData] = useState({ 
+    toll_money: '', fuel_litres: '', fuel_price: '', police_fines: '', 
+    overtime_money: '', miscellaneous_cost: '', fixed_cost: '', 
+    driver_cost: '', vehicle_charged: '', billing_amount: '' 
+  });
+  
   const [supForm, setSupForm] = useState({ username: '', password: '', name: '', phone: '' });
   const [vendorName, setVendorName] = useState('');
+  const [vehicleForm, setVehicleForm] = useState('');
 
   useEffect(() => { fetchAllData(); }, []);
   const fetchAllData = () => {
     API.get('/trips/').then(res => setTrips(res.data)).catch(console.error);
     API.get('/users/all').then(res => setUsers(res.data)).catch(console.error);
     API.get('/vendors_list/').then(res => setVendors(res.data)).catch(console.error);
+    API.get('/vehicles_list/').then(res => setVehicles(res.data)).catch(console.error);
   };
 
   const handleBillSubmit = async (e) => {
@@ -323,25 +372,21 @@ function AdminPanel() {
   const handleAddVendor = async (e) => {
     e.preventDefault();
     try {
-      await API.post('/vendors_list/', { name: vendorName });
-      setVendorName(''); fetchAllData();
+      await API.post('/vendors_list/', { name: vendorName }); setVendorName(''); fetchAllData();
     } catch (err) { alert("Error adding vendor."); }
   };
 
-  const getDriverName = (driverId) => {
-    const driver = users.find(u => u.id === driverId);
-    return driver ? driver.name : 'Unknown';
+  const handleAddVehicle = async (e) => {
+    e.preventDefault();
+    try {
+      await API.post('/vehicles_list/', { vehicle_number: vehicleForm.toUpperCase() });
+      setVehicleForm(''); fetchAllData(); alert("Vehicle Added Successfully!");
+    } catch (err) { alert("Error adding vehicle. It might already exist."); }
   };
 
-  const getSupervisorName = (supId) => {
-    const sup = users.find(u => u.id === supId);
-    return sup ? sup.name : 'Unknown';
-  };
-
-  const getActiveVehicle = (driverId) => {
-    const active = trips.find(t => t.driver_id === driverId && t.status === 'Started');
-    return active ? active.vehicle_number : 'Available (No active trip)';
-  };
+  const getDriverName = (driverId) => { const driver = users.find(u => u.id === driverId); return driver ? driver.name : 'Unknown'; };
+  const getSupervisorName = (supId) => { const sup = users.find(u => u.id === supId); return sup ? sup.name : 'Unknown'; };
+  const getActiveVehicle = (driverId) => { const active = trips.find(t => t.driver_id === driverId && t.status === 'Started'); return active ? active.vehicle_number : 'Available (No active trip)'; };
 
   return (
     <div className="p-4 md:p-8 max-w-7xl mx-auto">
@@ -351,13 +396,14 @@ function AdminPanel() {
         <button onClick={() => setActiveTab('fleet')} className={`px-5 py-2.5 rounded-lg font-bold transition-all ${activeTab === 'fleet' ? 'bg-white text-indigo-700 shadow-sm' : 'text-slate-500'}`}>Fleet Overview</button>
         <button onClick={() => setActiveTab('supervisors')} className={`px-5 py-2.5 rounded-lg font-bold transition-all ${activeTab === 'supervisors' ? 'bg-white text-indigo-700 shadow-sm' : 'text-slate-500'}`}>Add Supervisor</button>
         <button onClick={() => setActiveTab('vendors')} className={`px-5 py-2.5 rounded-lg font-bold transition-all ${activeTab === 'vendors' ? 'bg-white text-indigo-700 shadow-sm' : 'text-slate-500'}`}>Manage Vendors</button>
+        <button onClick={() => setActiveTab('vehicles')} className={`px-5 py-2.5 rounded-lg font-bold transition-all ${activeTab === 'vehicles' ? 'bg-white text-indigo-700 shadow-sm' : 'text-slate-500'}`}>Manage Vehicles</button>
       </div>
 
       {activeTab === 'trips' && (
         <div className="bg-white rounded-2xl shadow-xl border border-slate-100 overflow-x-auto">
           <table className="min-w-full text-left text-sm whitespace-nowrap">
             <thead className="bg-slate-50 border-b">
-              <tr><th className="p-4">ID</th><th className="p-4">Personnel</th><th className="p-4">Vehicle & Vendor</th><th className="p-4">Status</th><th className="p-4">Profit</th><th className="p-4">Action</th></tr>
+              <tr><th className="p-4">ID</th><th className="p-4">Personnel</th><th className="p-4">Vehicle & Vendor</th><th className="p-4">Status</th><th className="p-4">Total Cost</th><th className="p-4">Profit</th><th className="p-4">Action</th></tr>
             </thead>
             <tbody>
               {trips.map(trip => (
@@ -369,10 +415,14 @@ function AdminPanel() {
                   </td>
                   <td className="p-4">{trip.vehicle_number} <span className="block text-slate-500 text-xs">{trip.vendor_name || 'Unassigned'}</span></td>
                   <td className="p-4"><StatusBadge status={trip.status} /></td>
+                  <td className="p-4 font-bold text-rose-600">₹{trip.total_cost}</td>
                   <td className="p-4 font-bold text-emerald-600">₹{trip.profit}</td>
                   <td className="p-4">
                     {trip.status === 'Reviewed' && (
-                       <button onClick={() => { setBillingTrip(trip); setBillData({ toll_money: '', fuel_litres: '', fuel_price: '', police_fines: '', overtime_money: '', driver_cost: '', vehicle_charged: '', billing_amount: '' }); }} className="bg-emerald-100 text-emerald-700 px-4 py-2 rounded-lg font-bold hover:bg-emerald-200">Finalize Finances</button>
+                       <button onClick={() => { 
+                         setBillingTrip(trip); 
+                         setBillData({ toll_money: '', fuel_litres: '', fuel_price: '', police_fines: '', overtime_money: '', miscellaneous_cost: '', fixed_cost: '', driver_cost: '', vehicle_charged: '', billing_amount: '' }); 
+                       }} className="bg-emerald-100 text-emerald-700 px-4 py-2 rounded-lg font-bold hover:bg-emerald-200">Finalize Finances</button>
                     )}
                   </td>
                 </tr>
@@ -438,10 +488,34 @@ function AdminPanel() {
         </div>
       )}
 
+      {activeTab === 'vehicles' && (
+        <div className="bg-white p-8 rounded-2xl shadow-xl max-w-lg border border-slate-100">
+          <h3 className="text-xl font-bold mb-4">Register New Vehicle</h3>
+          <form onSubmit={handleAddVehicle} className="flex flex-col gap-4 mb-6">
+            <InputField label="Vehicle Number (e.g., WB 12 3456)" value={vehicleForm} onChange={e => setVehicleForm(e.target.value)} uppercase pattern="^WB[-\s]?\d{1,2}[-\s]?[A-Za-z]{0,2}[-\s]?\d{4}$" title="Must start with WB, followed by digits and letters (e.g., WB123456, WB 12 AB 3456)" />
+            <button type="submit" className="bg-indigo-600 text-white py-3 rounded-xl font-bold hover:bg-indigo-700">Add to System</button>
+          </form>
+          <h4 className="text-sm font-bold text-slate-400 uppercase tracking-wider border-b pb-2 mb-4">Approved Vehicles</h4>
+          <div className="grid grid-cols-2 gap-2">
+            {vehicles.map(v => (
+              <div key={v.id} className="bg-slate-50 p-2 rounded-lg border text-sm font-bold text-slate-700 flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-emerald-500"></span>{v.vehicle_number}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {billingTrip && (
         <div className="fixed inset-0 bg-slate-900/60 flex items-center justify-center p-4 z-50">
-          <div className="bg-white p-8 rounded-3xl w-full max-w-2xl max-h-screen overflow-y-auto">
+          <div className="bg-white p-8 rounded-3xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
             <h3 className="text-2xl font-bold mb-6">Finalize Billing (Trip #{billingTrip.id})</h3>
+            
+            {/* Show Mode Alert for Context */}
+            <div className={`p-3 rounded-lg font-bold mb-6 ${billingTrip.vehicle_mode === 'Dedicated' ? 'bg-purple-100 text-purple-800' : 'bg-slate-100 text-slate-800'}`}>
+              Vehicle Mode: {billingTrip.vehicle_mode || 'Not Specified'}
+            </div>
+
             <form onSubmit={handleBillSubmit} className="grid grid-cols-2 gap-4">
               <div className="col-span-2 border-b pb-2 mb-2 font-bold text-slate-500">Expenses (₹)</div>
               <InputField label="Toll Money" type="number" value={billData.toll_money} onChange={e => setBillData({...billData, toll_money: e.target.value})} />
@@ -450,6 +524,14 @@ function AdminPanel() {
               <InputField label="Fuel Price / L" type="number" value={billData.fuel_price} onChange={e => setBillData({...billData, fuel_price: e.target.value})} />
               <InputField label="Overtime Money" type="number" value={billData.overtime_money} onChange={e => setBillData({...billData, overtime_money: e.target.value})} />
               <InputField label="Driver Base Cost" type="number" value={billData.driver_cost} onChange={e => setBillData({...billData, driver_cost: e.target.value})} />
+              <InputField label="Miscellaneous Cost" type="number" value={billData.miscellaneous_cost} onChange={e => setBillData({...billData, miscellaneous_cost: e.target.value})} />
+              
+              {/* Only show Fixed Cost if the vehicle mode is Dedicated */}
+              {billingTrip.vehicle_mode === 'Dedicated' && (
+                <div className="col-span-2 md:col-span-1 bg-purple-50 p-2 rounded-xl border border-purple-200">
+                  <InputField label="Dedicated Fixed Cost" type="number" value={billData.fixed_cost} onChange={e => setBillData({...billData, fixed_cost: e.target.value})} />
+                </div>
+              )}
               
               <div className="col-span-2 border-b pb-2 mb-2 mt-4 font-bold text-slate-500">Client Billing (₹)</div>
               <InputField label="Vehicle Charged" type="number" value={billData.vehicle_charged} onChange={e => setBillData({...billData, vehicle_charged: e.target.value})} />

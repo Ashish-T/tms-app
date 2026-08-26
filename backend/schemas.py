@@ -48,6 +48,8 @@ class TripAdminUpdate(BaseModel):
     fuel_price: float
     police_fines: float
     overtime_money: float
+    miscellaneous_cost: float # <--- NEW
+    fixed_cost: float         # <--- NEW
     driver_cost: float
     vehicle_charged: float
     billing_amount: float
@@ -73,6 +75,8 @@ class TripLogResponse(BaseModel):
     fuel_litres: float
     fuel_price: float
     police_fines: float
+    miscellaneous_cost: float # <--- NEW
+    fixed_cost: float         # <--- NEW
     overtime_money: float
     driver_cost: float
     vehicle_charged: float
@@ -81,11 +85,18 @@ class TripLogResponse(BaseModel):
     profit: float
     model_config = ConfigDict(from_attributes=True)
 
-# --- RE-ADDED FOR DROPDOWNS ---
 class DropdownItemCreate(BaseModel):
     name: str
 
 class DropdownItemResponse(BaseModel):
     id: int
     name: str
+    model_config = ConfigDict(from_attributes=True)
+
+class VehicleCreate(BaseModel):
+    vehicle_number: str
+
+class VehicleResponse(BaseModel):
+    id: int
+    vehicle_number: str
     model_config = ConfigDict(from_attributes=True)
