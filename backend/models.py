@@ -14,12 +14,16 @@ connect_args = {"check_same_thread": False} if DATABASE_URL.startswith("sqlite")
 engine = create_engine(DATABASE_URL, connect_args=connect_args)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
+# --- THE SINGLE TRIP LOG TABLE ---
 class TripLog(Base):
     __tablename__ = 'trip_logs'
+    extend_existing = True # This tells SQLAlchemy to safely update if needed
+    
     id = Column(Integer, primary_key=True)
     date = Column(String)
     vehicle_number = Column(String)
     vehicle_type = Column(String)
+    vehicle_mode = Column(String)
     reporting_time = Column(String)
     out_time = Column(String)
     out_km = Column(Float)
@@ -33,14 +37,16 @@ class TripLog(Base):
     fuel_litres = Column(Float, default=0.0)
     fuel_price = Column(Float, default=0.0)
     police_fines = Column(Float, default=0.0)
+    
     driver_cost = Column(Float, default=0.0)
     vehicle_charged = Column(Float, default=0.0)
     billing_amount = Column(Float, default=0.0)
     total_cost = Column(Float, default=0.0)
     profit = Column(Float, default=0.0)
+    
     is_billed = Column(Boolean, default=False)
 
-# --- NEW TABLES FOR ADMIN DROPDOWNS ---
+# --- ADMIN DROPDOWN TABLES ---
 class DriverList(Base):
     __tablename__ = 'driver_list'
     id = Column(Integer, primary_key=True)
@@ -50,13 +56,3 @@ class VendorList(Base):
     __tablename__ = 'vendor_list'
     id = Column(Integer, primary_key=True)
     name = Column(String, unique=True)
-
-class TripLog(Base):
-    __tablename__ = 'trip_logs'
-    id = Column(Integer, primary_key=True)
-    date = Column(String)
-    vehicle_number = Column(String)
-    vehicle_type = Column(String)
-    vehicle_mode = Column(String) # <--- ADD THIS LINE
-    reporting_time = Column(String)
-    # ... (keep the rest of the file exactly the same)
