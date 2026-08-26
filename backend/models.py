@@ -25,7 +25,7 @@ class User(Base):
     supervisor_id = Column(Integer, ForeignKey('users.id'), nullable=True)
 
 class TripLog(Base):
-    __tablename__ = 'trip_logs_v4' # <--- V4 Database Upgrade
+    __tablename__ = 'trip_logs_v5' # <--- V4 Database Upgrade
     id = Column(Integer, primary_key=True)
     
     driver_id = Column(Integer, ForeignKey('users.id'))
