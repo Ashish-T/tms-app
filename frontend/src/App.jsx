@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Link, useLocation } from 'react-router-dom';
 import API from './api';
 
-// --- STRICT NUMBER INPUT HANDLER ---
 const blockInvalidChars = (e) => {
   if (['e', 'E', '+', '-'].includes(e.key)) e.preventDefault();
 };
@@ -23,7 +22,7 @@ const InputField = ({ label, name, type = "text", value, onChange, placeholder, 
 const SelectField = ({ label, name, value, onChange, options }) => (
   <div className="flex flex-col space-y-1.5">
     <label className="text-sm font-semibold text-slate-700">{label}</label>
-    <select name={name} value={value} onChange={onChange} required className="bg-slate-50 border border-slate-200 text-slate-900 rounded-xl focus:ring-4 focus:ring-indigo-500/20 focus:border-indigo-500 block w-full p-3 transition-all outline-none">
+    <select name={name} value={value} onChange={onChange} required className="bg-slate-50 border border-slate-200 text-slate-900 rounded-xl focus:ring-4 focus:ring-indigo-500/20 focus:border-indigo-500 block w-full p-3 transition-all outline-none max-h-48 overflow-y-auto">
       <option value="">-- Select --</option>
       {options.map((opt, i) => <option key={i} value={opt}>{opt}</option>)}
     </select>
@@ -46,22 +45,26 @@ const DetailItem = ({ label, value }) => (
   </div>
 );
 
-// --- HELPER: GET CURRENT TIME ---
-const getCurrentTime = () => {
-  const now = new Date();
-  return now.toTimeString().slice(0, 5); // Formats to HH:MM for time inputs
-};
+// --- HELPERS ---
+const getCurrentTime = () => new Date().toTimeString().slice(0, 5);
+const getCurrentDate = () => new Date().toISOString().split('T')[0];
 
 // --- DRIVER PANEL ---
 function DriverPanel() {
   const [formData, setFormData] = useState({
-    date: '', vehicle_number: '', vehicle_type: '', vehicle_mode: '', reporting_time: '', out_time: '', out_km: '', in_time: '', in_km: '', driver_name: '', mobile_number: '', vendor_name: '', helper_name: '', toll_money: '', fuel_litres: '', fuel_price: '', police_fines: ''
+    date: '', vehicle_number: '', vehicle_type: '', vehicle_mode: '', body_type: '', reporting_time: '', out_time: '', out_km: '', in_time: '', in_km: '', driver_name: '', mobile_number: '', vendor_name: '', helper_name: '', toll_money: '', fuel_litres: '', fuel_price: '', police_fines: ''
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [drivers, setDrivers] = useState([]);
   const [vendors, setVendors] = useState([]);
-  const vehicleTypes = ["Truck - 18 Wheeler", "Truck - 10 Wheeler", "Mini Truck", "Van", "Flatbed", "Refrigerated"];
+  
+  // Updated Lists
+  const vehicleTypes = [
+    "Tata Ace", "Intra", "Bolero Pickup", "Verro", "Bara Dast", 
+    "10' FT", "14' FT", "17' FT", "20' FT", "22' FT", "32' FT SXL", "32' FT MXL"
+  ];
   const vehicleModes = ["Adhoc", "Dedicated"];
+  const bodyTypes = ["Open", "Closed"];
 
   useEffect(() => {
     API.get('/drivers_list/').then(res => setDrivers(res.data.map(d => d.name))).catch(err => console.error(err));
@@ -70,6 +73,13 @@ function DriverPanel() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    
+    // Strict KM Validation
+    if (Number(formData.in_km) > 0 && Number(formData.in_km) <= Number(formData.out_km)) {
+      alert("⚠️ Error: The 'In KM' reading must be higher than the 'Out KM' reading.");
+      return;
+    }
+
     setIsSubmitting(true);
     const payload = { ...formData, vehicle_number: formData.vehicle_number.toUpperCase() };
     const numericFields = ['out_km', 'in_km', 'toll_money', 'fuel_litres', 'fuel_price', 'police_fines'];
@@ -78,7 +88,7 @@ function DriverPanel() {
     try {
       await API.post('/trips/', payload);
       alert("✨ Journey Logged Successfully!");
-      setFormData({ date: '', vehicle_number: '', vehicle_type: '', vehicle_mode: '', reporting_time: '', out_time: '', out_km: '', in_time: '', in_km: '', driver_name: '', mobile_number: '', vendor_name: '', helper_name: '', toll_money: '', fuel_litres: '', fuel_price: '', police_fines: '' });
+      setFormData({ date: '', vehicle_number: '', vehicle_type: '', vehicle_mode: '', body_type: '', reporting_time: '', out_time: '', out_km: '', in_time: '', in_km: '', driver_name: '', mobile_number: '', vendor_name: '', helper_name: '', toll_money: '', fuel_litres: '', fuel_price: '', police_fines: '' });
       setIsSubmitting(false);
       window.location.reload();
     } catch (error) {
@@ -89,20 +99,18 @@ function DriverPanel() {
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    
     setFormData(prev => {
       const newData = { ...prev, [name]: value };
 
-      // Auto-fill Out Time when Out KM is typed (if empty)
-      if (name === 'out_km' && value !== '' && !prev.out_time) {
-        newData.out_time = getCurrentTime();
+      // Auto-fill time AND Date when KMs are typed
+      if (name === 'out_km' && value !== '') {
+        if (!prev.out_time) newData.out_time = getCurrentTime();
+        if (!prev.date) newData.date = getCurrentDate();
       }
-      
-      // Auto-fill In Time when In KM is typed (if empty)
-      if (name === 'in_km' && value !== '' && !prev.in_time) {
-        newData.in_time = getCurrentTime();
+      if (name === 'in_km' && value !== '') {
+        if (!prev.in_time) newData.in_time = getCurrentTime();
+        if (!prev.date) newData.date = getCurrentDate();
       }
-
       return newData;
     });
   };
@@ -116,20 +124,31 @@ function DriverPanel() {
       <form onSubmit={handleSubmit} className="space-y-6">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8">
           <Card title="Trip Details" icon="🚛">
-            <InputField label="Date" name="date" type="date" value={formData.date} onChange={handleChange} />
             <InputField label="Vehicle Number" name="vehicle_number" value={formData.vehicle_number} onChange={handleChange} uppercase placeholder="WB 12 3456" pattern="^WB[-\s]?\d{1,2}[-\s]?[A-Za-z]{0,2}[-\s]?\d{4}$" title="Must start with WB, followed by 1 or 2 digits, and end with 4 digits. (e.g., WB123456, WB 12 AB 3456)" />
             <SelectField label="Vehicle Type" name="vehicle_type" value={formData.vehicle_type} onChange={handleChange} options={vehicleTypes} />
             <SelectField label="Vehicle Mode" name="vehicle_mode" value={formData.vehicle_mode} onChange={handleChange} options={vehicleModes} />
+            <SelectField label="Body Type" name="body_type" value={formData.body_type} onChange={handleChange} options={bodyTypes} />
             <SelectField label="Vendor Name" name="vendor_name" value={formData.vendor_name} onChange={handleChange} options={vendors} />
           </Card>
-          <Card title="Time & Odometer (Digits Only)" icon="⏱️">
+          
+          <Card title="Time & Odometer" icon="⏱️">
+            <InputField label="Trip Date (Auto-fills)" name="date" type="date" value={formData.date} onChange={handleChange} />
             <InputField label="Reporting Time" name="reporting_time" type="time" value={formData.reporting_time} onChange={handleChange} />
-            <div className="hidden sm:block"></div> {/* Spacer to align fields properly */}
+            
             <InputField label="Out KM" name="out_km" type="number" value={formData.out_km} onChange={handleChange} />
             <InputField label="Out Time (Auto-fills)" name="out_time" type="time" value={formData.out_time} onChange={handleChange} />
+            
             <InputField label="In KM" name="in_km" type="number" value={formData.in_km} onChange={handleChange} />
             <InputField label="In Time (Auto-fills)" name="in_time" type="time" value={formData.in_time} onChange={handleChange} />
+            
+            {/* Visual warning if time rolls over to next day */}
+            {formData.out_time && formData.in_time && (formData.in_time < formData.out_time) && (
+              <div className="col-span-full mt-2 bg-amber-50 text-amber-700 p-2 rounded-lg text-sm border border-amber-200">
+                ℹ️ Notice: Arrival time is earlier than departure time. Assuming arrival is on the next date.
+              </div>
+            )}
           </Card>
+
           <Card title="Personnel" icon="👥">
             <SelectField label="Driver Name" name="driver_name" value={formData.driver_name} onChange={handleChange} options={drivers} />
             <InputField label="Mobile Number" name="mobile_number" type="number" value={formData.mobile_number} onChange={handleChange} placeholder="10 Digit Mobile" />
@@ -240,17 +259,21 @@ function AdminPanel() {
                             <DetailItem label="Vendor" value={trip.vendor_name} />
                             <DetailItem label="Vehicle Type" value={trip.vehicle_type} />
                             <DetailItem label="Mode" value={trip.vehicle_mode} />
+                            <DetailItem label="Body Type" value={trip.body_type} />
                             <DetailItem label="Mobile" value={trip.mobile_number} />
+                            
                             <DetailItem label="Helper" value={trip.helper_name} />
                             <DetailItem label="Reporting Time" value={trip.reporting_time} />
                             <DetailItem label="Out Time" value={trip.out_time} />
                             <DetailItem label="In Time" value={trip.in_time} />
                             <DetailItem label="Out KM" value={trip.out_km} />
+                            
                             <DetailItem label="In KM" value={trip.in_km} />
                             <DetailItem label="Toll Paid" value={`₹${trip.toll_money}`} />
                             <DetailItem label="Fuel (Litres)" value={`${trip.fuel_litres} L`} />
                             <DetailItem label="Fuel Rate" value={`₹${trip.fuel_price}/L`} />
                             <DetailItem label="Police Fines" value={`₹${trip.police_fines}`} />
+                            
                             {trip.is_billed && (<><DetailItem label="Admin: Driver Cost" value={`₹${trip.driver_cost}`} /><DetailItem label="Admin: Vehicle Chrg." value={`₹${trip.vehicle_charged}`} /></>)}
                           </div>
                         </td>

@@ -25,6 +25,7 @@ class TripLog(Base):
     vehicle_type = Column(String)
     vehicle_mode = Column(String)
     reporting_time = Column(String)
+    body_type = Column(String)
     out_time = Column(String)
     out_km = Column(Float)
     in_time = Column(String)
