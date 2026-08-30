@@ -53,7 +53,6 @@ def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(
     if user is None: raise HTTPException(status_code=401, detail="User not found")
     return user
 
-# --- AUTH ROUTES & USERS ---
 @app.post("/login", response_model=schemas.Token)
 def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
     user = db.query(models.User).filter(models.User.username == form_data.username).first()
@@ -96,12 +95,9 @@ def create_driver(user: schemas.UserCreate, db: Session = Depends(get_db), curre
 def delete_user(user_id: int, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
     if current_user.role != "admin": raise HTTPException(status_code=403, detail="Not authorized")
     obj = db.query(models.User).filter(models.User.id == user_id).first()
-    if obj:
-        db.delete(obj)
-        db.commit()
+    if obj: db.delete(obj); db.commit()
     return {"ok": True}
 
-# --- PIPELINE: COLLABORATIVE TRIPS ---
 @app.post("/trips/", response_model=schemas.TripLogResponse)
 def create_trip(trip: schemas.TripSupervisorCreate, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
     if current_user.role != "supervisor": raise HTTPException(status_code=403, detail="Only supervisors can create trips")
@@ -189,10 +185,8 @@ def supervisor_expenses(trip_id: int, expenses: schemas.TripFinancialsUpdate, db
     for key, value in expenses.model_dump().items(): setattr(db_trip, key, value)
     
     fuel_cost = expenses.fuel_litres * expenses.fuel_price
-    # NOW ADDING OVERTIME TO THE RUNNING COST
     db_trip.total_running_cost = fuel_cost + expenses.toll_charges + expenses.other_expenses + expenses.driver_cost + expenses.overtime_allowance + expenses.vehicle_cost
     db_trip.profit = expenses.b2c_billing - db_trip.total_running_cost
-    
     db.commit()
     db.refresh(db_trip)
     return db_trip
@@ -206,11 +200,9 @@ def admin_finalize(trip_id: int, billing: schemas.TripFinancialsUpdate, db: Sess
     for key, value in billing.model_dump().items(): setattr(db_trip, key, value)
     
     fuel_cost = billing.fuel_litres * billing.fuel_price
-    # NOW ADDING OVERTIME TO THE RUNNING COST
     db_trip.total_running_cost = fuel_cost + billing.toll_charges + billing.other_expenses + billing.driver_cost + billing.overtime_allowance + billing.vehicle_cost
     db_trip.profit = billing.b2c_billing - db_trip.total_running_cost
     db_trip.status = "Billed"
-    
     db.commit()
     db.refresh(db_trip)
     return db_trip
@@ -233,7 +225,6 @@ def get_trips(db: Session = Depends(get_db), current_user: models.User = Depends
     elif current_user.role == "driver": return db.query(models.TripLog).filter(models.TripLog.driver_id == current_user.id).order_by(models.TripLog.id.desc()).all()
     return []
 
-# --- VENDORS, CLIENTS & VEHICLES DROPDOWNS ---
 @app.get("/vendors_list/", response_model=List[schemas.DropdownItemResponse])
 def get_vendors(db: Session = Depends(get_db)): return db.query(models.VendorList).all()
 

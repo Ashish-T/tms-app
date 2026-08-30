@@ -25,13 +25,12 @@ class User(Base):
     supervisor_id = Column(Integer, ForeignKey('users.id'), nullable=True)
 
 class TripLog(Base):
-    __tablename__ = 'trip_logs_v9' # <--- Upgraded to V9 for Attendance & Overtime Tracking
+    __tablename__ = 'trip_logs_v10' # <--- Upgraded to V10
     id = Column(Integer, primary_key=True)
     driver_id = Column(Integer, ForeignKey('users.id'))
     supervisor_id = Column(Integer, ForeignKey('users.id'))
     status = Column(String, default="Started") 
     
-    # TRIP DETAILS
     date = Column(String)
     vehicle_number = Column(String)
     reporting_time = Column(String)
@@ -48,14 +47,13 @@ class TripLog(Base):
     source = Column(String, nullable=True)     
     destination = Column(String, nullable=True)
     
-    # FINANCES, ATTENDANCE & B2C
     fuel_litres = Column(Float, default=0.0)
     fuel_price = Column(Float, default=0.0)
     toll_charges = Column(Float, default=0.0)
     other_expenses = Column(Float, default=0.0)
     driver_cost = Column(Float, default=0.0)
-    trip_days = Column(Float, default=1.0)          # <--- NEW: Attendance Tracking
-    overtime_allowance = Column(Float, default=0.0) # <--- NEW: Overtime Tracking
+    trip_days = Column(Float, default=1.0)          
+    overtime_allowance = Column(Float, default=0.0) 
     vehicle_cost_type = Column(String, nullable=True)
     vehicle_cost = Column(Float, default=0.0)
     b2c_billing = Column(Float, default=0.0)
@@ -67,7 +65,7 @@ class VendorList(Base):
     id = Column(Integer, primary_key=True)
     name = Column(String, unique=True)
 
-class ClientList(Base): # <--- NEW
+class ClientList(Base):
     __tablename__ = 'client_list'
     id = Column(Integer, primary_key=True)
     name = Column(String, unique=True)
