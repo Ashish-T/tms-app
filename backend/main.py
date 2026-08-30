@@ -258,6 +258,55 @@ def add_vehicle(vehicle: schemas.VehicleCreate, db: Session = Depends(get_db), c
     db.refresh(db_vehicle)
     return db_vehicle
 
+# --- SUPERVISOR EXPENSES ---
+@app.patch("/trips/{trip_id}/supervisor_expenses", response_model=schemas.TripLogResponse)
+def supervisor_expenses(trip_id: int, expenses: schemas.TripSupervisorExpensesUpdate, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
+    if current_user.role not in ["supervisor", "admin"]:
+        raise HTTPException(status_code=403, detail="Only supervisors and admins can add expenses here")
+        
+    db_trip = db.query(models.TripLog).filter(models.TripLog.id == trip_id).first()
+    if not db_trip:
+        raise HTTPException(status_code=404, detail="Trip not found")
+        
+    for key, value in expenses.model_dump().items():
+        setattr(db_trip, key, value)
+        
+    db.commit()
+    db.refresh(db_trip)
+    return db_trip
+
+# --- DELETION ENDPOINTS ---
+@app.delete("/vehicles_list/{vehicle_id}")
+def delete_vehicle(vehicle_id: int, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
+    if current_user.role not in ["admin", "supervisor"]:
+        raise HTTPException(status_code=403, detail="Not authorized")
+    obj = db.query(models.VehicleList).filter(models.VehicleList.id == vehicle_id).first()
+    if obj:
+        db.delete(obj)
+        db.commit()
+    return {"ok": True}
+
+@app.delete("/vendors_list/{vendor_id}")
+def delete_vendor(vendor_id: int, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
+    if current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="Not authorized")
+    obj = db.query(models.VendorList).filter(models.VendorList.id == vendor_id).first()
+    if obj:
+        db.delete(obj)
+        db.commit()
+    return {"ok": True}
+
+@app.delete("/users/{user_id}")
+def delete_user(user_id: int, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
+    if current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="Not authorized")
+    obj = db.query(models.User).filter(models.User.id == user_id).first()
+    if obj:
+        db.delete(obj)
+        db.commit()
+    return {"ok": True}
+
+
 # BOOT SEQUENCE
 @app.on_event("startup")
 def on_startup():

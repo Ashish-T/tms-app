@@ -42,6 +42,17 @@ class TripSupervisorUpdate(BaseModel):
     vendor_name: str
     helper_name: str
 
+class TripSupervisorExpensesUpdate(BaseModel):
+    fuel_litres: float
+    fuel_price: float
+    toll_charges: float
+    parking_charges: float
+    entry_charges: float
+    loading_charges: float
+    unloading_charges: float
+    police_fines: float
+    other_expenses: float
+
 class TripAdminUpdate(BaseModel):
     fuel_litres: float
     fuel_price: float
