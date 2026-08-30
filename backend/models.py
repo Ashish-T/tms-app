@@ -25,7 +25,7 @@ class User(Base):
     supervisor_id = Column(Integer, ForeignKey('users.id'), nullable=True)
 
 class TripLog(Base):
-    __tablename__ = 'trip_logs_v8' # <--- Upgraded to V8 for simplified finances
+    __tablename__ = 'trip_logs_v9' # <--- Upgraded to V9 for Attendance & Overtime Tracking
     id = Column(Integer, primary_key=True)
     driver_id = Column(Integer, ForeignKey('users.id'))
     supervisor_id = Column(Integer, ForeignKey('users.id'))
@@ -48,15 +48,17 @@ class TripLog(Base):
     source = Column(String, nullable=True)     
     destination = Column(String, nullable=True)
     
-    # SIMPLIFIED FINANCES & B2C
+    # FINANCES, ATTENDANCE & B2C
     fuel_litres = Column(Float, default=0.0)
     fuel_price = Column(Float, default=0.0)
     toll_charges = Column(Float, default=0.0)
     other_expenses = Column(Float, default=0.0)
     driver_cost = Column(Float, default=0.0)
-    vehicle_cost_type = Column(String, nullable=True) # "Own Company" or "Third Party"
+    trip_days = Column(Float, default=1.0)          # <--- NEW: Attendance Tracking
+    overtime_allowance = Column(Float, default=0.0) # <--- NEW: Overtime Tracking
+    vehicle_cost_type = Column(String, nullable=True)
     vehicle_cost = Column(Float, default=0.0)
-    b2c_billing = Column(Float, default=0.0) # B2C Revenue
+    b2c_billing = Column(Float, default=0.0)
     total_running_cost = Column(Float, default=0.0) 
     profit = Column(Float, default=0.0) 
 
@@ -65,8 +67,13 @@ class VendorList(Base):
     id = Column(Integer, primary_key=True)
     name = Column(String, unique=True)
 
+class ClientList(Base): # <--- NEW
+    __tablename__ = 'client_list'
+    id = Column(Integer, primary_key=True)
+    name = Column(String, unique=True)
+
 class VehicleList(Base):
-    __tablename__ = 'vehicle_list_v2' # <--- Upgraded to support EMI
+    __tablename__ = 'vehicle_list_v2' 
     id = Column(Integer, primary_key=True)
     vehicle_number = Column(String, unique=True)
     ownership_type = Column(String, default="Third Party")

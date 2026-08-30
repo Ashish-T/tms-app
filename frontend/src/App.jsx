@@ -126,6 +126,7 @@ function DriverPanel({ userName }) {
         ))}
         {trips.filter(t => ['Approved', 'Reported', 'Started'].includes(t.status)).length === 0 && <div className="text-slate-500 italic">No dispatched trips waiting for you.</div>}
       </div>
+
       <h3 className="text-xl font-bold mb-4">Your Past Journeys</h3>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {trips.filter(t => !['Approved', 'Reported', 'Started', 'Pending Approval'].includes(t.status)).map(trip => (
@@ -145,6 +146,7 @@ function SupervisorPanel() {
   const [trips, setTrips] = useState([]);
   const [users, setUsers] = useState([]);
   const [vendors, setVendors] = useState([]);
+  const [clients, setClients] = useState([]);
   const [vehicles, setVehicles] = useState([]);
   
   const [dispatchData, setDispatchData] = useState({ driver_id: '', vehicle_number: '', date: getCurrentDate() });
@@ -157,7 +159,7 @@ function SupervisorPanel() {
   
   const [expenseTrip, setExpenseTrip] = useState(null);
   const [expTab, setExpTab] = useState('expenses');
-  const [expData, setExpData] = useState({ fuel_litres: '', fuel_price: '', toll_charges: '', other_expenses: '', driver_cost: '', vehicle_cost_type: '', vehicle_cost: '', b2c_billing: '' });
+  const [expData, setExpData] = useState({ fuel_litres: '', fuel_price: '', toll_charges: '', other_expenses: '', driver_cost: '', trip_days: 1, overtime_allowance: '', vehicle_cost_type: '', vehicle_cost: '', b2c_billing: '' });
 
   const [endingTrip, setEndingTrip] = useState(null);
   const [endData, setEndData] = useState({ in_km: '' });
@@ -172,6 +174,7 @@ function SupervisorPanel() {
     API.get('/trips/').then(res => setTrips(res.data)).catch(console.error);
     API.get('/users/all').then(res => setUsers(res.data)).catch(console.error);
     API.get('/vendors_list/').then(res => setVendors(res.data.map(v => v.name))).catch(console.error);
+    API.get('/clients_list/').then(res => setClients(res.data.map(c => c.name))).catch(console.error);
     API.get('/vehicles_list/').then(res => setVehicles(res.data)).catch(console.error);
   };
 
@@ -189,7 +192,12 @@ function SupervisorPanel() {
             autoCostType = 'Third Party';
         }
     }
-    setExpData({ fuel_litres: trip.fuel_litres || '', fuel_price: trip.fuel_price || '', toll_charges: trip.toll_charges || '', other_expenses: trip.other_expenses || '', driver_cost: trip.driver_cost || '', vehicle_cost_type: autoCostType || 'Third Party', vehicle_cost: autoCost, b2c_billing: trip.b2c_billing || '' });
+    setExpData({ 
+        fuel_litres: trip.fuel_litres || '', fuel_price: trip.fuel_price || '', toll_charges: trip.toll_charges || '', 
+        other_expenses: trip.other_expenses || '', driver_cost: trip.driver_cost || '', trip_days: trip.trip_days || 1, 
+        overtime_allowance: trip.overtime_allowance || '', vehicle_cost_type: autoCostType || 'Third Party', 
+        vehicle_cost: autoCost, b2c_billing: trip.b2c_billing || '' 
+    });
   };
 
   const handleExpenseSubmit = async (e) => {
@@ -206,7 +214,7 @@ function SupervisorPanel() {
   };
 
   const liveFuel = (Number(expData.fuel_litres)||0) * (Number(expData.fuel_price)||0);
-  const liveCost = liveFuel + (Number(expData.toll_charges)||0) + (Number(expData.other_expenses)||0) + (Number(expData.driver_cost)||0) + (Number(expData.vehicle_cost)||0);
+  const liveCost = liveFuel + (Number(expData.toll_charges)||0) + (Number(expData.other_expenses)||0) + (Number(expData.driver_cost)||0) + (Number(expData.overtime_allowance)||0) + (Number(expData.vehicle_cost)||0);
   const liveProfit = (Number(expData.b2c_billing)||0) - liveCost;
 
   const handleDispatch = async (e) => { e.preventDefault(); try { await API.post('/trips/', dispatchData); setDispatchData({ driver_id: '', vehicle_number: '', date: getCurrentDate() }); fetchAllData(); alert("Trip Dispatched!"); setActiveTab('trips'); } catch (err) { alert("Failed."); } };
@@ -289,8 +297,12 @@ function SupervisorPanel() {
                   <InputField label="Fuel Price / L" type="number" value={expData.fuel_price} onChange={e => setExpData({...expData, fuel_price: e.target.value})} />
                   <InputField label="Toll Charges" type="number" value={expData.toll_charges} onChange={e => setExpData({...expData, toll_charges: e.target.value})} />
                   <InputField label="Other Expenses" type="number" value={expData.other_expenses} onChange={e => setExpData({...expData, other_expenses: e.target.value})} />
-                  <div className="col-span-2 border-t pt-4 mt-2"><InputField label="Driver Cost" type="number" value={expData.driver_cost} onChange={e => setExpData({...expData, driver_cost: e.target.value})} /></div>
-                  <div className="col-span-2 grid grid-cols-2 gap-4">
+                  <div className="col-span-2 border-t pt-4 mt-2 grid grid-cols-3 gap-4">
+                    <InputField label="Driver Total Cost" type="number" value={expData.driver_cost} onChange={e => setExpData({...expData, driver_cost: e.target.value})} />
+                    <InputField label="Trip Days (Attendance)" type="number" value={expData.trip_days} onChange={e => setExpData({...expData, trip_days: e.target.value})} />
+                    <InputField label="Overtime Allowance" type="number" value={expData.overtime_allowance} onChange={e => setExpData({...expData, overtime_allowance: e.target.value})} />
+                  </div>
+                  <div className="col-span-2 grid grid-cols-2 gap-4 border-t pt-4 mt-2">
                     <SelectField label="Vehicle Cost Type" value={expData.vehicle_cost_type} onChange={e => setExpData({...expData, vehicle_cost_type: e.target.value, vehicle_cost: ''})} options={['Own Company', 'Third Party']} />
                     <InputField label="Vehicle Cost" type="number" value={expData.vehicle_cost} disabled={expData.vehicle_cost_type === 'Own Company'} onChange={e => setExpData({...expData, vehicle_cost: e.target.value})} placeholder={expData.vehicle_cost_type === 'Own Company' ? "Auto-calculated (EMI/30)" : "Enter Manual Cost"} />
                   </div>
@@ -315,7 +327,6 @@ function SupervisorPanel() {
         </div>
       )}
 
-      {/* SHUFFLE, REVIEW, VIEW DETAILS & ARRIVAL MODALS OMITTED FOR BREVITY BUT IDENTICAL TO BEFORE */}
       {shuffleTrip && (
         <div className="fixed inset-0 bg-slate-900/60 flex items-center justify-center p-4 z-50">
           <div className="bg-white p-8 rounded-3xl w-full max-w-md">
@@ -342,9 +353,10 @@ function SupervisorPanel() {
               <SelectField label="Vehicle Type" value={reviewData.vehicle_type} onChange={e => setReviewData({...reviewData, vehicle_type: e.target.value})} options={vehicleTypes} />
               <SelectField label="Vehicle Mode" value={reviewData.vehicle_mode} onChange={e => setReviewData({...reviewData, vehicle_mode: e.target.value})} options={['Adhoc', 'Dedicated']} />
               <SelectField label="Body Type" value={reviewData.body_type} onChange={e => setReviewData({...reviewData, body_type: e.target.value})} options={['Open', 'Closed']} />
-              <SelectField label="Vendor Name" value={reviewData.vendor_name} onChange={e => setReviewData({...reviewData, vendor_name: e.target.value})} options={vendors.map(v=>v.name)} />
+              <SelectField label="Vendor Name" value={reviewData.vendor_name} onChange={e => setReviewData({...reviewData, vendor_name: e.target.value})} options={vendors} />
               <div className="col-span-1 md:col-span-2 mt-2 font-bold text-sky-800 border-b pb-2">Client Details</div>
-              <InputField label="Client Name" value={reviewData.client_name} onChange={e => setReviewData({...reviewData, client_name: e.target.value})} />
+              
+              <SelectField label="Select Client" value={reviewData.client_name} onChange={e => setReviewData({...reviewData, client_name: e.target.value})} options={clients} />
               <InputField label="Source (From)" value={reviewData.source} onChange={e => setReviewData({...reviewData, source: e.target.value})} />
               <InputField label="Destination (To)" value={reviewData.destination} onChange={e => setReviewData({...reviewData, destination: e.target.value})} />
               <InputField label="Helper Name" value={reviewData.helper_name} onChange={e => setReviewData({...reviewData, helper_name: e.target.value})} />
@@ -394,7 +406,6 @@ function SupervisorPanel() {
         </div>
       )}
       
-      {/* TABS FOR FLEET, DRIVERS, VEHICLES */}
       {activeTab === 'fleet' && (
         <div className="bg-white p-6 rounded-2xl shadow-xl border border-slate-100">
           <h3 className="text-xl font-bold mb-4 border-b pb-2">Drivers Active Under You</h3>
@@ -453,24 +464,24 @@ function SupervisorPanel() {
 }
 
 function AdminPanel() {
-  const [activeTab, setActiveTab] = useState('approvals');
+  const [activeTab, setActiveTab] = useState('attendance'); // Defaults to the new Attendance view!
   const [trips, setTrips] = useState([]);
   const [users, setUsers] = useState([]);
   const [vendors, setVendors] = useState([]);
+  const [clients, setClients] = useState([]);
   const [vehicles, setVehicles] = useState([]);
   
   const [billingTrip, setBillingTrip] = useState(null);
   const [editDetailsTrip, setEditDetailsTrip] = useState(null);
-  
   const [editDetailsData, setEditDetailsData] = useState({ vehicle_type: '', vehicle_mode: '', body_type: '', vendor_name: '', helper_name: '', client_name: '', source: '', destination: '' });
   const [viewingTrip, setViewingTrip] = useState(null);
 
   const vehicleTypes = ["Tata Ace", "Intra", "Bolero Pickup", "Verro", "Bara Dast", "10' FT", "14' FT", "17' FT", "20' FT", "22' FT", "32' FT SXL", "32' FT MXL"];
-
-  const [billData, setBillData] = useState({ fuel_litres: '', fuel_price: '', toll_charges: '', other_expenses: '', driver_cost: '', vehicle_cost_type: '', vehicle_cost: '', b2c_billing: '' });
+  const [billData, setBillData] = useState({ fuel_litres: '', fuel_price: '', toll_charges: '', other_expenses: '', driver_cost: '', trip_days: 1, overtime_allowance: '', vehicle_cost_type: '', vehicle_cost: '', b2c_billing: '' });
   
   const [supForm, setSupForm] = useState({ username: '', password: '', name: '', phone: '' });
   const [vendorName, setVendorName] = useState('');
+  const [clientName, setClientName] = useState('');
   const [vehicleForm, setVehicleForm] = useState({ vehicle_number: '', ownership_type: 'Third Party', emi: '' });
 
   useEffect(() => { fetchAllData(); }, []);
@@ -478,6 +489,7 @@ function AdminPanel() {
     API.get('/trips/').then(res => setTrips(res.data)).catch(console.error);
     API.get('/users/all').then(res => setUsers(res.data)).catch(console.error);
     API.get('/vendors_list/').then(res => setVendors(res.data)).catch(console.error);
+    API.get('/clients_list/').then(res => setClients(res.data)).catch(console.error);
     API.get('/vehicles_list/').then(res => setVehicles(res.data)).catch(console.error);
   };
 
@@ -486,41 +498,76 @@ function AdminPanel() {
   const openBillingModal = (trip) => {
     setBillingTrip(trip);
     setBillData({
-      fuel_litres: trip.fuel_litres || '', fuel_price: trip.fuel_price || '', toll_charges: trip.toll_charges || '', other_expenses: trip.other_expenses || '', driver_cost: trip.driver_cost || '', vehicle_cost_type: trip.vehicle_cost_type || 'Third Party', vehicle_cost: trip.vehicle_cost || '', b2c_billing: trip.b2c_billing || ''
+      fuel_litres: trip.fuel_litres || '', fuel_price: trip.fuel_price || '', toll_charges: trip.toll_charges || '', other_expenses: trip.other_expenses || '', driver_cost: trip.driver_cost || '', trip_days: trip.trip_days || 1, overtime_allowance: trip.overtime_allowance || '', vehicle_cost_type: trip.vehicle_cost_type || 'Third Party', vehicle_cost: trip.vehicle_cost || '', b2c_billing: trip.b2c_billing || ''
     });
   };
 
-  const handleBillSubmit = async (e) => { e.preventDefault(); try { const payload = {}; Object.keys(billData).forEach(k => { if (k === 'vehicle_cost_type') { payload[k] = billData[k] || "Third Party"; } else { payload[k] = Number(billData[k]) || 0; } }); await API.patch(`/trips/${billingTrip.id}/finalize`, payload); setBillingTrip(null); fetchAllData(); } catch (err) { alert("Failed. Ensure numbers are valid."); } };
+  const handleBillSubmit = async (e) => { e.preventDefault(); try { const payload = {}; Object.keys(billData).forEach(k => { if (k === 'vehicle_cost_type') { payload[k] = billData[k] || "Third Party"; } else { payload[k] = Number(billData[k]) || 0; } }); await API.patch(`/trips/${billingTrip.id}/finalize`, payload); setBillingTrip(null); fetchAllData(); } catch (err) { alert("Failed."); } };
   const handleEditDetailsSubmit = async (e) => { e.preventDefault(); try { await API.patch(`/trips/${editDetailsTrip.id}/admin_edit`, editDetailsData); setEditDetailsTrip(null); fetchAllData(); } catch (err) { alert("Failed."); } };
 
   const liveFuel = (Number(billData.fuel_litres)||0) * (Number(billData.fuel_price)||0);
-  const liveCost = liveFuel + (Number(billData.toll_charges)||0) + (Number(billData.other_expenses)||0) + (Number(billData.driver_cost)||0) + (Number(billData.vehicle_cost)||0);
+  const liveCost = liveFuel + (Number(billData.toll_charges)||0) + (Number(billData.other_expenses)||0) + (Number(billData.driver_cost)||0) + (Number(billData.overtime_allowance)||0) + (Number(billData.vehicle_cost)||0);
   const liveProfit = (Number(billData.b2c_billing)||0) - liveCost;
 
   const handleCreateSupervisor = async (e) => { e.preventDefault(); try { await API.post('/users/supervisor', { ...supForm, role: 'supervisor' }); alert("Created!"); setSupForm({ username: '', password: '', name: '', phone: '' }); fetchAllData(); } catch (err) { alert("Error."); } };
   const handleDeleteUser = async (id) => { if (window.confirm("Delete this user permanently?")) { try { await API.delete(`/users/${id}`); fetchAllData(); } catch(err) { alert("Failed."); } } };
+  
   const handleAddVendor = async (e) => { e.preventDefault(); try { await API.post('/vendors_list/', { name: vendorName }); setVendorName(''); fetchAllData(); } catch (err) { alert("Error."); } };
   const handleDeleteVendor = async (id) => { if (window.confirm("Delete vendor?")) { try { await API.delete(`/vendors_list/${id}`); fetchAllData(); } catch(err) { alert("Failed."); } } };
+
+  const handleAddClient = async (e) => { e.preventDefault(); try { await API.post('/clients_list/', { name: clientName }); setClientName(''); fetchAllData(); alert("Client Saved"); } catch (err) { alert("Error."); } };
+  const handleDeleteClient = async (id) => { if (window.confirm("Delete client?")) { try { await API.delete(`/clients_list/${id}`); fetchAllData(); } catch(err) { alert("Failed."); } } };
+
   const handleAddVehicle = async (e) => { e.preventDefault(); try { await API.post('/vehicles_list/', { vehicle_number: vehicleForm.vehicle_number.replace(/\s+/g, '').toUpperCase(), ownership_type: vehicleForm.ownership_type, emi: Number(vehicleForm.emi) || 0 }); setVehicleForm({ vehicle_number: '', ownership_type: 'Third Party', emi: '' }); fetchAllData(); alert("Vehicle Added!"); } catch (err) { alert("Error."); } };
   const handleDeleteVehicle = async (id) => { if (window.confirm("Delete vehicle?")) { try { await API.delete(`/vehicles_list/${id}`); fetchAllData(); } catch(err) { alert("Failed."); } } };
 
   const getDriverName = (driverId) => { const driver = users.find(u => u.id === driverId); return driver ? driver.name : 'Unknown'; };
   const getSupervisorName = (supId) => { const sup = users.find(u => u.id === supId); return sup ? sup.name : 'Unknown'; };
-  const getActiveVehicle = (driverId) => { const active = trips.find(t => t.driver_id === driverId && ['Pending Approval','Approved','Reported','Started'].includes(t.status)); return active ? active.vehicle_number : 'Available'; };
-
   const pendingCount = trips.filter(t => t.status === 'Pending Approval').length;
 
   return (
     <div className="p-4 md:p-8 max-w-7xl mx-auto">
       <h2 className="text-3xl font-extrabold mb-6">Master Admin Dashboard</h2>
       <div className="flex flex-wrap gap-2 mb-6 bg-slate-200/50 p-1.5 rounded-xl inline-flex">
+        <button onClick={() => setActiveTab('attendance')} className={`px-5 py-2.5 rounded-lg font-bold transition-all ${activeTab === 'attendance' ? 'bg-white text-indigo-700 shadow-sm' : 'text-slate-500'}`}>Driver Tracking</button>
         <button onClick={() => setActiveTab('approvals')} className={`px-5 py-2.5 rounded-lg font-bold transition-all flex items-center gap-2 ${activeTab === 'approvals' ? 'bg-white text-rose-600 shadow-sm' : 'text-slate-500'}`}>Approvals {pendingCount > 0 && <span className="bg-rose-500 text-white rounded-full px-2 py-0.5 text-xs">{pendingCount}</span>}</button>
         <button onClick={() => setActiveTab('trips')} className={`px-5 py-2.5 rounded-lg font-bold transition-all ${activeTab === 'trips' ? 'bg-white text-sky-700 shadow-sm' : 'text-slate-500'}`}>Financial Billing</button>
-        <button onClick={() => setActiveTab('fleet')} className={`px-5 py-2.5 rounded-lg font-bold transition-all ${activeTab === 'fleet' ? 'bg-white text-sky-700 shadow-sm' : 'text-slate-500'}`}>Fleet</button>
         <button onClick={() => setActiveTab('supervisors')} className={`px-5 py-2.5 rounded-lg font-bold transition-all ${activeTab === 'supervisors' ? 'bg-white text-sky-700 shadow-sm' : 'text-slate-500'}`}>Supervisors</button>
+        <button onClick={() => setActiveTab('clients')} className={`px-5 py-2.5 rounded-lg font-bold transition-all ${activeTab === 'clients' ? 'bg-white text-sky-700 shadow-sm' : 'text-slate-500'}`}>Clients</button>
         <button onClick={() => setActiveTab('vendors')} className={`px-5 py-2.5 rounded-lg font-bold transition-all ${activeTab === 'vendors' ? 'bg-white text-sky-700 shadow-sm' : 'text-slate-500'}`}>Vendors</button>
         <button onClick={() => setActiveTab('vehicles')} className={`px-5 py-2.5 rounded-lg font-bold transition-all ${activeTab === 'vehicles' ? 'bg-white text-sky-700 shadow-sm' : 'text-slate-500'}`}>Vehicles</button>
       </div>
+
+      {activeTab === 'attendance' && (
+        <div className="bg-white p-6 rounded-2xl shadow-xl border border-slate-100">
+          <h3 className="text-xl font-bold mb-6 border-b pb-2">Driver Attendance & Cost Tracking</h3>
+          <div className="overflow-x-auto">
+            <table className="min-w-full text-left text-sm whitespace-nowrap">
+              <thead className="bg-slate-50 border-b">
+                <tr><th className="p-4">Driver Details</th><th className="p-4">Total Trips</th><th className="p-4">Days Worked</th><th className="p-4">Overtime Allowance</th><th className="p-4">Base Driver Cost</th></tr>
+              </thead>
+              <tbody>
+                {users.filter(u => u.role === 'driver').map(driver => {
+                  const driverTrips = trips.filter(t => t.driver_id === driver.id && t.status !== 'Pending Approval');
+                  const daysPresent = new Set(driverTrips.map(t => t.date)).size; // Unique dates
+                  const totalTrips = driverTrips.length;
+                  const totalOvertime = driverTrips.reduce((sum, t) => sum + (t.overtime_allowance || 0), 0);
+                  const totalDriverCost = driverTrips.reduce((sum, t) => sum + (t.driver_cost || 0), 0);
+                  return (
+                    <tr key={driver.id} className="border-b hover:bg-slate-50 transition-colors">
+                      <td className="p-4 font-bold text-indigo-700">{driver.name} <span className="text-xs text-slate-500 block font-semibold mt-1">📞 {driver.phone || 'No Phone'}</span></td>
+                      <td className="p-4 font-bold text-slate-800 text-lg">{totalTrips}</td>
+                      <td className="p-4 font-bold text-emerald-600 text-lg">{daysPresent} Days</td>
+                      <td className="p-4 text-amber-600 font-bold">₹{totalOvertime}</td>
+                      <td className="p-4 font-semibold text-slate-600">₹{totalDriverCost}</td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
 
       {activeTab === 'approvals' && (
         <div className="bg-white rounded-2xl shadow-xl border border-slate-100 overflow-x-auto">
@@ -579,7 +626,6 @@ function AdminPanel() {
         </div>
       )}
 
-      {/* ADMIN READ ONLY LOG */}
       {viewingTrip && (
         <div className="fixed inset-0 bg-slate-900/60 flex items-center justify-center p-4 z-50">
           <div className="bg-white p-8 rounded-3xl w-full max-w-4xl max-h-[90vh] overflow-y-auto">
@@ -606,6 +652,8 @@ function AdminPanel() {
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                   <DetailItem label="Tolls" value={`₹${viewingTrip.toll_charges}`} />
                   <DetailItem label="Driver Cost" value={`₹${viewingTrip.driver_cost}`} />
+                  <DetailItem label="Trip Days" value={`${viewingTrip.trip_days} Days`} />
+                  <DetailItem label="Overtime Paid" value={`₹${viewingTrip.overtime_allowance}`} />
                   <DetailItem label="Other Exp." value={`₹${viewingTrip.other_expenses}`} />
                   <DetailItem label="Fuel Total" value={`₹${viewingTrip.fuel_litres * viewingTrip.fuel_price}`} />
                   <DetailItem label="Vehicle Cost" value={`₹${viewingTrip.vehicle_cost} (${viewingTrip.vehicle_cost_type})`} />
@@ -634,7 +682,8 @@ function AdminPanel() {
               <SelectField label="Body Type" value={editDetailsData.body_type} onChange={e => setEditDetailsData({...editDetailsData, body_type: e.target.value})} options={['Open', 'Closed']} />
               <SelectField label="Vendor Name" value={editDetailsData.vendor_name} onChange={e => setEditDetailsData({...editDetailsData, vendor_name: e.target.value})} options={vendors.map(v=>v.name)} />
               <div className="col-span-1 md:col-span-2 mt-2 font-bold text-sky-800 border-b pb-2">Client Details</div>
-              <InputField label="Client Name" value={editDetailsData.client_name} onChange={e => setEditDetailsData({...editDetailsData, client_name: e.target.value})} />
+              
+              <SelectField label="Select Client" value={editDetailsData.client_name} onChange={e => setEditDetailsData({...editDetailsData, client_name: e.target.value})} options={clients.map(c=>c.name)} />
               <InputField label="Source (From)" value={editDetailsData.source} onChange={e => setEditDetailsData({...editDetailsData, source: e.target.value})} />
               <InputField label="Destination (To)" value={editDetailsData.destination} onChange={e => setEditDetailsData({...editDetailsData, destination: e.target.value})} />
               <InputField label="Helper Name" value={editDetailsData.helper_name} onChange={e => setEditDetailsData({...editDetailsData, helper_name: e.target.value})} />
@@ -657,10 +706,15 @@ function AdminPanel() {
                 <InputField label="Fuel Price / L" type="number" value={billData.fuel_price} onChange={e => setBillData({...billData, fuel_price: e.target.value})} />
                 <InputField label="Toll Charges" type="number" value={billData.toll_charges} onChange={e => setBillData({...billData, toll_charges: e.target.value})} />
                 <InputField label="Other Expenses" type="number" value={billData.other_expenses} onChange={e => setBillData({...billData, other_expenses: e.target.value})} />
-                <div className="col-span-2 border-t pt-4 mt-2">
-                  <InputField label="Driver Cost" type="number" value={billData.driver_cost} onChange={e => setBillData({...billData, driver_cost: e.target.value})} />
+                
+                {/* Updated Tracking Section */}
+                <div className="col-span-2 border-t pt-4 mt-2 grid grid-cols-3 gap-4">
+                  <InputField label="Driver Total Cost" type="number" value={billData.driver_cost} onChange={e => setBillData({...billData, driver_cost: e.target.value})} />
+                  <InputField label="Trip Days (Attendance)" type="number" value={billData.trip_days} onChange={e => setBillData({...billData, trip_days: e.target.value})} />
+                  <InputField label="Overtime Allowance" type="number" value={billData.overtime_allowance} onChange={e => setBillData({...billData, overtime_allowance: e.target.value})} />
                 </div>
-                <div className="col-span-2 grid grid-cols-2 gap-4">
+                
+                <div className="col-span-2 grid grid-cols-2 gap-4 border-t pt-4 mt-2">
                   <SelectField label="Vehicle Cost Type" value={billData.vehicle_cost_type} onChange={e => setBillData({...billData, vehicle_cost_type: e.target.value, vehicle_cost: ''})} options={['Own Company', 'Third Party']} />
                   <InputField label="Vehicle Cost" type="number" value={billData.vehicle_cost} disabled={billData.vehicle_cost_type === 'Own Company'} onChange={e => setBillData({...billData, vehicle_cost: e.target.value})} />
                 </div>
@@ -684,28 +738,7 @@ function AdminPanel() {
         </div>
       )}
 
-      {/* ADMIN TABS: SUPERVISORS / VENDORS / VEHICLES */}
-      {activeTab === 'fleet' && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {users.filter(u => u.role === 'supervisor').map(supervisor => (
-            <div key={supervisor.id} className="bg-white rounded-2xl shadow-xl border border-slate-100 p-6">
-              <h3 className="text-xl font-bold border-b pb-2 mb-4 text-sky-700 flex justify-between">
-                {supervisor.name} <span className="text-xs bg-sky-100 px-2 py-1 rounded-full text-sky-800">Supervisor</span>
-              </h3>
-              <div className="space-y-4">
-                {users.filter(u => u.supervisor_id === supervisor.id).map(driver => (
-                  <div key={driver.id} className="bg-slate-50 p-3 rounded-lg border border-slate-200">
-                    <div className="font-bold text-slate-800">{driver.name}</div>
-                    <div className="text-xs text-slate-500 mb-1">📞 {driver.phone || 'N/A'}</div>
-                    <div className="text-xs font-semibold bg-white p-1.5 rounded border inline-block">🚗 {getActiveVehicle(driver.id)}</div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-
+      {/* ADMIN TABS: SUPERVISORS / CLIENTS / VENDORS / VEHICLES */}
       {activeTab === 'supervisors' && (
         <div className="bg-white p-8 rounded-2xl shadow-xl max-w-lg border border-slate-100">
           <h3 className="text-xl font-bold mb-4">Create Supervisor Account</h3>
@@ -720,6 +753,21 @@ function AdminPanel() {
           <div className="grid gap-2">
             {users.filter(u=>u.role==='supervisor').map(sup => (
               <div key={sup.id} className="bg-slate-50 p-3 rounded-lg border text-sm font-semibold flex items-center justify-between"><div className="flex items-center gap-2"><span className="w-2 h-2 rounded-full bg-sky-500"></span>{sup.name}</div><button onClick={() => handleDeleteUser(sup.id)} className="text-rose-500 hover:text-rose-700 px-2 py-1 bg-rose-100 rounded text-xs font-bold">Delete</button></div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {activeTab === 'clients' && (
+        <div className="bg-white p-8 rounded-2xl shadow-xl max-w-lg border border-slate-100">
+          <h3 className="text-xl font-bold mb-4">Manage Clients</h3>
+          <form onSubmit={handleAddClient} className="flex gap-4 mb-6">
+            <input type="text" value={clientName} onChange={e => setClientName(e.target.value)} required placeholder="Add Client Name..." className="flex-1 bg-slate-50 border border-slate-200 rounded-xl p-3 outline-none" />
+            <button type="submit" className="bg-sky-600 text-white px-6 rounded-xl font-bold">Add</button>
+          </form>
+          <div className="grid grid-cols-2 gap-2">
+            {clients.map(c => (
+              <div key={c.id} className="bg-slate-50 p-2 rounded-lg border text-sm font-semibold flex items-center justify-between"><div className="flex items-center gap-2"><span className="w-2 h-2 rounded-full bg-indigo-500"></span>{c.name}</div><button onClick={() => handleDeleteClient(c.id)} className="text-rose-500 hover:text-rose-700 font-bold px-2 bg-rose-100 rounded">✕</button></div>
             ))}
           </div>
         </div>

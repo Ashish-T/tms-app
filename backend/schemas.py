@@ -59,6 +59,8 @@ class TripFinancialsUpdate(BaseModel):
     toll_charges: float
     other_expenses: float
     driver_cost: float
+    trip_days: float           # <--- NEW
+    overtime_allowance: float  # <--- NEW
     vehicle_cost_type: Optional[str] = "Third Party"
     vehicle_cost: float
     b2c_billing: float
@@ -88,6 +90,8 @@ class TripLogResponse(BaseModel):
     toll_charges: float
     other_expenses: float
     driver_cost: float
+    trip_days: float
+    overtime_allowance: float
     vehicle_cost_type: Optional[str]
     vehicle_cost: float
     b2c_billing: float
