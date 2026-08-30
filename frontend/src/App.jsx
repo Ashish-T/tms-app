@@ -34,7 +34,6 @@ const StatusBadge = ({ status }) => {
   return <span className={`px-3 py-1 rounded-full text-xs font-bold ${colors[status] || 'bg-slate-100 text-slate-800'}`}>{status}</span>;
 };
 
-// --- LOGIN SCREEN ---
 function LoginScreen({ onLogin }) {
   const [credentials, setCredentials] = useState({ username: '', password: '' });
   const [error, setError] = useState('');
@@ -71,18 +70,18 @@ function LoginScreen({ onLogin }) {
   );
 }
 
-// --- DRIVER PANEL ---
 function DriverPanel({ userName }) {
   const [trips, setTrips] = useState([]);
+  const [vehicles, setVehicles] = useState([]);
   const [actionTrip, setActiveTrip] = useState(null);
   const [startData, setStartData] = useState({ out_km: '' });
   const [endData, setEndData] = useState({ in_km: '' });
 
-  useEffect(() => { fetchTrips(); }, []);
+  useEffect(() => { fetchTrips(); API.get('/vehicles_list/').then(res => setVehicles(res.data.map(v => v.vehicle_number))).catch(console.error); }, []);
   const fetchTrips = () => API.get('/trips/').then(res => setTrips(res.data)).catch(console.error);
-
   const hasActiveTrip = trips.some(t => ['Reported', 'Started'].includes(t.status));
-  const handleReport = async (id) => { try { await API.patch(`/trips/${id}/report`, { reporting_time: getCurrentTime() }); fetchTrips(); } catch (err) { alert("Error."); } };
+
+  const handleReport = async (id) => { try { await API.patch(`/trips/${id}/report`, { reporting_time: getCurrentTime() }); fetchTrips(); } catch (err) { alert(err.response?.data?.detail || "Error."); } };
   const handleStart = async (e, id) => { e.preventDefault(); try { await API.patch(`/trips/${id}/start`, { out_time: getCurrentTime(), out_km: Number(startData.out_km) }); setActiveTrip(null); setStartData({out_km:''}); fetchTrips(); } catch (err) { alert("Error."); } };
   const handleEnd = async (e, trip) => { e.preventDefault(); if (Number(endData.in_km) <= trip.out_km) { alert(`Stop KM must be higher than Starting KM (${trip.out_km}).`); return; } try { await API.patch(`/trips/${trip.id}/end`, { in_time: getCurrentTime(), in_km: Number(endData.in_km) }); setActiveTrip(null); setEndData({in_km:''}); fetchTrips(); } catch (err) { alert("Error."); } };
 
@@ -127,7 +126,6 @@ function DriverPanel({ userName }) {
         ))}
         {trips.filter(t => ['Approved', 'Reported', 'Started'].includes(t.status)).length === 0 && <div className="text-slate-500 italic">No dispatched trips waiting for you.</div>}
       </div>
-
       <h3 className="text-xl font-bold mb-4">Your Past Journeys</h3>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {trips.filter(t => !['Approved', 'Reported', 'Started', 'Pending Approval'].includes(t.status)).map(trip => (
@@ -142,7 +140,6 @@ function DriverPanel({ userName }) {
   );
 }
 
-// --- SUPERVISOR PANEL ---
 function SupervisorPanel() {
   const [activeTab, setActiveTab] = useState('dispatch');
   const [trips, setTrips] = useState([]);
@@ -159,7 +156,7 @@ function SupervisorPanel() {
   const [reviewData, setReviewData] = useState({ vehicle_type: '', vehicle_mode: '', body_type: '', vendor_name: '', helper_name: '', client_name: '', source: '', destination: '' });
   
   const [expenseTrip, setExpenseTrip] = useState(null);
-  const [expTab, setExpTab] = useState('expenses'); // 'expenses' or 'b2c'
+  const [expTab, setExpTab] = useState('expenses');
   const [expData, setExpData] = useState({ fuel_litres: '', fuel_price: '', toll_charges: '', other_expenses: '', driver_cost: '', vehicle_cost_type: '', vehicle_cost: '', b2c_billing: '' });
 
   const [endingTrip, setEndingTrip] = useState(null);
@@ -180,8 +177,6 @@ function SupervisorPanel() {
 
   const openExpenses = (trip) => {
     setExpenseTrip(trip); setExpTab('expenses');
-    
-    // Auto-calculate Vehicle Cost if it's an Own Company vehicle
     const assignedVehicle = vehicles.find(v => v.vehicle_number === trip.vehicle_number);
     let autoCostType = trip.vehicle_cost_type || '';
     let autoCost = trip.vehicle_cost || '';
@@ -194,22 +189,22 @@ function SupervisorPanel() {
             autoCostType = 'Third Party';
         }
     }
-
-    setExpData({
-      fuel_litres: trip.fuel_litres || '', fuel_price: trip.fuel_price || '',
-      toll_charges: trip.toll_charges || '', other_expenses: trip.other_expenses || '',
-      driver_cost: trip.driver_cost || '', vehicle_cost_type: autoCostType,
-      vehicle_cost: autoCost, b2c_billing: trip.b2c_billing || ''
-    });
+    setExpData({ fuel_litres: trip.fuel_litres || '', fuel_price: trip.fuel_price || '', toll_charges: trip.toll_charges || '', other_expenses: trip.other_expenses || '', driver_cost: trip.driver_cost || '', vehicle_cost_type: autoCostType || 'Third Party', vehicle_cost: autoCost, b2c_billing: trip.b2c_billing || '' });
   };
 
   const handleExpenseSubmit = async (e) => {
     e.preventDefault();
-    try { const payload = {}; Object.keys(expData).forEach(k => payload[k] = k === 'vehicle_cost_type' ? expData[k] : (Number(expData[k]) || 0)); await API.patch(`/trips/${expenseTrip.id}/supervisor_expenses`, payload); setExpenseTrip(null); fetchAllData(); } 
-    catch (err) { alert("Error."); }
+    try { 
+      const payload = {}; 
+      Object.keys(expData).forEach(k => {
+          if (k === 'vehicle_cost_type') { payload[k] = expData[k] || "Third Party"; }
+          else { payload[k] = Number(expData[k]) || 0; }
+      });
+      await API.patch(`/trips/${expenseTrip.id}/supervisor_expenses`, payload); 
+      setExpenseTrip(null); fetchAllData(); 
+    } catch (err) { alert("Failed to save. Make sure all fields are valid numbers."); }
   };
 
-  // Live Math for Expense Modal
   const liveFuel = (Number(expData.fuel_litres)||0) * (Number(expData.fuel_price)||0);
   const liveCost = liveFuel + (Number(expData.toll_charges)||0) + (Number(expData.other_expenses)||0) + (Number(expData.driver_cost)||0) + (Number(expData.vehicle_cost)||0);
   const liveProfit = (Number(expData.b2c_billing)||0) - liveCost;
@@ -255,9 +250,7 @@ function SupervisorPanel() {
       {activeTab === 'trips' && (
         <div className="bg-white rounded-2xl shadow-xl border border-slate-100 overflow-x-auto">
           <table className="min-w-full text-left text-sm whitespace-nowrap">
-            <thead className="bg-slate-50 border-b">
-              <tr><th className="p-4">ID / Date</th><th className="p-4">Driver</th><th className="p-4">Vehicle</th><th className="p-4">Status</th><th className="p-4">Action</th></tr>
-            </thead>
+            <thead className="bg-slate-50 border-b"><tr><th className="p-4">ID / Date</th><th className="p-4">Driver</th><th className="p-4">Vehicle</th><th className="p-4">Status</th><th className="p-4">Action</th></tr></thead>
             <tbody>
               {trips.map(trip => (
                 <tr key={trip.id} className="border-b">
@@ -267,26 +260,11 @@ function SupervisorPanel() {
                   <td className="p-4"><StatusBadge status={trip.status} /></td>
                   <td className="p-4">
                     <div className="flex gap-2">
-                      {['Pending Approval', 'Approved'].includes(trip.status) && (
-                        <button onClick={() => { setShuffleTrip(trip); setShuffleVehicle(''); }} className="bg-amber-100 text-amber-700 px-3 py-1.5 rounded-lg font-bold hover:bg-amber-200 text-xs shadow-sm">Shuffle Vehicle</button>
-                      )}
-                      
-                      {/* Expenses Unlocked Automatically once it hits Pending Approval! */}
-                      {trip.status !== '' && (
-                         <button onClick={() => openExpenses(trip)} className="bg-rose-100 text-rose-700 px-3 py-1.5 rounded-lg font-bold hover:bg-rose-200 text-xs shadow-sm">Expenses</button>
-                      )}
-
-                      {['Started', 'Completed'].includes(trip.status) && (
-                         <button onClick={() => { setReviewTrip(trip); setReviewData({ vehicle_type: trip.vehicle_type || '', vehicle_mode: trip.vehicle_mode || '', body_type: trip.body_type || '', vendor_name: trip.vendor_name || '', helper_name: trip.helper_name || '', client_name: trip.client_name || '', source: trip.source || '', destination: trip.destination || '' }); }} className="bg-sky-100 text-sky-700 px-3 py-1.5 rounded-lg font-bold hover:bg-sky-200 text-xs shadow-sm">Review Details</button>
-                      )}
-                      
-                      {['Reviewed', 'Billed'].includes(trip.status) && (
-                         <button onClick={() => setViewingTrip(trip)} className="bg-slate-100 text-slate-700 px-3 py-1.5 rounded-lg font-bold hover:bg-slate-200 text-xs shadow-sm">Details</button>
-                      )}
-                      
-                      {trip.status === 'Started' && (
-                        <button onClick={() => { setEndingTrip(trip); setEndData({ in_km: '' }); }} className="bg-emerald-100 text-emerald-700 px-3 py-1.5 rounded-lg font-bold hover:bg-emerald-200 text-xs shadow-sm">Log Arrival</button>
-                      )}
+                      {['Pending Approval', 'Approved'].includes(trip.status) && (<button onClick={() => { setShuffleTrip(trip); setShuffleVehicle(''); }} className="bg-amber-100 text-amber-700 px-3 py-1.5 rounded-lg font-bold hover:bg-amber-200 text-xs shadow-sm">Shuffle Vehicle</button>)}
+                      {trip.status !== '' && (<button onClick={() => openExpenses(trip)} className="bg-rose-100 text-rose-700 px-3 py-1.5 rounded-lg font-bold hover:bg-rose-200 text-xs shadow-sm">Expenses</button>)}
+                      {['Started', 'Completed'].includes(trip.status) && (<button onClick={() => { setReviewTrip(trip); setReviewData({ vehicle_type: trip.vehicle_type || '', vehicle_mode: trip.vehicle_mode || '', body_type: trip.body_type || '', vendor_name: trip.vendor_name || '', helper_name: trip.helper_name || '', client_name: trip.client_name || '', source: trip.source || '', destination: trip.destination || '' }); }} className="bg-sky-100 text-sky-700 px-3 py-1.5 rounded-lg font-bold hover:bg-sky-200 text-xs shadow-sm">Review Details</button>)}
+                      {['Reviewed', 'Billed'].includes(trip.status) && (<button onClick={() => setViewingTrip(trip)} className="bg-slate-100 text-slate-700 px-3 py-1.5 rounded-lg font-bold hover:bg-slate-200 text-xs shadow-sm">Details</button>)}
+                      {trip.status === 'Started' && (<button onClick={() => { setEndingTrip(trip); setEndData({ in_km: '' }); }} className="bg-emerald-100 text-emerald-700 px-3 py-1.5 rounded-lg font-bold hover:bg-emerald-200 text-xs shadow-sm">Log Arrival</button>)}
                     </div>
                   </td>
                 </tr>
@@ -296,17 +274,14 @@ function SupervisorPanel() {
         </div>
       )}
 
-      {/* SUPERVISOR EXPENSES & B2C MODAL */}
       {expenseTrip && (
         <div className="fixed inset-0 bg-slate-900/60 flex items-center justify-center p-4 z-50">
           <div className="bg-white p-8 rounded-3xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
             <h3 className="text-2xl font-bold mb-6">Log Expenses & B2C Billing (#{expenseTrip.id})</h3>
-            
             <div className="flex space-x-2 mb-6 bg-slate-100 p-1.5 rounded-xl">
               <button onClick={() => setExpTab('expenses')} className={`flex-1 py-2 rounded-lg font-bold transition-all ${expTab === 'expenses' ? 'bg-white text-rose-600 shadow-sm' : 'text-slate-500'}`}>Vehicle Expenses</button>
               <button onClick={() => setExpTab('b2c')} className={`flex-1 py-2 rounded-lg font-bold transition-all ${expTab === 'b2c' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500'}`}>B2C Billing</button>
             </div>
-
             <form onSubmit={handleExpenseSubmit}>
               {expTab === 'expenses' && (
                 <div className="grid grid-cols-2 gap-4">
@@ -314,39 +289,23 @@ function SupervisorPanel() {
                   <InputField label="Fuel Price / L" type="number" value={expData.fuel_price} onChange={e => setExpData({...expData, fuel_price: e.target.value})} />
                   <InputField label="Toll Charges" type="number" value={expData.toll_charges} onChange={e => setExpData({...expData, toll_charges: e.target.value})} />
                   <InputField label="Other Expenses" type="number" value={expData.other_expenses} onChange={e => setExpData({...expData, other_expenses: e.target.value})} />
-                  <div className="col-span-2 border-t pt-4 mt-2">
-                    <InputField label="Driver Cost" type="number" value={expData.driver_cost} onChange={e => setExpData({...expData, driver_cost: e.target.value})} />
-                  </div>
+                  <div className="col-span-2 border-t pt-4 mt-2"><InputField label="Driver Cost" type="number" value={expData.driver_cost} onChange={e => setExpData({...expData, driver_cost: e.target.value})} /></div>
                   <div className="col-span-2 grid grid-cols-2 gap-4">
                     <SelectField label="Vehicle Cost Type" value={expData.vehicle_cost_type} onChange={e => setExpData({...expData, vehicle_cost_type: e.target.value, vehicle_cost: ''})} options={['Own Company', 'Third Party']} />
                     <InputField label="Vehicle Cost" type="number" value={expData.vehicle_cost} disabled={expData.vehicle_cost_type === 'Own Company'} onChange={e => setExpData({...expData, vehicle_cost: e.target.value})} placeholder={expData.vehicle_cost_type === 'Own Company' ? "Auto-calculated (EMI/30)" : "Enter Manual Cost"} />
                   </div>
                 </div>
               )}
-              
               {expTab === 'b2c' && (
                 <div className="space-y-6">
-                  <div className="bg-indigo-50 p-6 rounded-xl border border-indigo-100">
-                    <InputField label="B2C (Bill to Company) Revenue" type="number" value={expData.b2c_billing} onChange={e => setExpData({...expData, b2c_billing: e.target.value})} />
-                  </div>
-                  
+                  <div className="bg-indigo-50 p-6 rounded-xl border border-indigo-100"><InputField label="B2C (Bill to Company) Revenue" type="number" value={expData.b2c_billing} onChange={e => setExpData({...expData, b2c_billing: e.target.value})} /></div>
                   <div className="flex flex-col md:flex-row gap-4 border-t pt-6">
-                    <div className="flex-1 bg-slate-100 p-4 rounded-xl text-center">
-                      <div className="text-xs font-bold text-slate-500">TOTAL EXPENSES</div>
-                      <div className="text-2xl font-black text-rose-600">₹{liveCost}</div>
-                    </div>
-                    <div className="flex-1 bg-slate-100 p-4 rounded-xl text-center">
-                      <div className="text-xs font-bold text-slate-500">B2C BILLING</div>
-                      <div className="text-2xl font-black text-indigo-600">₹{Number(expData.b2c_billing) || 0}</div>
-                    </div>
-                    <div className={`flex-1 p-4 rounded-xl text-center ${liveProfit >= 0 ? 'bg-emerald-100' : 'bg-rose-100'}`}>
-                      <div className={`text-xs font-bold ${liveProfit >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>PROFIT</div>
-                      <div className={`text-2xl font-black ${liveProfit >= 0 ? 'text-emerald-700' : 'text-rose-700'}`}>₹{liveProfit}</div>
-                    </div>
+                    <div className="flex-1 bg-slate-100 p-4 rounded-xl text-center"><div className="text-xs font-bold text-slate-500">TOTAL EXPENSES</div><div className="text-2xl font-black text-rose-600">₹{liveCost}</div></div>
+                    <div className="flex-1 bg-slate-100 p-4 rounded-xl text-center"><div className="text-xs font-bold text-slate-500">B2C BILLING</div><div className="text-2xl font-black text-indigo-600">₹{Number(expData.b2c_billing) || 0}</div></div>
+                    <div className={`flex-1 p-4 rounded-xl text-center ${liveProfit >= 0 ? 'bg-emerald-100' : 'bg-rose-100'}`}><div className={`text-xs font-bold ${liveProfit >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>PROFIT</div><div className={`text-2xl font-black ${liveProfit >= 0 ? 'text-emerald-700' : 'text-rose-700'}`}>₹{liveProfit}</div></div>
                   </div>
                 </div>
               )}
-
               <div className="flex gap-4 mt-8">
                 <button type="button" onClick={() => setExpenseTrip(null)} className="flex-1 bg-slate-100 py-4 rounded-xl font-bold">Cancel</button>
                 <button type="submit" className="flex-1 bg-sky-600 text-white py-4 rounded-xl font-bold">Save Data</button>
@@ -356,7 +315,7 @@ function SupervisorPanel() {
         </div>
       )}
 
-      {/* OTHER SUPERVISOR MODALS (Review, Log Arrival, etc) PRESERVED */}
+      {/* SHUFFLE, REVIEW, VIEW DETAILS & ARRIVAL MODALS OMITTED FOR BREVITY BUT IDENTICAL TO BEFORE */}
       {shuffleTrip && (
         <div className="fixed inset-0 bg-slate-900/60 flex items-center justify-center p-4 z-50">
           <div className="bg-white p-8 rounded-3xl w-full max-w-md">
@@ -383,7 +342,7 @@ function SupervisorPanel() {
               <SelectField label="Vehicle Type" value={reviewData.vehicle_type} onChange={e => setReviewData({...reviewData, vehicle_type: e.target.value})} options={vehicleTypes} />
               <SelectField label="Vehicle Mode" value={reviewData.vehicle_mode} onChange={e => setReviewData({...reviewData, vehicle_mode: e.target.value})} options={['Adhoc', 'Dedicated']} />
               <SelectField label="Body Type" value={reviewData.body_type} onChange={e => setReviewData({...reviewData, body_type: e.target.value})} options={['Open', 'Closed']} />
-              <SelectField label="Vendor Name" value={reviewData.vendor_name} onChange={e => setReviewData({...reviewData, vendor_name: e.target.value})} options={vendors} />
+              <SelectField label="Vendor Name" value={reviewData.vendor_name} onChange={e => setReviewData({...reviewData, vendor_name: e.target.value})} options={vendors.map(v=>v.name)} />
               <div className="col-span-1 md:col-span-2 mt-2 font-bold text-sky-800 border-b pb-2">Client Details</div>
               <InputField label="Client Name" value={reviewData.client_name} onChange={e => setReviewData({...reviewData, client_name: e.target.value})} />
               <InputField label="Source (From)" value={reviewData.source} onChange={e => setReviewData({...reviewData, source: e.target.value})} />
@@ -434,8 +393,8 @@ function SupervisorPanel() {
           </div>
         </div>
       )}
-
-      {/* TAB PANELS: Fleet, Drivers, Vehicles */}
+      
+      {/* TABS FOR FLEET, DRIVERS, VEHICLES */}
       {activeTab === 'fleet' && (
         <div className="bg-white p-6 rounded-2xl shadow-xl border border-slate-100">
           <h3 className="text-xl font-bold mb-4 border-b pb-2">Drivers Active Under You</h3>
@@ -493,7 +452,6 @@ function SupervisorPanel() {
   );
 }
 
-// --- ADMIN PANEL ---
 function AdminPanel() {
   const [activeTab, setActiveTab] = useState('approvals');
   const [trips, setTrips] = useState([]);
@@ -528,11 +486,11 @@ function AdminPanel() {
   const openBillingModal = (trip) => {
     setBillingTrip(trip);
     setBillData({
-      fuel_litres: trip.fuel_litres || '', fuel_price: trip.fuel_price || '', toll_charges: trip.toll_charges || '', other_expenses: trip.other_expenses || '', driver_cost: trip.driver_cost || '', vehicle_cost_type: trip.vehicle_cost_type || '', vehicle_cost: trip.vehicle_cost || '', b2c_billing: trip.b2c_billing || ''
+      fuel_litres: trip.fuel_litres || '', fuel_price: trip.fuel_price || '', toll_charges: trip.toll_charges || '', other_expenses: trip.other_expenses || '', driver_cost: trip.driver_cost || '', vehicle_cost_type: trip.vehicle_cost_type || 'Third Party', vehicle_cost: trip.vehicle_cost || '', b2c_billing: trip.b2c_billing || ''
     });
   };
 
-  const handleBillSubmit = async (e) => { e.preventDefault(); try { const payload = {}; Object.keys(billData).forEach(k => payload[k] = k === 'vehicle_cost_type' ? billData[k] : (Number(billData[k]) || 0)); await API.patch(`/trips/${billingTrip.id}/finalize`, payload); setBillingTrip(null); fetchAllData(); } catch (err) { alert("Failed."); } };
+  const handleBillSubmit = async (e) => { e.preventDefault(); try { const payload = {}; Object.keys(billData).forEach(k => { if (k === 'vehicle_cost_type') { payload[k] = billData[k] || "Third Party"; } else { payload[k] = Number(billData[k]) || 0; } }); await API.patch(`/trips/${billingTrip.id}/finalize`, payload); setBillingTrip(null); fetchAllData(); } catch (err) { alert("Failed. Ensure numbers are valid."); } };
   const handleEditDetailsSubmit = async (e) => { e.preventDefault(); try { await API.patch(`/trips/${editDetailsTrip.id}/admin_edit`, editDetailsData); setEditDetailsTrip(null); fetchAllData(); } catch (err) { alert("Failed."); } };
 
   const liveFuel = (Number(billData.fuel_litres)||0) * (Number(billData.fuel_price)||0);
@@ -548,6 +506,8 @@ function AdminPanel() {
 
   const getDriverName = (driverId) => { const driver = users.find(u => u.id === driverId); return driver ? driver.name : 'Unknown'; };
   const getSupervisorName = (supId) => { const sup = users.find(u => u.id === supId); return sup ? sup.name : 'Unknown'; };
+  const getActiveVehicle = (driverId) => { const active = trips.find(t => t.driver_id === driverId && ['Pending Approval','Approved','Reported','Started'].includes(t.status)); return active ? active.vehicle_number : 'Available'; };
+
   const pendingCount = trips.filter(t => t.status === 'Pending Approval').length;
 
   return (
@@ -652,6 +612,7 @@ function AdminPanel() {
                 </div>
               </>
             )}
+            
             {viewingTrip.status === 'Billed' && (
                 <div className="mt-6 flex flex-col md:flex-row gap-4">
                   <div className="flex-1 bg-rose-50 p-4 rounded-xl border border-rose-200"><div className="text-sm font-bold text-rose-500">TOTAL EXPENSES</div><div className="text-3xl font-black text-rose-700">₹{viewingTrip.total_running_cost}</div></div>
@@ -663,7 +624,6 @@ function AdminPanel() {
         </div>
       )}
 
-      {/* ADMIN OVERRIDE DETAILS */}
       {editDetailsTrip && (
         <div className="fixed inset-0 bg-slate-900/60 flex items-center justify-center p-4 z-50">
           <div className="bg-white p-8 rounded-3xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
@@ -687,7 +647,6 @@ function AdminPanel() {
         </div>
       )}
 
-      {/* ADMIN FINANCIAL OVERRIDE */}
       {billingTrip && (
         <div className="fixed inset-0 bg-slate-900/60 flex items-center justify-center p-4 z-50">
           <div className="bg-white p-8 rounded-3xl w-full max-w-4xl max-h-[90vh] overflow-y-auto">
@@ -726,9 +685,30 @@ function AdminPanel() {
       )}
 
       {/* ADMIN TABS: SUPERVISORS / VENDORS / VEHICLES */}
+      {activeTab === 'fleet' && (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {users.filter(u => u.role === 'supervisor').map(supervisor => (
+            <div key={supervisor.id} className="bg-white rounded-2xl shadow-xl border border-slate-100 p-6">
+              <h3 className="text-xl font-bold border-b pb-2 mb-4 text-sky-700 flex justify-between">
+                {supervisor.name} <span className="text-xs bg-sky-100 px-2 py-1 rounded-full text-sky-800">Supervisor</span>
+              </h3>
+              <div className="space-y-4">
+                {users.filter(u => u.supervisor_id === supervisor.id).map(driver => (
+                  <div key={driver.id} className="bg-slate-50 p-3 rounded-lg border border-slate-200">
+                    <div className="font-bold text-slate-800">{driver.name}</div>
+                    <div className="text-xs text-slate-500 mb-1">📞 {driver.phone || 'N/A'}</div>
+                    <div className="text-xs font-semibold bg-white p-1.5 rounded border inline-block">🚗 {getActiveVehicle(driver.id)}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
       {activeTab === 'supervisors' && (
         <div className="bg-white p-8 rounded-2xl shadow-xl max-w-lg border border-slate-100">
-          <h3 className="text-xl font-bold mb-4">Create Supervisor</h3>
+          <h3 className="text-xl font-bold mb-4">Create Supervisor Account</h3>
           <form onSubmit={handleCreateSupervisor} className="space-y-4">
             <InputField label="Full Name" value={supForm.name} onChange={e => setSupForm({...supForm, name: e.target.value})} />
             <InputField label="Phone Number" type="number" value={supForm.phone} onChange={e => setSupForm({...supForm, phone: e.target.value})} />
@@ -789,7 +769,6 @@ function AdminPanel() {
   );
 }
 
-// --- MAIN APP COMPONENT ---
 export default function App() {
   const [role, setRole] = useState(localStorage.getItem('tms_role'));
   const [name, setName] = useState(localStorage.getItem('tms_name'));
