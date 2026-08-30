@@ -194,17 +194,16 @@ def supervisor_expenses(trip_id: int, expenses: schemas.TripFinancialsUpdate, db
     db.refresh(db_trip)
     return db_trip
 
-@app.patch("/trips/{trip_id}/finalize", response_model=schemas.TripLogResponse)
-def admin_finalize(trip_id: int, billing: schemas.TripFinancialsUpdate, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
-    if current_user.role != "admin": raise HTTPException(status_code=403, detail="Not authorized")
+@app.patch("/trips/{trip_id}/supervisor_expenses", response_model=schemas.TripLogResponse)
+def supervisor_expenses(trip_id: int, expenses: schemas.TripFinancialsUpdate, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
+    if current_user.role not in ["supervisor", "admin"]: raise HTTPException(status_code=403, detail="Not authorized")
     db_trip = db.query(models.TripLog).filter(models.TripLog.id == trip_id).first()
     
-    for key, value in billing.model_dump().items(): setattr(db_trip, key, value)
+    for key, value in expenses.model_dump().items(): setattr(db_trip, key, value)
     
-    fuel_cost = billing.fuel_litres * billing.fuel_price
-    db_trip.total_running_cost = fuel_cost + billing.toll_charges + billing.other_expenses + billing.driver_cost + billing.vehicle_cost
-    db_trip.profit = billing.b2c_billing - db_trip.total_running_cost
-    db_trip.status = "Billed"
+    fuel_cost = expenses.fuel_litres * expenses.fuel_price
+    db_trip.total_running_cost = fuel_cost + expenses.toll_charges + expenses.other_expenses + expenses.driver_cost + expenses.vehicle_cost
+    db_trip.profit = expenses.b2c_billing - db_trip.total_running_cost
     
     db.commit()
     db.refresh(db_trip)
