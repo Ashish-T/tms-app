@@ -24,10 +24,20 @@ class UserResponse(BaseModel):
     supervisor_id: Optional[int] = None
     model_config = ConfigDict(from_attributes=True)
 
-class TripDriverCreate(BaseModel):
-    date: str
+# NEW: Supervisor creates the initial trip
+class TripSupervisorCreate(BaseModel):
+    driver_id: int
     vehicle_number: str
+    date: str
+
+class TripVehicleUpdate(BaseModel):
+    vehicle_number: str
+
+# NEW: Driver Reporting & Starting stages
+class TripDriverReport(BaseModel):
     reporting_time: str
+
+class TripDriverStart(BaseModel):
     out_time: str
     out_km: float
 
