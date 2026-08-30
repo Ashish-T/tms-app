@@ -25,6 +25,7 @@ app.add_middleware(
 SECRET_KEY = "super_secret_tms_key_change_in_production"
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_HOURS = 12
+
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="login")
 
@@ -100,39 +101,30 @@ def delete_user(user_id: int, db: Session = Depends(get_db), current_user: model
         db.commit()
     return {"ok": True}
 
-# --- NEW PIPELINE: COLLABORATIVE TRIPS ---
-
-# 1. Supervisor Creates (Dispatch)
+# --- PIPELINE: COLLABORATIVE TRIPS ---
 @app.post("/trips/", response_model=schemas.TripLogResponse)
 def create_trip(trip: schemas.TripSupervisorCreate, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
     if current_user.role != "supervisor": raise HTTPException(status_code=403, detail="Only supervisors can create trips")
-    
-    # Check if vehicle is already in active use
     active_trip = db.query(models.TripLog).filter(models.TripLog.vehicle_number == trip.vehicle_number, models.TripLog.status.in_(["Pending Approval", "Approved", "Reported", "Started"])).first()
     if active_trip: raise HTTPException(status_code=400, detail="Vehicle is already assigned to an active trip!")
-
     db_trip = models.TripLog(**trip.model_dump(), supervisor_id=current_user.id, status="Pending Approval")
     db.add(db_trip)
     db.commit()
     db.refresh(db_trip)
     return db_trip
 
-# 1b. Supervisor Shuffles Vehicle
 @app.patch("/trips/{trip_id}/shuffle_vehicle", response_model=schemas.TripLogResponse)
 def shuffle_vehicle(trip_id: int, update: schemas.TripVehicleUpdate, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
     if current_user.role != "supervisor": raise HTTPException(status_code=403, detail="Not authorized")
-    
     active_trip = db.query(models.TripLog).filter(models.TripLog.vehicle_number == update.vehicle_number, models.TripLog.status.in_(["Pending Approval", "Approved", "Reported", "Started"])).first()
     if active_trip: raise HTTPException(status_code=400, detail="Vehicle is already assigned to an active trip!")
-
     db_trip = db.query(models.TripLog).filter(models.TripLog.id == trip_id).first()
     db_trip.vehicle_number = update.vehicle_number
-    db_trip.status = "Pending Approval" # Kicks back to admin
+    db_trip.status = "Pending Approval"
     db.commit()
     db.refresh(db_trip)
     return db_trip
 
-# 2. Admin Approves Dispatch
 @app.patch("/trips/{trip_id}/approve", response_model=schemas.TripLogResponse)
 def approve_trip(trip_id: int, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
     if current_user.role != "admin": raise HTTPException(status_code=403, detail="Only admins can approve trips")
@@ -142,15 +134,11 @@ def approve_trip(trip_id: int, db: Session = Depends(get_db), current_user: mode
     db.refresh(db_trip)
     return db_trip
 
-# 3. Driver Reports for Duty
 @app.patch("/trips/{trip_id}/report", response_model=schemas.TripLogResponse)
 def driver_report(trip_id: int, report: schemas.TripDriverReport, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
     if current_user.role != "driver": raise HTTPException(status_code=403, detail="Not authorized")
-    
-    # Ensure driver doesn't already have an active trip
     active = db.query(models.TripLog).filter(models.TripLog.driver_id == current_user.id, models.TripLog.status.in_(["Reported", "Started"])).first()
     if active: raise HTTPException(status_code=400, detail="You must close your current trip first.")
-        
     db_trip = db.query(models.TripLog).filter(models.TripLog.id == trip_id, models.TripLog.driver_id == current_user.id).first()
     db_trip.reporting_time = report.reporting_time
     db_trip.status = "Reported"
@@ -158,7 +146,6 @@ def driver_report(trip_id: int, report: schemas.TripDriverReport, db: Session = 
     db.refresh(db_trip)
     return db_trip
 
-# 4. Driver Starts Engine (Out KM)
 @app.patch("/trips/{trip_id}/start", response_model=schemas.TripLogResponse)
 def driver_start(trip_id: int, start_data: schemas.TripDriverStart, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
     if current_user.role != "driver": raise HTTPException(status_code=403, detail="Not authorized")
@@ -170,7 +157,6 @@ def driver_start(trip_id: int, start_data: schemas.TripDriverStart, db: Session 
     db.refresh(db_trip)
     return db_trip
 
-# 5. Driver or Supervisor Ends Trip
 @app.patch("/trips/{trip_id}/end", response_model=schemas.TripLogResponse)
 def end_trip(trip_id: int, trip_update: schemas.TripDriverUpdate, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
     if current_user.role not in ["driver", "supervisor"]: raise HTTPException(status_code=403, detail="Not authorized")
@@ -182,38 +168,44 @@ def end_trip(trip_id: int, trip_update: schemas.TripDriverUpdate, db: Session = 
     db.refresh(db_trip)
     return db_trip
 
-# 6. Supervisor Reviews & Adds Expenses
 @app.patch("/trips/{trip_id}/review", response_model=schemas.TripLogResponse)
 def supervisor_review(trip_id: int, review: schemas.TripSupervisorUpdate, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
     if current_user.role != "supervisor": raise HTTPException(status_code=403, detail="Not authorized")
-    db_trip = db.query(models.TripLog).filter(models.TripLog.id == trip_id).first()
+    db_trip = db.query(models.TripLog).filter(models.TripLog.id == trip_id, models.TripLog.supervisor_id == current_user.id).first()
     for key, value in review.model_dump().items(): setattr(db_trip, key, value)
     if db_trip.status == "Completed": db_trip.status = "Reviewed"
     db.commit()
     db.refresh(db_trip)
     return db_trip
 
+# --- THIS IS THE CORRECTED EXPENSES ROUTE ---
 @app.patch("/trips/{trip_id}/supervisor_expenses", response_model=schemas.TripLogResponse)
-def supervisor_expenses(trip_id: int, expenses: schemas.TripSupervisorExpensesUpdate, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
+def supervisor_expenses(trip_id: int, expenses: schemas.TripFinancialsUpdate, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
     if current_user.role not in ["supervisor", "admin"]: raise HTTPException(status_code=403, detail="Not authorized")
     db_trip = db.query(models.TripLog).filter(models.TripLog.id == trip_id).first()
+    
     for key, value in expenses.model_dump().items(): setattr(db_trip, key, value)
+    
+    fuel_cost = expenses.fuel_litres * expenses.fuel_price
+    db_trip.total_running_cost = fuel_cost + expenses.toll_charges + expenses.other_expenses + expenses.driver_cost + expenses.vehicle_cost
+    db_trip.profit = expenses.b2c_billing - db_trip.total_running_cost
+    
     db.commit()
     db.refresh(db_trip)
     return db_trip
 
-# 7. Admin Finalizes
 @app.patch("/trips/{trip_id}/finalize", response_model=schemas.TripLogResponse)
-def admin_finalize(trip_id: int, billing: schemas.TripAdminUpdate, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
+def admin_finalize(trip_id: int, billing: schemas.TripFinancialsUpdate, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
     if current_user.role != "admin": raise HTTPException(status_code=403, detail="Not authorized")
     db_trip = db.query(models.TripLog).filter(models.TripLog.id == trip_id).first()
+    
     for key, value in billing.model_dump().items(): setattr(db_trip, key, value)
     
-    db_trip.driver_total_cost = (billing.driver_daily_salary * billing.trip_days) + billing.driver_bata + billing.food_allowance
-    fuel_cost = db_trip.fuel_litres * db_trip.fuel_price
-    db_trip.total_running_cost = (fuel_cost + db_trip.toll_charges + db_trip.parking_charges + db_trip.entry_charges + db_trip.driver_total_cost + db_trip.loading_charges + db_trip.unloading_charges + db_trip.other_expenses + db_trip.police_fines + db_trip.fixed_cost)
-    db_trip.profit = billing.billing_amount - db_trip.total_running_cost
+    fuel_cost = billing.fuel_litres * billing.fuel_price
+    db_trip.total_running_cost = fuel_cost + billing.toll_charges + billing.other_expenses + billing.driver_cost + billing.vehicle_cost
+    db_trip.profit = billing.b2c_billing - db_trip.total_running_cost
     db_trip.status = "Billed"
+    
     db.commit()
     db.refresh(db_trip)
     return db_trip
@@ -240,6 +232,7 @@ def get_vendors(db: Session = Depends(get_db)): return db.query(models.VendorLis
 
 @app.post("/vendors_list/", response_model=schemas.DropdownItemResponse)
 def add_vendor(vendor: schemas.DropdownItemCreate, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
+    if current_user.role != "admin": raise HTTPException(status_code=403, detail="Only admins can manage vendors")
     db_vendor = models.VendorList(name=vendor.name)
     db.add(db_vendor)
     db.commit()
@@ -257,8 +250,9 @@ def delete_vendor(vendor_id: int, db: Session = Depends(get_db), current_user: m
 def get_vehicles(db: Session = Depends(get_db)): return db.query(models.VehicleList).all()
 
 @app.post("/vehicles_list/", response_model=schemas.VehicleResponse)
-def add_vehicle(vehicle: schemas.VehicleCreate, db: Session = Depends(get_db)):
-    db_vehicle = models.VehicleList(vehicle_number=vehicle.vehicle_number)
+def add_vehicle(vehicle: schemas.VehicleCreate, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
+    if current_user.role not in ["admin", "supervisor"]: raise HTTPException(status_code=403, detail="Not authorized")
+    db_vehicle = models.VehicleList(vehicle_number=vehicle.vehicle_number, ownership_type=vehicle.ownership_type, emi=vehicle.emi)
     db.add(db_vehicle)
     db.commit()
     db.refresh(db_vehicle)
