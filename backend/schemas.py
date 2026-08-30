@@ -24,7 +24,6 @@ class UserResponse(BaseModel):
     supervisor_id: Optional[int] = None
     model_config = ConfigDict(from_attributes=True)
 
-# NEW: Supervisor creates the initial trip
 class TripSupervisorCreate(BaseModel):
     driver_id: int
     vehicle_number: str
@@ -33,7 +32,6 @@ class TripSupervisorCreate(BaseModel):
 class TripVehicleUpdate(BaseModel):
     vehicle_number: str
 
-# NEW: Driver Reporting & Starting stages
 class TripDriverReport(BaseModel):
     reporting_time: str
 
@@ -51,34 +49,19 @@ class TripSupervisorUpdate(BaseModel):
     body_type: str
     vendor_name: str
     helper_name: str
+    client_name: str
+    source: str
+    destination: str
 
-class TripSupervisorExpensesUpdate(BaseModel):
+class TripFinancialsUpdate(BaseModel):
     fuel_litres: float
     fuel_price: float
     toll_charges: float
-    parking_charges: float
-    entry_charges: float
-    loading_charges: float
-    unloading_charges: float
-    police_fines: float
     other_expenses: float
-
-class TripAdminUpdate(BaseModel):
-    fuel_litres: float
-    fuel_price: float
-    toll_charges: float
-    parking_charges: float
-    entry_charges: float
-    loading_charges: float
-    unloading_charges: float
-    police_fines: float
-    other_expenses: float
-    driver_daily_salary: float
-    trip_days: float
-    driver_bata: float
-    food_allowance: float
-    fixed_cost: float
-    billing_amount: float
+    driver_cost: float
+    vehicle_cost_type: str
+    vehicle_cost: float
+    b2c_billing: float
 
 class TripLogResponse(BaseModel):
     id: int
@@ -97,23 +80,18 @@ class TripLogResponse(BaseModel):
     body_type: Optional[str]
     vendor_name: Optional[str]
     helper_name: Optional[str]
+    client_name: Optional[str]
+    source: Optional[str]
+    destination: Optional[str]
     fuel_litres: float
     fuel_price: float
     toll_charges: float
-    parking_charges: float
-    entry_charges: float
-    loading_charges: float
-    unloading_charges: float
-    police_fines: float
     other_expenses: float
-    driver_daily_salary: float
-    trip_days: float
-    driver_bata: float
-    food_allowance: float
-    driver_total_cost: float
-    fixed_cost: float
+    driver_cost: float
+    vehicle_cost_type: Optional[str]
+    vehicle_cost: float
+    b2c_billing: float
     total_running_cost: float
-    billing_amount: float
     profit: float
     model_config = ConfigDict(from_attributes=True)
 
@@ -127,8 +105,12 @@ class DropdownItemResponse(BaseModel):
 
 class VehicleCreate(BaseModel):
     vehicle_number: str
+    ownership_type: str
+    emi: float
 
 class VehicleResponse(BaseModel):
     id: int
     vehicle_number: str
+    ownership_type: str
+    emi: float
     model_config = ConfigDict(from_attributes=True)

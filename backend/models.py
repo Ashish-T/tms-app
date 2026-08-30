@@ -25,14 +25,13 @@ class User(Base):
     supervisor_id = Column(Integer, ForeignKey('users.id'), nullable=True)
 
 class TripLog(Base):
-    __tablename__ = 'trip_logs_v6' # <--- V6 Database Upgrade
+    __tablename__ = 'trip_logs_v8' # <--- Upgraded to V8 for simplified finances
     id = Column(Integer, primary_key=True)
-    
     driver_id = Column(Integer, ForeignKey('users.id'))
     supervisor_id = Column(Integer, ForeignKey('users.id'))
     status = Column(String, default="Started") 
     
-    # DRIVER INPUTS
+    # TRIP DETAILS
     date = Column(String)
     vehicle_number = Column(String)
     reporting_time = Column(String)
@@ -40,37 +39,26 @@ class TripLog(Base):
     out_km = Column(Float, default=0.0)
     in_time = Column(String)
     in_km = Column(Float, default=0.0)
-    
-    # SUPERVISOR INPUTS
     vehicle_type = Column(String, nullable=True)
     vehicle_mode = Column(String, nullable=True)
     body_type = Column(String, nullable=True)
     vendor_name = Column(String, nullable=True)
     helper_name = Column(String, nullable=True)
+    client_name = Column(String, nullable=True)
+    source = Column(String, nullable=True)     
+    destination = Column(String, nullable=True)
     
-    # ADMIN EXPENSE INPUTS (NEW)
+    # SIMPLIFIED FINANCES & B2C
     fuel_litres = Column(Float, default=0.0)
     fuel_price = Column(Float, default=0.0)
     toll_charges = Column(Float, default=0.0)
-    parking_charges = Column(Float, default=0.0)
-    entry_charges = Column(Float, default=0.0)
-    loading_charges = Column(Float, default=0.0)
-    unloading_charges = Column(Float, default=0.0)
-    police_fines = Column(Float, default=0.0)
     other_expenses = Column(Float, default=0.0)
-    
-    # ADMIN DRIVER COST (NEW)
-    driver_daily_salary = Column(Float, default=0.0)
-    trip_days = Column(Float, default=0.0)
-    driver_bata = Column(Float, default=0.0)
-    food_allowance = Column(Float, default=0.0)
-    driver_total_cost = Column(Float, default=0.0) # Calculated
-    
-    # ADMIN FINAL BILLING
-    fixed_cost = Column(Float, default=0.0) # Only if Dedicated
-    total_running_cost = Column(Float, default=0.0) # Calculated
-    billing_amount = Column(Float, default=0.0)
-    profit = Column(Float, default=0.0) # Calculated
+    driver_cost = Column(Float, default=0.0)
+    vehicle_cost_type = Column(String, nullable=True) # "Own Company" or "Third Party"
+    vehicle_cost = Column(Float, default=0.0)
+    b2c_billing = Column(Float, default=0.0) # B2C Revenue
+    total_running_cost = Column(Float, default=0.0) 
+    profit = Column(Float, default=0.0) 
 
 class VendorList(Base):
     __tablename__ = 'vendor_list'
@@ -78,6 +66,8 @@ class VendorList(Base):
     name = Column(String, unique=True)
 
 class VehicleList(Base):
-    __tablename__ = 'vehicle_list'
+    __tablename__ = 'vehicle_list_v2' # <--- Upgraded to support EMI
     id = Column(Integer, primary_key=True)
     vehicle_number = Column(String, unique=True)
+    ownership_type = Column(String, default="Third Party")
+    emi = Column(Float, default=0.0)
