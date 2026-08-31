@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import API from '../api';
-import { InputField, SelectField, DetailItem, StatusBadge } from './SharedUI';
+import { InputField, SelectField, DetailItem, StatusBadge, getCurrentDate } from './SharedUI';
 
 export default function AdminPanel() {
-  const [activeTab, setActiveTab] = useState('attendance'); 
+  const [activeTab, setActiveTab] = useState('availability'); 
   const [trips, setTrips] = useState([]);
   const [users, setUsers] = useState([]);
   const [vendors, setVendors] = useState([]);
@@ -14,13 +14,12 @@ export default function AdminPanel() {
   const [editDetailsTrip, setEditDetailsTrip] = useState(null);
   const [editDetailsData, setEditDetailsData] = useState({ vehicle_type: '', vehicle_mode: '', body_type: '', vendor_name: '', helper_name: '', client_name: '', source: '', destination: '', vehicle_sourced_from: '' });
   const [viewingTrip, setViewingTrip] = useState(null);
-  const [viewDriverDetails, setViewDriverDetails] = useState(null); // <--- NEW: Driver Pop-up state
+  const [viewDriverDetails, setViewDriverDetails] = useState(null); 
 
-  // Admin Wallet Modal State
   const [walletSup, setWalletSup] = useState(null);
   const [walletData, setWalletData] = useState({ total_funded: 0, total_trip_expenses: 0, total_misc_expenses: 0, current_balance: 0 });
   const [miscExpenses, setMiscExpenses] = useState([]);
-  const [walletFunds, setWalletFunds] = useState([]); // <--- NEW: View history in admin
+  const [walletFunds, setWalletFunds] = useState([]); 
   const [newFund, setNewFund] = useState({ amount: '', medium: 'Cash' });
 
   const vehicleTypes = ["Tata Ace", "Intra", "Bolero Pickup", "Verro", "Bara Dast", "10' FT", "14' FT", "17' FT", "20' FT", "22' FT", "32' FT SXL", "32' FT MXL"];
@@ -44,7 +43,6 @@ export default function AdminPanel() {
 
   const handleApprove = async (id) => { try { await API.patch(`/trips/${id}/approve`); fetchAllData(); } catch (err) { alert("Error."); } };
 
-  // WALLET ACTIONS
   const openWalletModal = (sup) => {
       setWalletSup(sup);
       API.get(`/wallet/${sup.id}`).then(res => setWalletData(res.data)).catch(console.error);
@@ -57,7 +55,7 @@ export default function AdminPanel() {
       try {
           await API.post('/funds/', { supervisor_id: walletSup.id, amount: Number(newFund.amount), date: new Date().toISOString(), medium: newFund.medium });
           setNewFund({ amount: '', medium: 'Cash' });
-          openWalletModal(walletSup); // Refresh data
+          openWalletModal(walletSup);
       } catch (err) { alert("Error adding funds."); }
   }
 
@@ -74,9 +72,6 @@ export default function AdminPanel() {
 
   const handleBillSubmit = async (e) => { e.preventDefault(); try { const payload = {}; Object.keys(billData).forEach(k => { if (['vehicle_cost_type', 'client_name'].includes(k)) { payload[k] = billData[k] || (k === 'vehicle_cost_type' ? "Third Party" : ""); } else { payload[k] = Number(billData[k]) || 0; } }); await API.patch(`/trips/${billingTrip.id}/finalize`, payload); setBillingTrip(null); fetchAllData(); } catch (err) { alert("Failed. Ensure valid numbers."); } };
   const handleEditDetailsSubmit = async (e) => { e.preventDefault(); try { await API.patch(`/trips/${editDetailsTrip.id}/admin_edit`, editDetailsData); setEditDetailsTrip(null); fetchAllData(); } catch (err) { alert("Failed."); } };
-
-  const liveCost = (Number(billData.fuel_litres)||0) * (Number(billData.fuel_price)||0) + (Number(billData.toll_charges)||0) + (Number(billData.other_expenses)||0) + (Number(billData.driver_cost)||0) + (Number(billData.overtime_allowance)||0) + (Number(billData.vehicle_cost)||0);
-  const liveProfit = (Number(billData.b2c_billing)||0) - liveCost;
 
   const handleCreateSupervisor = async (e) => { e.preventDefault(); try { await API.post('/users/supervisor', { ...supForm, role: 'supervisor' }); alert("Created!"); setSupForm({ username: '', password: '', name: '', phone: '' }); fetchAllData(); } catch (err) { alert("Error."); } };
   const handleDeleteUser = async (id) => { if (window.confirm("Delete this user permanently?")) { try { await API.delete(`/users/${id}`); fetchAllData(); } catch(err) { alert("Failed."); } } };
@@ -103,12 +98,92 @@ export default function AdminPanel() {
       vendorStats[vName].rev += t.b2c_billing; vendorStats[vName].cost += t.total_running_cost; vendorStats[vName].profit += t.profit; vendorStats[vName].trips += 1;
   });
 
+  // --- BRAND NEW: PDF GENERATOR FUNCTION ---
+  const handleGeneratePDF = (trip) => {
+    const driverName = getDriverName(trip.driver_id);
+    const supervisorName = getSupervisorName(trip.supervisor_id);
+    const fuelCost = (trip.fuel_litres * trip.fuel_price).toFixed(2);
+    
+    const invoiceHTML = `
+      <html>
+        <head>
+          <title>Invoice - Trip #${trip.id}</title>
+          <style>
+            body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; padding: 40px; color: #1e293b; }
+            .header { text-align: center; border-bottom: 2px solid #cbd5e1; padding-bottom: 20px; margin-bottom: 30px; }
+            .header h1 { margin: 0; color: #0284c7; font-size: 32px; font-weight: 900; tracking: 1px; }
+            .header p { color: #64748b; margin-top: 5px; font-weight: bold; }
+            
+            .section-title { font-size: 18px; color: #334155; border-bottom: 1px solid #e2e8f0; padding-bottom: 5px; margin-top: 30px; }
+            .details-table, .financial-table { width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 14px; }
+            .details-table th, .details-table td, .financial-table th, .financial-table td { border: 1px solid #e2e8f0; padding: 12px; text-align: left; }
+            
+            .details-table th { background-color: #f8fafc; color: #475569; width: 25%; }
+            .financial-table th { background-color: #f0f9ff; color: #0369a1; }
+            .total-row td { font-weight: bold; background-color: #f1f5f9; font-size: 16px; }
+            .profit-row td { font-weight: bold; background-color: #ecfdf5; color: #047857; font-size: 18px; }
+            
+            .footer { text-align: center; margin-top: 50px; font-size: 12px; color: #94a3b8; }
+            
+            @media print {
+              body { padding: 0; }
+            }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <h1>TMS ENTERPRISE</h1>
+            <p>Official Trip Invoice & Logistics Manifest</p>
+          </div>
+          
+          <h3 class="section-title">Trip Overview (ID: #${trip.id})</h3>
+          <table class="details-table">
+            <tr><th>Date</th><td>${trip.date}</td><th>Client</th><td>${trip.client_name || 'N/A'}</td></tr>
+            <tr><th>Vehicle</th><td>${trip.vehicle_number} (${trip.vehicle_type || 'N/A'})</td><th>Mode</th><td>${trip.vehicle_mode || 'N/A'}</td></tr>
+            <tr><th>Source</th><td>${trip.source || 'N/A'}</td><th>Destination</th><td>${trip.destination || 'N/A'}</td></tr>
+            <tr><th>Driver</th><td>${driverName}</td><th>Supervisor</th><td>${supervisorName}</td></tr>
+            <tr><th>Distance Details</th><td colspan="3">${trip.in_km - trip.out_km} KM Total (Start: ${trip.out_km} KM | End: ${trip.in_km} KM)</td></tr>
+          </table>
+
+          <h3 class="section-title">Financial Breakdown</h3>
+          <table class="financial-table">
+            <tr><th>Expense Category</th><th>Amount (INR)</th></tr>
+            <tr><td>Fuel Cost (${trip.fuel_litres}L @ ₹${trip.fuel_price})</td><td>₹${fuelCost}</td></tr>
+            <tr><td>Toll Charges</td><td>₹${trip.toll_charges}</td></tr>
+            <tr><td>Driver Cost (${trip.trip_days} Days)</td><td>₹${trip.driver_cost}</td></tr>
+            <tr><td>Overtime Paid</td><td>₹${trip.overtime_allowance}</td></tr>
+            <tr><td>Vehicle Cost (${trip.vehicle_cost_type || 'Third Party'})</td><td>₹${trip.vehicle_cost}</td></tr>
+            <tr><td>Other Misc. Expenses</td><td>₹${trip.other_expenses}</td></tr>
+            <tr class="total-row"><td>Total Running Cost</td><td>₹${trip.total_running_cost}</td></tr>
+          </table>
+
+          <h3 class="section-title">Final Billing Summary</h3>
+          <table class="financial-table">
+            <tr><th>B2C Revenue (Billed to Client)</th><td>₹${trip.b2c_billing}</td></tr>
+            <tr class="profit-row"><td>Net Profit Contribution</td><td>₹${trip.profit}</td></tr>
+          </table>
+
+          <div class="footer">
+            <p>Generated by TMS Enterprise System on ${new Date().toLocaleString()}</p>
+          </div>
+        </body>
+      </html>
+    `;
+
+    // Open a temporary window, render the HTML, and instantly trigger the PDF Print dialog
+    const pdfWindow = window.open('', '_blank');
+    pdfWindow.document.write(invoiceHTML);
+    pdfWindow.document.close();
+    setTimeout(() => { pdfWindow.print(); }, 250); 
+  };
+  // --- END PDF GENERATOR ---
+
   return (
     <div className="p-4 md:p-8 max-w-7xl mx-auto">
       <h2 className="text-3xl font-extrabold mb-6">Master Admin Dashboard</h2>
       <div className="flex flex-wrap gap-2 mb-6 bg-slate-200/50 p-1.5 rounded-xl inline-flex">
-        <button onClick={() => setActiveTab('attendance')} className={`px-5 py-2.5 rounded-lg font-bold transition-all ${activeTab === 'attendance' ? 'bg-white text-indigo-700 shadow-sm' : 'text-slate-500'}`}>Attendance & Payroll</button>
         <button onClick={() => setActiveTab('availability')} className={`px-5 py-2.5 rounded-lg font-bold transition-all ${activeTab === 'availability' ? 'bg-white text-indigo-700 shadow-sm' : 'text-slate-500'}`}>Availability & Fleet</button>
+        <button onClick={() => setActiveTab('attendance')} className={`px-5 py-2.5 rounded-lg font-bold transition-all ${activeTab === 'attendance' ? 'bg-white text-indigo-700 shadow-sm' : 'text-slate-500'}`}>Attendance & Payroll</button>
         <button onClick={() => setActiveTab('approvals')} className={`px-5 py-2.5 rounded-lg font-bold transition-all flex items-center gap-2 ${activeTab === 'approvals' ? 'bg-white text-rose-600 shadow-sm' : 'text-slate-500'}`}>Approvals {pendingCount > 0 && <span className="bg-rose-500 text-white rounded-full px-2 py-0.5 text-xs">{pendingCount}</span>}</button>
         <button onClick={() => setActiveTab('trips')} className={`px-5 py-2.5 rounded-lg font-bold transition-all ${activeTab === 'trips' ? 'bg-white text-sky-700 shadow-sm' : 'text-slate-500'}`}>Financial Billing</button>
         <button onClick={() => setActiveTab('reports')} className={`px-5 py-2.5 rounded-lg font-bold transition-all ${activeTab === 'reports' ? 'bg-white text-emerald-700 shadow-sm' : 'text-slate-500'}`}>Profit Reports</button>
@@ -117,73 +192,6 @@ export default function AdminPanel() {
         <button onClick={() => setActiveTab('vendors')} className={`px-5 py-2.5 rounded-lg font-bold transition-all ${activeTab === 'vendors' ? 'bg-white text-sky-700 shadow-sm' : 'text-slate-500'}`}>Vendors</button>
         <button onClick={() => setActiveTab('vehicles')} className={`px-5 py-2.5 rounded-lg font-bold transition-all ${activeTab === 'vehicles' ? 'bg-white text-sky-700 shadow-sm' : 'text-slate-500'}`}>Vehicles</button>
       </div>
-
-      {activeTab === 'attendance' && (
-        <div className="bg-white p-6 rounded-2xl shadow-xl border border-slate-100">
-          <h3 className="text-xl font-bold mb-6 border-b pb-2">Driver Attendance & Cost Tracking</h3>
-          <div className="overflow-x-auto">
-            <table className="min-w-full text-left text-sm whitespace-nowrap">
-              <thead className="bg-slate-50 border-b">
-                <tr><th className="p-4">Driver Details</th><th className="p-4">Total Trips</th><th className="p-4">Unique Days Worked</th><th className="p-4">Overtime Allowance</th><th className="p-4">Base Driver Cost</th><th className="p-4">Action</th></tr>
-              </thead>
-              <tbody>
-                {users.filter(u => u.role === 'driver').map(driver => {
-                  const driverTrips = trips.filter(t => t.driver_id === driver.id && t.status !== 'Pending Approval');
-                  
-                  // STRICT UNIQUE DAYS CALCULATION
-                  const uniqueDates = new Set(driverTrips.map(t => t.date));
-                  const daysPresent = uniqueDates.size; 
-                  
-                  const totalTrips = driverTrips.length;
-                  const totalOvertime = driverTrips.reduce((sum, t) => sum + (t.overtime_allowance || 0), 0);
-                  const totalDriverCost = driverTrips.reduce((sum, t) => sum + (t.driver_cost || 0), 0);
-                  
-                  return (
-                    <tr key={driver.id} className="border-b hover:bg-slate-50 transition-colors">
-                      <td className="p-4 font-bold text-indigo-700">{driver.name} <span className="text-xs text-slate-500 block font-semibold mt-1">📞 {driver.phone || 'No Phone'}</span></td>
-                      <td className="p-4 font-bold text-slate-800 text-lg">{totalTrips}</td>
-                      <td className="p-4 font-bold text-emerald-600 text-lg">{daysPresent} Days</td>
-                      <td className="p-4 text-amber-600 font-bold">₹{totalOvertime}</td>
-                      <td className="p-4 font-semibold text-slate-600">₹{totalDriverCost}</td>
-                      <td className="p-4"><button onClick={() => setViewDriverDetails(driver)} className="bg-sky-100 text-sky-700 px-3 py-1.5 rounded-lg font-bold hover:bg-sky-200 text-xs shadow-sm">View Details</button></td>
-                    </tr>
-                  )
-                })}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
-
-      {/* DRIVER DETAILS POP-UP */}
-      {viewDriverDetails && (
-        <div className="fixed inset-0 bg-slate-900/60 flex items-center justify-center p-4 z-50">
-          <div className="bg-white p-8 rounded-3xl w-full max-w-5xl max-h-[90vh] overflow-y-auto">
-            <div className="flex justify-between items-center mb-6">
-                <h3 className="text-2xl font-bold">Trip Ledger for {viewDriverDetails.name}</h3>
-                <button onClick={() => setViewDriverDetails(null)} className="text-slate-400 font-bold bg-slate-100 p-2 rounded-full">✕</button>
-            </div>
-            
-            <div className="overflow-x-auto">
-                <table className="min-w-full text-left text-sm whitespace-nowrap">
-                    <thead className="bg-slate-50 border-b"><tr><th className="p-3">Date</th><th className="p-3">Vehicle</th><th className="p-3">Route (KM)</th><th className="p-3">Base Cost</th><th className="p-3">Overtime</th><th className="p-3">Status</th></tr></thead>
-                    <tbody>
-                        {trips.filter(t => t.driver_id === viewDriverDetails.id && t.status !== 'Pending Approval').map(t => (
-                            <tr key={t.id} className="border-b">
-                                <td className="p-3 font-semibold text-slate-600">{t.date}</td>
-                                <td className="p-3 font-bold">{t.vehicle_number}</td>
-                                <td className="p-3">{t.in_km - t.out_km} km</td>
-                                <td className="p-3 font-bold text-sky-600">₹{t.driver_cost || 0}</td>
-                                <td className="p-3 font-bold text-amber-600">₹{t.overtime_allowance || 0}</td>
-                                <td className="p-3"><StatusBadge status={t.status} /></td>
-                            </tr>
-                        ))}
-                    </tbody>
-                </table>
-            </div>
-          </div>
-        </div>
-      )}
 
       {activeTab === 'availability' && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -266,6 +274,67 @@ export default function AdminPanel() {
         </div>
       )}
 
+      {activeTab === 'attendance' && (
+        <div className="bg-white p-6 rounded-2xl shadow-xl border border-slate-100">
+          <h3 className="text-xl font-bold mb-6 border-b pb-2">Driver Attendance & Cost Tracking</h3>
+          <div className="overflow-x-auto">
+            <table className="min-w-full text-left text-sm whitespace-nowrap">
+              <thead className="bg-slate-50 border-b">
+                <tr><th className="p-4">Driver Details</th><th className="p-4">Total Trips</th><th className="p-4">Unique Days Worked</th><th className="p-4">Overtime Allowance</th><th className="p-4">Base Driver Cost</th><th className="p-4">Action</th></tr>
+              </thead>
+              <tbody>
+                {users.filter(u => u.role === 'driver').map(driver => {
+                  const driverTrips = trips.filter(t => t.driver_id === driver.id && t.status !== 'Pending Approval');
+                  const uniqueDates = new Set(driverTrips.map(t => t.date));
+                  const daysPresent = uniqueDates.size; 
+                  const totalTrips = driverTrips.length;
+                  const totalOvertime = driverTrips.reduce((sum, t) => sum + (t.overtime_allowance || 0), 0);
+                  const totalDriverCost = driverTrips.reduce((sum, t) => sum + (t.driver_cost || 0), 0);
+                  return (
+                    <tr key={driver.id} className="border-b hover:bg-slate-50 transition-colors">
+                      <td className="p-4 font-bold text-indigo-700">{driver.name} <span className="text-xs text-slate-500 block font-semibold mt-1">📞 {driver.phone || 'No Phone'}</span></td>
+                      <td className="p-4 font-bold text-slate-800 text-lg">{totalTrips}</td>
+                      <td className="p-4 font-bold text-emerald-600 text-lg">{daysPresent} Days</td>
+                      <td className="p-4 text-amber-600 font-bold">₹{totalOvertime}</td>
+                      <td className="p-4 font-semibold text-slate-600">₹{totalDriverCost}</td>
+                      <td className="p-4"><button onClick={() => setViewDriverDetails(driver)} className="bg-sky-100 text-sky-700 px-3 py-1.5 rounded-lg font-bold hover:bg-sky-200 text-xs shadow-sm">View Details</button></td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {viewDriverDetails && (
+        <div className="fixed inset-0 bg-slate-900/60 flex items-center justify-center p-4 z-50">
+          <div className="bg-white p-8 rounded-3xl w-full max-w-5xl max-h-[90vh] overflow-y-auto">
+            <div className="flex justify-between items-center mb-6">
+                <h3 className="text-2xl font-bold">Trip Ledger for {viewDriverDetails.name}</h3>
+                <button onClick={() => setViewDriverDetails(null)} className="text-slate-400 font-bold bg-slate-100 p-2 rounded-full">✕</button>
+            </div>
+            <div className="overflow-x-auto">
+                <table className="min-w-full text-left text-sm whitespace-nowrap">
+                    <thead className="bg-slate-50 border-b"><tr><th className="p-3">Date</th><th className="p-3">Vehicle</th><th className="p-3">Route (KM)</th><th className="p-3">Base Cost</th><th className="p-3">Overtime</th><th className="p-3">Status</th></tr></thead>
+                    <tbody>
+                        {trips.filter(t => t.driver_id === viewDriverDetails.id && t.status !== 'Pending Approval').map(t => (
+                            <tr key={t.id} className="border-b">
+                                <td className="p-3 font-semibold text-slate-600">{t.date}</td>
+                                <td className="p-3 font-bold">{t.vehicle_number}</td>
+                                <td className="p-3">{t.in_km - t.out_km} km</td>
+                                <td className="p-3 font-bold text-sky-600">₹{t.driver_cost || 0}</td>
+                                <td className="p-3 font-bold text-amber-600">₹{t.overtime_allowance || 0}</td>
+                                <td className="p-3"><StatusBadge status={t.status} /></td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            </div>
+          </div>
+        </div>
+      )}
+
       {activeTab === 'approvals' && (
         <div className="bg-white rounded-2xl shadow-xl border border-slate-100 overflow-x-auto">
           <table className="min-w-full text-left text-sm whitespace-nowrap">
@@ -307,13 +376,19 @@ export default function AdminPanel() {
                   <td className="p-4 font-bold text-rose-600">₹{trip.total_running_cost || 0}</td>
                   <td className="p-4 font-bold text-emerald-600">₹{trip.profit || 0}</td>
                   <td className="p-4">
-                    <div className="flex gap-2">
+                    <div className="flex gap-2 flex-wrap">
                       <button onClick={() => setViewingTrip(trip)} className="bg-slate-100 text-slate-700 px-3 py-1.5 rounded-lg font-bold hover:bg-slate-200 text-xs shadow-sm">View Log</button>
+                      
                       {(['Pending for Admin Final Review', 'Billed / Completed'].includes(trip.status)) && (
                          <>
                            <button onClick={() => { setEditDetailsTrip(trip); setEditDetailsData({ vehicle_type: trip.vehicle_type || '', vehicle_mode: trip.vehicle_mode || '', body_type: trip.body_type || '', vendor_name: trip.vendor_name || '', helper_name: trip.helper_name || '', client_name: trip.client_name || '', source: trip.source || '', destination: trip.destination || '', vehicle_sourced_from: trip.vehicle_sourced_from || '' }); }} className="bg-amber-100 text-amber-700 px-3 py-1.5 rounded-lg font-bold hover:bg-amber-200 text-xs shadow-sm">Edit Details</button>
                            <button onClick={() => openBillingModal(trip)} className="bg-emerald-100 text-emerald-700 px-3 py-1.5 rounded-lg font-bold hover:bg-emerald-200 text-xs shadow-sm">{trip.status === 'Billed / Completed' ? 'Edit Finances' : 'Finalize'}</button>
                          </>
+                      )}
+                      
+                      {/* NEW: PDF INVOICE DOWNLOAD BUTTON */}
+                      {trip.status === 'Billed / Completed' && (
+                        <button onClick={() => handleGeneratePDF(trip)} className="bg-indigo-100 text-indigo-700 px-3 py-1.5 rounded-lg font-bold hover:bg-indigo-200 text-xs shadow-sm">Print Invoice</button>
                       )}
                     </div>
                   </td>
@@ -409,7 +484,7 @@ export default function AdminPanel() {
                 
                 <div className="col-span-2 border-t pt-4 mt-2 grid grid-cols-3 gap-4">
                   <InputField label="Driver Total Cost" type="number" value={billData.driver_cost} onChange={e => setBillData({...billData, driver_cost: e.target.value})} />
-                  <InputField label="Trip Days (Attendance)" type="number" value={billData.trip_days} onChange={e => setBillData({...billData, trip_days: e.target.value})} />
+                  <InputField label="Trip Days" type="number" value={billData.trip_days} onChange={e => setBillData({...billData, trip_days: e.target.value})} />
                   <InputField label="Overtime Allowance" type="number" value={billData.overtime_allowance} onChange={e => setBillData({...billData, overtime_allowance: e.target.value})} />
                 </div>
                 

@@ -6,14 +6,28 @@ from dotenv import load_dotenv
 load_dotenv()
 Base = declarative_base()
 
+# --- SUPABASE / DATABASE CONNECTION LOGIC ---
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./tms.db")
+
+# Fix for SQLAlchemy 1.4+ which requires 'postgresql://' strictly
 if DATABASE_URL.startswith("postgres://"):
     DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
 
-connect_args = {"check_same_thread": False} if DATABASE_URL.startswith("sqlite") else {}
-engine = create_engine(DATABASE_URL, connect_args=connect_args)
+# Configure connection based on SQLite (local) vs Supabase (Production)
+if DATABASE_URL.startswith("sqlite"):
+    connect_args = {"check_same_thread": False}
+    engine = create_engine(DATABASE_URL, connect_args=connect_args)
+else:
+    # SUPABASE OPTIMIZATION: Prevents dropped connections in production
+    engine = create_engine(
+        DATABASE_URL, 
+        pool_pre_ping=True, 
+        pool_recycle=300
+    )
+
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
+# --- DATABASE TABLES ---
 class User(Base):
     __tablename__ = 'users'
     id = Column(Integer, primary_key=True)
@@ -80,12 +94,12 @@ class VehicleList(Base):
     emi = Column(Float, default=0.0)
 
 class AdminFundTransfer(Base):
-    __tablename__ = 'admin_fund_transfers_v2' # <--- UPGRADED FOR MEDIUM TRACKING
+    __tablename__ = 'admin_fund_transfers_v2' 
     id = Column(Integer, primary_key=True)
     supervisor_id = Column(Integer, ForeignKey('users.id'))
     amount = Column(Float, default=0.0)
     date = Column(String) 
-    medium = Column(String, default="Cash") # <--- NEW: Bank Transfer, UPI, Cash
+    medium = Column(String, default="Cash") 
 
 class SupervisorMiscExpense(Base):
     __tablename__ = 'supervisor_misc_expenses'
