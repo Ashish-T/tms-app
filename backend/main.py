@@ -22,6 +22,11 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# --- NEW HEALTH CHECK ROUTE ---
+@app.get("/")
+def health_check():
+    return {"status": "TMS Backend is running smoothly!"}
+
 SECRET_KEY = "super_secret_tms_key_change_in_production"
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_HOURS = 12
