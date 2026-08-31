@@ -30,7 +30,16 @@ const getCurrentTime = () => new Date().toTimeString().slice(0, 5);
 const getCurrentDate = () => new Date().toISOString().split('T')[0];
 
 const StatusBadge = ({ status }) => {
-  const colors = { 'Pending Approval': 'bg-rose-100 text-rose-800', 'Approved': 'bg-sky-100 text-sky-800', 'Reported': 'bg-amber-100 text-amber-800', 'Started': 'bg-blue-100 text-blue-800', 'Completed': 'bg-indigo-100 text-indigo-800', 'Reviewed': 'bg-purple-100 text-purple-800', 'Billed': 'bg-emerald-100 text-emerald-800' };
+  const colors = { 
+    'Pending Approval': 'bg-rose-100 text-rose-800', 
+    'Waiting for Driver': 'bg-sky-100 text-sky-800', 
+    'Reported': 'bg-amber-100 text-amber-800', 
+    'Trip Started': 'bg-blue-100 text-blue-800', 
+    'Submitted for Review': 'bg-purple-100 text-purple-800',
+    'Completed': 'bg-indigo-100 text-indigo-800', 
+    'Pending for Admin Final Review': 'bg-orange-100 text-orange-800',
+    'Billed / Completed': 'bg-emerald-100 text-emerald-800' 
+  };
   return <span className={`px-3 py-1 rounded-full text-xs font-bold ${colors[status] || 'bg-slate-100 text-slate-800'}`}>{status}</span>;
 };
 
@@ -79,7 +88,9 @@ function DriverPanel({ userName }) {
 
   useEffect(() => { fetchTrips(); API.get('/vehicles_list/').then(res => setVehicles(res.data.map(v => v.vehicle_number))).catch(console.error); }, []);
   const fetchTrips = () => API.get('/trips/').then(res => setTrips(res.data)).catch(console.error);
-  const hasActiveTrip = trips.some(t => ['Reported', 'Started'].includes(t.status));
+  
+  // Driver's active view: Anything that hasn't hit Admin pending review yet.
+  const hasActiveTrip = trips.some(t => ['Reported', 'Trip Started', 'Submitted for Review'].includes(t.status));
 
   const handleReport = async (id) => { try { await API.patch(`/trips/${id}/report`, { reporting_time: getCurrentTime() }); fetchTrips(); } catch (err) { alert(err.response?.data?.detail || "Error."); } };
   const handleStart = async (e, id) => { e.preventDefault(); try { await API.patch(`/trips/${id}/start`, { out_time: getCurrentTime(), out_km: Number(startData.out_km) }); setActiveTrip(null); setStartData({out_km:''}); fetchTrips(); } catch (err) { alert("Error."); } };
@@ -90,10 +101,10 @@ function DriverPanel({ userName }) {
       <h2 className="text-3xl font-extrabold mb-6">Welcome, {userName} 🚛</h2>
       <h3 className="text-xl font-bold mb-4">Your Dispatched Trips</h3>
       <div className="grid gap-4 mb-12">
-        {trips.filter(t => ['Approved', 'Reported', 'Started'].includes(t.status)).map(trip => (
-          <div key={trip.id} className={`bg-white p-6 rounded-2xl shadow-sm border ${trip.status === 'Reported' || trip.status === 'Started' ? 'border-sky-400 shadow-sky-100' : 'border-slate-100'}`}>
+        {trips.filter(t => ['Waiting for Driver', 'Reported', 'Trip Started', 'Submitted for Review'].includes(t.status)).map(trip => (
+          <div key={trip.id} className={`bg-white p-6 rounded-2xl shadow-sm border ${trip.status === 'Reported' || trip.status === 'Trip Started' ? 'border-sky-400 shadow-sky-100' : 'border-slate-100'}`}>
             <div className="flex justify-between items-center mb-4"><div><span className="font-bold text-xl">{trip.vehicle_number}</span><span className="text-slate-500 ml-2 font-medium">({trip.date})</span></div><StatusBadge status={trip.status} /></div>
-            {trip.status === 'Approved' && (
+            {trip.status === 'Waiting for Driver' && (
               <button onClick={() => handleReport(trip.id)} disabled={hasActiveTrip} className={`px-6 py-3 rounded-xl font-bold w-full md:w-auto transition-all ${hasActiveTrip ? 'bg-slate-200 text-slate-400 cursor-not-allowed' : 'bg-sky-600 text-white shadow-md hover:bg-sky-700'}`}>
                 {hasActiveTrip ? 'Another trip is active' : 'Report for Duty'}
               </button>
@@ -110,7 +121,7 @@ function DriverPanel({ userName }) {
                 ) : (<button onClick={() => setActiveTrip(trip.id)} className="bg-blue-600 text-white px-6 py-3 rounded-xl font-bold shadow-md">Enter Starting KM</button>)}
               </div>
             )}
-            {trip.status === 'Started' && (
+            {['Trip Started', 'Submitted for Review'].includes(trip.status) && (
               <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
                 <div className="text-sm font-semibold text-slate-600 mb-4">Started at: <span className="text-indigo-600 font-bold text-lg">{trip.out_km} KM</span> ({trip.out_time})</div>
                 {actionTrip === trip.id ? (
@@ -124,12 +135,12 @@ function DriverPanel({ userName }) {
             )}
           </div>
         ))}
-        {trips.filter(t => ['Approved', 'Reported', 'Started'].includes(t.status)).length === 0 && <div className="text-slate-500 italic">No dispatched trips waiting for you.</div>}
+        {trips.filter(t => ['Waiting for Driver', 'Reported', 'Trip Started', 'Submitted for Review'].includes(t.status)).length === 0 && <div className="text-slate-500 italic">No dispatched trips waiting for you.</div>}
       </div>
 
       <h3 className="text-xl font-bold mb-4">Your Past Journeys</h3>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {trips.filter(t => !['Approved', 'Reported', 'Started', 'Pending Approval'].includes(t.status)).map(trip => (
+        {trips.filter(t => ['Completed', 'Pending for Admin Final Review', 'Billed / Completed'].includes(t.status)).map(trip => (
           <div key={trip.id} className="bg-slate-50 p-4 rounded-xl border border-slate-200">
             <div className="flex justify-between items-center mb-2"><span className="font-bold text-slate-800">{trip.vehicle_number}</span><span className="text-xs font-semibold text-slate-500">{trip.date}</span></div>
             <div className="text-sm text-slate-600 mb-2">Distance: {trip.in_km - trip.out_km} KM</div>
@@ -142,7 +153,7 @@ function DriverPanel({ userName }) {
 }
 
 function SupervisorPanel() {
-  const [activeTab, setActiveTab] = useState('availability'); // Default to Availability
+  const [activeTab, setActiveTab] = useState('availability'); 
   const [trips, setTrips] = useState([]);
   const [users, setUsers] = useState([]);
   const [vendors, setVendors] = useState([]);
@@ -155,7 +166,7 @@ function SupervisorPanel() {
   
   const [reviewTrip, setReviewTrip] = useState(null);
   const [viewingTrip, setViewingTrip] = useState(null);
-  const [reviewData, setReviewData] = useState({ vehicle_type: '', vehicle_mode: '', body_type: '', vendor_name: '', helper_name: '', client_name: '', source: '', destination: '' });
+  const [reviewData, setReviewData] = useState({ vehicle_type: '', vehicle_mode: '', body_type: '', vendor_name: '', helper_name: '', client_name: '', source: '', destination: '', vehicle_sourced_from: '' });
   
   const [expenseTrip, setExpenseTrip] = useState(null);
   const [expTab, setExpTab] = useState('expenses');
@@ -168,7 +179,7 @@ function SupervisorPanel() {
   const [vehicleForm, setVehicleForm] = useState({ vehicle_number: '', ownership_type: 'Third Party', emi: '' });
 
   const vehicleTypes = ["Tata Ace", "Intra", "Bolero Pickup", "Verro", "Bara Dast", "10' FT", "14' FT", "17' FT", "20' FT", "22' FT", "32' FT SXL", "32' FT MXL"];
-  const activeStatuses = ['Pending Approval', 'Approved', 'Reported', 'Started'];
+  const activeStatuses = ['Waiting for Driver', 'Reported', 'Trip Started', 'Submitted for Review'];
   
   useEffect(() => { fetchAllData(); }, []);
   const fetchAllData = () => {
@@ -214,7 +225,7 @@ function SupervisorPanel() {
   const liveProfit = (Number(expData.b2c_billing)||0) - liveCost;
 
   const handleDispatch = async (e) => { e.preventDefault(); try { await API.post('/trips/', dispatchData); setDispatchData({ driver_id: '', vehicle_number: '', date: getCurrentDate() }); fetchAllData(); alert("Trip Dispatched!"); setActiveTab('trips'); } catch (err) { alert("Failed."); } };
-  const handleShuffle = async (e) => { e.preventDefault(); try { await API.patch(`/trips/${shuffleTrip.id}/shuffle_vehicle`, { vehicle_number: shuffleVehicle }); setShuffleTrip(null); fetchAllData(); alert("Vehicle changed!"); } catch (err) { alert("Failed."); } };
+  const handleShuffle = async (e) => { e.preventDefault(); try { await API.patch(`/trips/${shuffleTrip.id}/shuffle_vehicle`, { vehicle_number: shuffleVehicle }); setShuffleTrip(null); fetchAllData(); alert("Vehicle changed! Sent for Admin Approval."); } catch (err) { alert("Failed."); } };
   const handleReviewSubmit = async (e) => { e.preventDefault(); try { await API.patch(`/trips/${reviewTrip.id}/review`, reviewData); setReviewTrip(null); fetchAllData(); } catch (err) { alert("Error."); } };
   const handleEndTrip = async (e) => { e.preventDefault(); if (Number(endData.in_km) <= endingTrip.out_km) { alert(`Stop KM must be higher than Starting KM (${endingTrip.out_km}).`); return; } try { await API.patch(`/trips/${endingTrip.id}/end`, { in_time: getCurrentTime(), in_km: Number(endData.in_km) }); setEndingTrip(null); fetchAllData(); } catch (err) { alert("Error."); } };
   const handleCreateDriver = async (e) => { e.preventDefault(); try { await API.post('/users/driver', { ...driverForm, role: 'driver' }); alert("Created!"); setDriverForm({ username: '', password: '', name: '', phone: '' }); fetchAllData(); } catch (err) { alert("Error."); } };
@@ -244,10 +255,7 @@ function SupervisorPanel() {
                 return (
                   <div key={d.id} className="flex justify-between items-center bg-slate-50 p-3 rounded-lg border border-slate-200">
                     <div className="font-bold text-slate-800">{d.name}</div>
-                    {activeTrip ? 
-                      <div className="text-xs font-bold text-rose-600 bg-rose-100 px-3 py-1 rounded-full">Busy (Trip #{activeTrip.id})</div> : 
-                      <div className="text-xs font-bold text-emerald-600 bg-emerald-100 px-3 py-1 rounded-full">Available</div>
-                    }
+                    {activeTrip ? <div className="text-xs font-bold text-rose-600 bg-rose-100 px-3 py-1 rounded-full">Busy (#{activeTrip.id})</div> : <div className="text-xs font-bold text-emerald-600 bg-emerald-100 px-3 py-1 rounded-full">Available</div>}
                   </div>
                 );
               })}
@@ -261,10 +269,7 @@ function SupervisorPanel() {
                 return (
                   <div key={v.id} className="flex justify-between items-center bg-slate-50 p-3 rounded-lg border border-slate-200">
                     <div className="font-bold text-slate-800">{v.vehicle_number} <span className="text-xs font-normal text-slate-500 block">{v.ownership_type}</span></div>
-                    {activeTrip ? 
-                      <div className="text-xs font-bold text-rose-600 bg-rose-100 px-3 py-1 rounded-full">Busy (Trip #{activeTrip.id})</div> : 
-                      <div className="text-xs font-bold text-emerald-600 bg-emerald-100 px-3 py-1 rounded-full">Available</div>
-                    }
+                    {activeTrip ? <div className="text-xs font-bold text-rose-600 bg-rose-100 px-3 py-1 rounded-full">Busy (#{activeTrip.id})</div> : <div className="text-xs font-bold text-emerald-600 bg-emerald-100 px-3 py-1 rounded-full">Available</div>}
                   </div>
                 );
               })}
@@ -284,7 +289,7 @@ function SupervisorPanel() {
               <datalist id="vehicles-list">{vehicles.map((v, i) => <option key={i} value={v.vehicle_number} />)}</datalist>
             </div>
             <InputField label="Trip Date" type="date" value={dispatchData.date} onChange={e => setDispatchData({...dispatchData, date: e.target.value})} />
-            <button type="submit" className="w-full bg-sky-600 text-white py-4 rounded-xl font-bold mt-4 shadow-lg shadow-sky-600/30">Dispatch to Admin for Approval</button>
+            <button type="submit" className="w-full bg-sky-600 text-white py-4 rounded-xl font-bold mt-4 shadow-lg shadow-sky-600/30">Dispatch to Driver</button>
           </form>
         </div>
       )}
@@ -302,11 +307,21 @@ function SupervisorPanel() {
                   <td className="p-4"><StatusBadge status={trip.status} /></td>
                   <td className="p-4">
                     <div className="flex gap-2">
-                      {['Pending Approval', 'Approved'].includes(trip.status) && (<button onClick={() => { setShuffleTrip(trip); setShuffleVehicle(''); }} className="bg-amber-100 text-amber-700 px-3 py-1.5 rounded-lg font-bold hover:bg-amber-200 text-xs shadow-sm">Shuffle Vehicle</button>)}
-                      {trip.status !== '' && (<button onClick={() => openExpenses(trip)} className="bg-rose-100 text-rose-700 px-3 py-1.5 rounded-lg font-bold hover:bg-rose-200 text-xs shadow-sm">Expenses</button>)}
-                      {['Started', 'Completed'].includes(trip.status) && (<button onClick={() => { setReviewTrip(trip); setReviewData({ vehicle_type: trip.vehicle_type || '', vehicle_mode: trip.vehicle_mode || '', body_type: trip.body_type || '', vendor_name: trip.vendor_name || '', helper_name: trip.helper_name || '', client_name: trip.client_name || '', source: trip.source || '', destination: trip.destination || '' }); }} className="bg-sky-100 text-sky-700 px-3 py-1.5 rounded-lg font-bold hover:bg-sky-200 text-xs shadow-sm">Review Details</button>)}
-                      {['Reviewed', 'Billed'].includes(trip.status) && (<button onClick={() => setViewingTrip(trip)} className="bg-slate-100 text-slate-700 px-3 py-1.5 rounded-lg font-bold hover:bg-slate-200 text-xs shadow-sm">Details</button>)}
-                      {trip.status === 'Started' && (<button onClick={() => { setEndingTrip(trip); setEndData({ in_km: '' }); }} className="bg-emerald-100 text-emerald-700 px-3 py-1.5 rounded-lg font-bold hover:bg-emerald-200 text-xs shadow-sm">Log Arrival</button>)}
+                      {/* Shuffle forces Admin Approval */}
+                      {['Waiting for Driver'].includes(trip.status) && (<button onClick={() => { setShuffleTrip(trip); setShuffleVehicle(''); }} className="bg-amber-100 text-amber-700 px-3 py-1.5 rounded-lg font-bold hover:bg-amber-200 text-xs shadow-sm">Shuffle Vehicle</button>)}
+                      
+                      {/* Review Details immediately enabled after creation */}
+                      {!['Pending Approval', 'Billed / Completed'].includes(trip.status) && (
+                         <button onClick={() => { setReviewTrip(trip); setReviewData({ vehicle_type: trip.vehicle_type || '', vehicle_mode: trip.vehicle_mode || '', body_type: trip.body_type || '', vendor_name: trip.vendor_name || '', helper_name: trip.helper_name || '', client_name: trip.client_name || '', source: trip.source || '', destination: trip.destination || '', vehicle_sourced_from: trip.vehicle_sourced_from || '' }); }} className="bg-sky-100 text-sky-700 px-3 py-1.5 rounded-lg font-bold hover:bg-sky-200 text-xs shadow-sm">Review Details</button>
+                      )}
+                      
+                      {/* Expenses available when Trip Starts */}
+                      {['Trip Started', 'Submitted for Review', 'Completed', 'Pending for Admin Final Review'].includes(trip.status) && (<button onClick={() => openExpenses(trip)} className="bg-rose-100 text-rose-700 px-3 py-1.5 rounded-lg font-bold hover:bg-rose-200 text-xs shadow-sm">Expenses</button>)}
+                      
+                      {/* Details View */}
+                      {['Pending for Admin Final Review', 'Billed / Completed'].includes(trip.status) && (<button onClick={() => setViewingTrip(trip)} className="bg-slate-100 text-slate-700 px-3 py-1.5 rounded-lg font-bold hover:bg-slate-200 text-xs shadow-sm">Details</button>)}
+                      
+                      {['Trip Started', 'Submitted for Review'].includes(trip.status) && (<button onClick={() => { setEndingTrip(trip); setEndData({ in_km: '' }); }} className="bg-emerald-100 text-emerald-700 px-3 py-1.5 rounded-lg font-bold hover:bg-emerald-200 text-xs shadow-sm">Log Arrival</button>)}
                     </div>
                   </td>
                 </tr>
@@ -316,6 +331,7 @@ function SupervisorPanel() {
         </div>
       )}
 
+      {/* SUPERVISOR EXPENSES & B2C MODAL */}
       {expenseTrip && (
         <div className="fixed inset-0 bg-slate-900/60 flex items-center justify-center p-4 z-50">
           <div className="bg-white p-8 rounded-3xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
@@ -338,7 +354,7 @@ function SupervisorPanel() {
                   </div>
                   <div className="col-span-2 grid grid-cols-2 gap-4 border-t pt-4 mt-2">
                     <SelectField label="Vehicle Cost Type" value={expData.vehicle_cost_type} onChange={e => setExpData({...expData, vehicle_cost_type: e.target.value, vehicle_cost: ''})} options={['Own Company', 'Third Party']} />
-                    <InputField label="Vehicle Cost" type="number" value={expData.vehicle_cost} disabled={expData.vehicle_cost_type === 'Own Company'} onChange={e => setExpData({...expData, vehicle_cost: e.target.value})} placeholder={expData.vehicle_cost_type === 'Own Company' ? "Auto-calculated (EMI/30)" : "Enter Cost"} />
+                    <InputField label="Vehicle Cost" type="number" value={expData.vehicle_cost} disabled={expData.vehicle_cost_type === 'Own Company'} onChange={e => setExpData({...expData, vehicle_cost: e.target.value})} placeholder={expData.vehicle_cost_type === 'Own Company' ? "Auto-calculated (EMI/30)" : "Enter Manual Cost"} />
                   </div>
                 </div>
               )}
@@ -357,14 +373,40 @@ function SupervisorPanel() {
               )}
               <div className="flex gap-4 mt-8">
                 <button type="button" onClick={() => setExpenseTrip(null)} className="flex-1 bg-slate-100 py-4 rounded-xl font-bold">Cancel</button>
-                <button type="submit" className="flex-1 bg-sky-600 text-white py-4 rounded-xl font-bold">Save Data</button>
+                <button type="submit" className="flex-1 bg-sky-600 text-white py-4 rounded-xl font-bold">Submit to Admin</button>
               </div>
             </form>
           </div>
         </div>
       )}
 
-      {/* SHUFFLE / REVIEW / ARRIVAL / VIEW TABS OMITTED FOR BREVITY AS THEY MATCH PERFECTLY */}
+      {/* SUPERVISOR REVIEW DETAILS MODAL */}
+      {reviewTrip && (
+        <div className="fixed inset-0 bg-slate-900/60 flex items-center justify-center p-4 z-50">
+          <div className="bg-white p-8 rounded-3xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+            <h3 className="text-2xl font-bold mb-6">Review Trip (#{reviewTrip.id}) Details</h3>
+            <form onSubmit={handleReviewSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <SelectField label="Vehicle Type" value={reviewData.vehicle_type} onChange={e => setReviewData({...reviewData, vehicle_type: e.target.value})} options={vehicleTypes} />
+              <SelectField label="Vehicle Mode" value={reviewData.vehicle_mode} onChange={e => setReviewData({...reviewData, vehicle_mode: e.target.value})} options={['Adhoc', 'Dedicated']} />
+              <SelectField label="Body Type" value={reviewData.body_type} onChange={e => setReviewData({...reviewData, body_type: e.target.value})} options={['Open', 'Closed']} />
+              <SelectField label="Vendor Name" value={reviewData.vendor_name} onChange={e => setReviewData({...reviewData, vendor_name: e.target.value})} options={vendors} />
+              <InputField label="Vehicle Sourced From" value={reviewData.vehicle_sourced_from} onChange={e => setReviewData({...reviewData, vehicle_sourced_from: e.target.value})} placeholder="E.g., Name/Company" />
+              
+              <div className="col-span-1 md:col-span-2 mt-2 font-bold text-sky-800 border-b pb-2">Client Details</div>
+              <SelectField label="Select Client" value={reviewData.client_name} onChange={e => setReviewData({...reviewData, client_name: e.target.value})} options={clients} />
+              <InputField label="Source (From)" value={reviewData.source} onChange={e => setReviewData({...reviewData, source: e.target.value})} />
+              <InputField label="Destination (To)" value={reviewData.destination} onChange={e => setReviewData({...reviewData, destination: e.target.value})} />
+              <InputField label="Helper Name" value={reviewData.helper_name} onChange={e => setReviewData({...reviewData, helper_name: e.target.value})} />
+              
+              <div className="col-span-1 md:col-span-2 flex gap-4 mt-6">
+                <button type="button" onClick={() => setReviewTrip(null)} className="flex-1 bg-slate-100 py-3 rounded-xl font-bold text-slate-600">Cancel</button>
+                <button type="submit" className="flex-1 bg-sky-600 text-white py-3 rounded-xl font-bold">Save Review</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
       {shuffleTrip && (
         <div className="fixed inset-0 bg-slate-900/60 flex items-center justify-center p-4 z-50">
           <div className="bg-white p-8 rounded-3xl w-full max-w-md">
@@ -383,30 +425,6 @@ function SupervisorPanel() {
         </div>
       )}
 
-      {reviewTrip && (
-        <div className="fixed inset-0 bg-slate-900/60 flex items-center justify-center p-4 z-50">
-          <div className="bg-white p-8 rounded-3xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-            <h3 className="text-2xl font-bold mb-6">Review Trip (#{reviewTrip.id}) Details</h3>
-            <form onSubmit={handleReviewSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <SelectField label="Vehicle Type" value={reviewData.vehicle_type} onChange={e => setReviewData({...reviewData, vehicle_type: e.target.value})} options={vehicleTypes} />
-              <SelectField label="Vehicle Mode" value={reviewData.vehicle_mode} onChange={e => setReviewData({...reviewData, vehicle_mode: e.target.value})} options={['Adhoc', 'Dedicated']} />
-              <SelectField label="Body Type" value={reviewData.body_type} onChange={e => setReviewData({...reviewData, body_type: e.target.value})} options={['Open', 'Closed']} />
-              <SelectField label="Vendor Name" value={reviewData.vendor_name} onChange={e => setReviewData({...reviewData, vendor_name: e.target.value})} options={vendors} />
-              <div className="col-span-1 md:col-span-2 mt-2 font-bold text-sky-800 border-b pb-2">Client Details</div>
-              
-              <SelectField label="Select Client" value={reviewData.client_name} onChange={e => setReviewData({...reviewData, client_name: e.target.value})} options={clients} />
-              <InputField label="Source (From)" value={reviewData.source} onChange={e => setReviewData({...reviewData, source: e.target.value})} />
-              <InputField label="Destination (To)" value={reviewData.destination} onChange={e => setReviewData({...reviewData, destination: e.target.value})} />
-              <InputField label="Helper Name" value={reviewData.helper_name} onChange={e => setReviewData({...reviewData, helper_name: e.target.value})} />
-              <div className="col-span-1 md:col-span-2 flex gap-4 mt-6">
-                <button type="button" onClick={() => setReviewTrip(null)} className="flex-1 bg-slate-100 py-3 rounded-xl font-bold text-slate-600">Cancel</button>
-                <button type="submit" className="flex-1 bg-sky-600 text-white py-3 rounded-xl font-bold">Save Review</button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
       {viewingTrip && (
         <div className="fixed inset-0 bg-slate-900/60 flex items-center justify-center p-4 z-50">
           <div className="bg-white p-8 rounded-3xl w-full max-w-4xl max-h-[90vh] overflow-y-auto">
@@ -416,6 +434,7 @@ function SupervisorPanel() {
               <DetailItem label="Vehicle Type" value={viewingTrip.vehicle_type} />
               <DetailItem label="Mode" value={viewingTrip.vehicle_mode} />
               <DetailItem label="Vendor" value={viewingTrip.vendor_name} />
+              <DetailItem label="Sourced From" value={viewingTrip.vehicle_sourced_from} />
               <DetailItem label="Client Name" value={viewingTrip.client_name} />
               <DetailItem label="Source (From)" value={viewingTrip.source} />
               <DetailItem label="Destination (To)" value={viewingTrip.destination} />
@@ -444,6 +463,7 @@ function SupervisorPanel() {
         </div>
       )}
 
+      {/* TABS FOR DRIVERS & VEHICLES PRESERVED */}
       {activeTab === 'drivers' && (
         <div className="bg-white p-8 rounded-2xl shadow-xl max-w-lg border border-slate-100">
           <h3 className="text-xl font-bold mb-4">Create Driver Account</h3>
@@ -468,15 +488,26 @@ function SupervisorPanel() {
             )}
             <button type="submit" className="bg-sky-600 text-white py-3 rounded-xl font-bold hover:bg-sky-700">Add Vehicle</button>
           </form>
+          <h4 className="text-sm font-bold text-slate-400 uppercase tracking-wider border-b pb-2 mb-4">Approved Vehicles</h4>
+          <div className="grid grid-cols-1 gap-2">
+            {vehicles.map(v => (
+              <div key={v.id} className="bg-slate-50 p-3 rounded-lg border text-sm flex items-center justify-between">
+                <div>
+                  <div className="font-bold text-slate-700 flex items-center gap-2"><span className="w-2 h-2 rounded-full bg-emerald-500"></span>{v.vehicle_number}</div>
+                  <div className="text-xs text-slate-500 mt-1">{v.ownership_type} {v.ownership_type === 'Own Company' ? `(EMI: ₹${v.emi})` : ''}</div>
+                </div>
+                <button onClick={() => handleDeleteVehicle(v.id)} className="text-rose-500 hover:text-rose-700 font-bold px-2 py-1 bg-rose-100 rounded text-xs">Delete</button>
+              </div>
+            ))}
+          </div>
         </div>
       )}
     </div>
   );
 }
 
-// --- ADMIN PANEL ---
 function AdminPanel() {
-  const [activeTab, setActiveTab] = useState('availability'); // Defaults to Availability 
+  const [activeTab, setActiveTab] = useState('availability'); 
   const [trips, setTrips] = useState([]);
   const [users, setUsers] = useState([]);
   const [vendors, setVendors] = useState([]);
@@ -485,11 +516,11 @@ function AdminPanel() {
   
   const [billingTrip, setBillingTrip] = useState(null);
   const [editDetailsTrip, setEditDetailsTrip] = useState(null);
-  const [editDetailsData, setEditDetailsData] = useState({ vehicle_type: '', vehicle_mode: '', body_type: '', vendor_name: '', helper_name: '', client_name: '', source: '', destination: '' });
+  const [editDetailsData, setEditDetailsData] = useState({ vehicle_type: '', vehicle_mode: '', body_type: '', vendor_name: '', helper_name: '', client_name: '', source: '', destination: '', vehicle_sourced_from: '' });
   const [viewingTrip, setViewingTrip] = useState(null);
 
   const vehicleTypes = ["Tata Ace", "Intra", "Bolero Pickup", "Verro", "Bara Dast", "10' FT", "14' FT", "17' FT", "20' FT", "22' FT", "32' FT SXL", "32' FT MXL"];
-  const activeStatuses = ['Pending Approval', 'Approved', 'Reported', 'Started'];
+  const activeStatuses = ['Waiting for Driver', 'Reported', 'Trip Started', 'Submitted for Review'];
 
   const [billData, setBillData] = useState({ fuel_litres: '', fuel_price: '', toll_charges: '', other_expenses: '', driver_cost: '', trip_days: 1, overtime_allowance: '', vehicle_cost_type: '', vehicle_cost: '', b2c_billing: '', client_name: '' });
   
@@ -524,10 +555,13 @@ function AdminPanel() {
 
   const handleCreateSupervisor = async (e) => { e.preventDefault(); try { await API.post('/users/supervisor', { ...supForm, role: 'supervisor' }); alert("Created!"); setSupForm({ username: '', password: '', name: '', phone: '' }); fetchAllData(); } catch (err) { alert("Error."); } };
   const handleDeleteUser = async (id) => { if (window.confirm("Delete this user permanently?")) { try { await API.delete(`/users/${id}`); fetchAllData(); } catch(err) { alert("Failed."); } } };
+  
   const handleAddVendor = async (e) => { e.preventDefault(); try { await API.post('/vendors_list/', { name: vendorName }); setVendorName(''); fetchAllData(); } catch (err) { alert("Error."); } };
   const handleDeleteVendor = async (id) => { if (window.confirm("Delete vendor?")) { try { await API.delete(`/vendors_list/${id}`); fetchAllData(); } catch(err) { alert("Failed."); } } };
+
   const handleAddClient = async (e) => { e.preventDefault(); try { await API.post('/clients_list/', { name: clientName }); setClientName(''); fetchAllData(); alert("Client Saved"); } catch (err) { alert("Error."); } };
   const handleDeleteClient = async (id) => { if (window.confirm("Delete client?")) { try { await API.delete(`/clients_list/${id}`); fetchAllData(); } catch(err) { alert("Failed."); } } };
+
   const handleAddVehicle = async (e) => { e.preventDefault(); try { await API.post('/vehicles_list/', { vehicle_number: vehicleForm.vehicle_number.replace(/\s+/g, '').toUpperCase(), ownership_type: vehicleForm.ownership_type, emi: Number(vehicleForm.emi) || 0 }); setVehicleForm({ vehicle_number: '', ownership_type: 'Third Party', emi: '' }); fetchAllData(); alert("Vehicle Added!"); } catch (err) { alert("Error."); } };
   const handleDeleteVehicle = async (id) => { if (window.confirm("Delete vehicle?")) { try { await API.delete(`/vehicles_list/${id}`); fetchAllData(); } catch(err) { alert("Failed."); } } };
 
@@ -535,10 +569,9 @@ function AdminPanel() {
   const getSupervisorName = (supId) => { const sup = users.find(u => u.id === supId); return sup ? sup.name : 'Unknown'; };
   const pendingCount = trips.filter(t => t.status === 'Pending Approval').length;
 
-  // Generate Reports Logic
   const clientStats = {};
   const vendorStats = {};
-  trips.filter(t => t.status === 'Billed' || t.status === 'Reviewed').forEach(t => {
+  trips.filter(t => t.status === 'Billed / Completed' || t.status === 'Pending for Admin Final Review').forEach(t => {
       const cName = t.client_name || 'Unassigned';
       if(!clientStats[cName]) clientStats[cName] = { rev: 0, cost: 0, profit: 0, trips: 0 };
       clientStats[cName].rev += t.b2c_billing; clientStats[cName].cost += t.total_running_cost; clientStats[cName].profit += t.profit; clientStats[cName].trips += 1;
@@ -584,7 +617,6 @@ function AdminPanel() {
             <div className="space-y-3 max-h-[60vh] overflow-y-auto">
               {vehicles.map(v => {
                 const activeTrip = trips.find(t => t.vehicle_number === v.vehicle_number && activeStatuses.includes(t.status));
-                // EMI Logic
                 const recovered = trips.filter(t => t.vehicle_number === v.vehicle_number && t.vehicle_cost_type === 'Own Company').reduce((s, t) => s + (t.vehicle_cost || 0), 0);
                 const left = Math.max(0, v.emi - recovered);
 
@@ -656,7 +688,7 @@ function AdminPanel() {
               <tbody>
                 {users.filter(u => u.role === 'driver').map(driver => {
                   const driverTrips = trips.filter(t => t.driver_id === driver.id && t.status !== 'Pending Approval');
-                  const daysPresent = driverTrips.reduce((sum, t) => sum + (t.trip_days || 1), 0); // Count actual trip days logged
+                  const daysPresent = driverTrips.reduce((sum, t) => sum + (t.trip_days || 1), 0); 
                   const totalTrips = driverTrips.length;
                   const totalOvertime = driverTrips.reduce((sum, t) => sum + (t.overtime_allowance || 0), 0);
                   const totalDriverCost = driverTrips.reduce((sum, t) => sum + (t.driver_cost || 0), 0);
@@ -700,7 +732,7 @@ function AdminPanel() {
         <div className="bg-white rounded-2xl shadow-xl border border-slate-100 overflow-x-auto">
           <table className="min-w-full text-left text-sm whitespace-nowrap">
             <thead className="bg-slate-50 border-b">
-              <tr><th className="p-4">ID</th><th className="p-4">Date</th><th className="p-4">Personnel</th><th className="p-4">Vehicle & Vendor</th><th className="p-4">Status</th><th className="p-4">Total Cost</th><th className="p-4">Profit</th><th className="p-4">Action</th></tr>
+              <tr><th className="p-4">ID</th><th className="p-4">Date</th><th className="p-4">Personnel</th><th className="p-4">Vehicle & Vendor</th><th className="p-4">Sourced From</th><th className="p-4">Status</th><th className="p-4">Total Cost</th><th className="p-4">Profit</th><th className="p-4">Action</th></tr>
             </thead>
             <tbody>
               {trips.filter(t => t.status !== 'Pending Approval').map(trip => (
@@ -712,16 +744,17 @@ function AdminPanel() {
                     <span className="text-slate-500 text-xs">S: {getSupervisorName(trip.supervisor_id)}</span>
                   </td>
                   <td className="p-4">{trip.vehicle_number} <span className="block text-slate-500 text-xs">{trip.vendor_name || 'Unassigned'}</span></td>
+                  <td className="p-4 text-slate-700 font-semibold">{trip.vehicle_sourced_from || '-'}</td>
                   <td className="p-4"><StatusBadge status={trip.status} /></td>
                   <td className="p-4 font-bold text-rose-600">₹{trip.total_running_cost || 0}</td>
                   <td className="p-4 font-bold text-emerald-600">₹{trip.profit || 0}</td>
                   <td className="p-4">
                     <div className="flex gap-2">
                       <button onClick={() => setViewingTrip(trip)} className="bg-slate-100 text-slate-700 px-3 py-1.5 rounded-lg font-bold hover:bg-slate-200 text-xs shadow-sm">View Log</button>
-                      {(trip.status === 'Reviewed' || trip.status === 'Billed') && (
+                      {(['Pending for Admin Final Review', 'Billed / Completed'].includes(trip.status)) && (
                          <>
-                           <button onClick={() => { setEditDetailsTrip(trip); setEditDetailsData({ vehicle_type: trip.vehicle_type || '', vehicle_mode: trip.vehicle_mode || '', body_type: trip.body_type || '', vendor_name: trip.vendor_name || '', helper_name: trip.helper_name || '', client_name: trip.client_name || '', source: trip.source || '', destination: trip.destination || '' }); }} className="bg-amber-100 text-amber-700 px-3 py-1.5 rounded-lg font-bold hover:bg-amber-200 text-xs shadow-sm">Edit Details</button>
-                           <button onClick={() => openBillingModal(trip)} className="bg-emerald-100 text-emerald-700 px-3 py-1.5 rounded-lg font-bold hover:bg-emerald-200 text-xs shadow-sm">{trip.status === 'Billed' ? 'Edit Finances' : 'Finalize'}</button>
+                           <button onClick={() => { setEditDetailsTrip(trip); setEditDetailsData({ vehicle_type: trip.vehicle_type || '', vehicle_mode: trip.vehicle_mode || '', body_type: trip.body_type || '', vendor_name: trip.vendor_name || '', helper_name: trip.helper_name || '', client_name: trip.client_name || '', source: trip.source || '', destination: trip.destination || '', vehicle_sourced_from: trip.vehicle_sourced_from || '' }); }} className="bg-amber-100 text-amber-700 px-3 py-1.5 rounded-lg font-bold hover:bg-amber-200 text-xs shadow-sm">Edit Details</button>
+                           <button onClick={() => openBillingModal(trip)} className="bg-emerald-100 text-emerald-700 px-3 py-1.5 rounded-lg font-bold hover:bg-emerald-200 text-xs shadow-sm">{trip.status === 'Billed / Completed' ? 'Edit Finances' : 'Finalize'}</button>
                          </>
                       )}
                     </div>
@@ -733,6 +766,7 @@ function AdminPanel() {
         </div>
       )}
 
+      {/* ADMIN READ ONLY LOG */}
       {viewingTrip && (
         <div className="fixed inset-0 bg-slate-900/60 flex items-center justify-center p-4 z-50">
           <div className="bg-white p-8 rounded-3xl w-full max-w-4xl max-h-[90vh] overflow-y-auto">
@@ -747,13 +781,14 @@ function AdminPanel() {
               <DetailItem label="Source (From)" value={viewingTrip.source} />
               <DetailItem label="Destination (To)" value={viewingTrip.destination} />
               <DetailItem label="Vendor" value={viewingTrip.vendor_name} />
+              <DetailItem label="Sourced From" value={viewingTrip.vehicle_sourced_from} />
               <DetailItem label="Starting KM / Time" value={`${viewingTrip.out_km} km / ${viewingTrip.out_time}`} />
               <DetailItem label="Stop KM / Time" value={`${viewingTrip.in_km} km / ${viewingTrip.in_time}`} />
               <DetailItem label="Total Distance" value={`${viewingTrip.in_km - viewingTrip.out_km} km`} />
               <DetailItem label="Status" value={viewingTrip.status} />
             </div>
 
-            {(viewingTrip.status === 'Reviewed' || viewingTrip.status === 'Billed') && (
+            {(['Pending for Admin Final Review', 'Billed / Completed'].includes(viewingTrip.status)) && (
               <>
                 <h4 className="font-bold border-b pb-1 mb-4 text-slate-500">Financial Breakdown</h4>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -768,7 +803,7 @@ function AdminPanel() {
               </>
             )}
             
-            {viewingTrip.status === 'Billed' && (
+            {viewingTrip.status === 'Billed / Completed' && (
                 <div className="mt-6 flex flex-col md:flex-row gap-4">
                   <div className="flex-1 bg-rose-50 p-4 rounded-xl border border-rose-200"><div className="text-sm font-bold text-rose-500">TOTAL EXPENSES</div><div className="text-3xl font-black text-rose-700">₹{viewingTrip.total_running_cost}</div></div>
                   <div className="flex-1 bg-indigo-50 p-4 rounded-xl border border-indigo-200"><div className="text-sm font-bold text-indigo-500">B2C REVENUE</div><div className="text-3xl font-black text-indigo-700">₹{viewingTrip.b2c_billing}</div></div>
@@ -779,6 +814,7 @@ function AdminPanel() {
         </div>
       )}
 
+      {/* ADMIN OVERRIDE DETAILS */}
       {editDetailsTrip && (
         <div className="fixed inset-0 bg-slate-900/60 flex items-center justify-center p-4 z-50">
           <div className="bg-white p-8 rounded-3xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
@@ -788,6 +824,8 @@ function AdminPanel() {
               <SelectField label="Vehicle Mode" value={editDetailsData.vehicle_mode} onChange={e => setEditDetailsData({...editDetailsData, vehicle_mode: e.target.value})} options={['Adhoc', 'Dedicated']} />
               <SelectField label="Body Type" value={editDetailsData.body_type} onChange={e => setEditDetailsData({...editDetailsData, body_type: e.target.value})} options={['Open', 'Closed']} />
               <SelectField label="Vendor Name" value={editDetailsData.vendor_name} onChange={e => setEditDetailsData({...editDetailsData, vendor_name: e.target.value})} options={vendors.map(v=>v.name)} />
+              <InputField label="Vehicle Sourced From" value={editDetailsData.vehicle_sourced_from} onChange={e => setEditDetailsData({...editDetailsData, vehicle_sourced_from: e.target.value})} placeholder="E.g., Name/Company" />
+              
               <div className="col-span-1 md:col-span-2 mt-2 font-bold text-sky-800 border-b pb-2">Client Details</div>
               <SelectField label="Select Client" value={editDetailsData.client_name} onChange={e => setEditDetailsData({...editDetailsData, client_name: e.target.value})} options={clients.map(c=>c.name)} />
               <InputField label="Source (From)" value={editDetailsData.source} onChange={e => setEditDetailsData({...editDetailsData, source: e.target.value})} />
@@ -802,6 +840,7 @@ function AdminPanel() {
         </div>
       )}
 
+      {/* ADMIN FINANCIAL OVERRIDE */}
       {billingTrip && (
         <div className="fixed inset-0 bg-slate-900/60 flex items-center justify-center p-4 z-50">
           <div className="bg-white p-8 rounded-3xl w-full max-w-4xl max-h-[90vh] overflow-y-auto">
@@ -812,11 +851,13 @@ function AdminPanel() {
                 <InputField label="Fuel Price / L" type="number" value={billData.fuel_price} onChange={e => setBillData({...billData, fuel_price: e.target.value})} />
                 <InputField label="Toll Charges" type="number" value={billData.toll_charges} onChange={e => setBillData({...billData, toll_charges: e.target.value})} />
                 <InputField label="Other Expenses" type="number" value={billData.other_expenses} onChange={e => setBillData({...billData, other_expenses: e.target.value})} />
+                
                 <div className="col-span-2 border-t pt-4 mt-2 grid grid-cols-3 gap-4">
                   <InputField label="Driver Total Cost" type="number" value={billData.driver_cost} onChange={e => setBillData({...billData, driver_cost: e.target.value})} />
                   <InputField label="Trip Days (Attendance)" type="number" value={billData.trip_days} onChange={e => setBillData({...billData, trip_days: e.target.value})} />
                   <InputField label="Overtime Allowance" type="number" value={billData.overtime_allowance} onChange={e => setBillData({...billData, overtime_allowance: e.target.value})} />
                 </div>
+                
                 <div className="col-span-2 grid grid-cols-2 gap-4 border-t pt-4 mt-2">
                   <SelectField label="Vehicle Cost Type" value={billData.vehicle_cost_type} onChange={e => setBillData({...billData, vehicle_cost_type: e.target.value, vehicle_cost: ''})} options={['Own Company', 'Third Party']} />
                   <InputField label="Vehicle Cost" type="number" value={billData.vehicle_cost} disabled={billData.vehicle_cost_type === 'Own Company'} onChange={e => setBillData({...billData, vehicle_cost: e.target.value})} />
@@ -842,7 +883,7 @@ function AdminPanel() {
         </div>
       )}
 
-      {/* ADMIN TABS: SUPERVISORS / CLIENTS / VENDORS / VEHICLES */}
+      {/* TABS FOR SUPERVISORS / CLIENTS / VENDORS / VEHICLES */}
       {activeTab === 'supervisors' && (
         <div className="bg-white p-8 rounded-2xl shadow-xl max-w-lg border border-slate-100">
           <h3 className="text-xl font-bold mb-4">Create Supervisor Account</h3>

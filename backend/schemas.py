@@ -52,6 +52,7 @@ class TripSupervisorUpdate(BaseModel):
     client_name: str
     source: str
     destination: str
+    vehicle_sourced_from: str  # <--- NEW
 
 class TripFinancialsUpdate(BaseModel):
     fuel_litres: float
@@ -64,7 +65,7 @@ class TripFinancialsUpdate(BaseModel):
     vehicle_cost_type: Optional[str] = "Third Party"
     vehicle_cost: float
     b2c_billing: float
-    client_name: Optional[str] = None # <--- NEW: Select client during expenses
+    client_name: Optional[str] = None
 
 class TripLogResponse(BaseModel):
     id: int
@@ -86,6 +87,7 @@ class TripLogResponse(BaseModel):
     client_name: Optional[str]
     source: Optional[str]
     destination: Optional[str]
+    vehicle_sourced_from: Optional[str] # <--- NEW
     fuel_litres: float
     fuel_price: float
     toll_charges: float

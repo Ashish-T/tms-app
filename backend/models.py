@@ -25,11 +25,11 @@ class User(Base):
     supervisor_id = Column(Integer, ForeignKey('users.id'), nullable=True)
 
 class TripLog(Base):
-    __tablename__ = 'trip_logs_v10' # <--- Upgraded to V10
+    __tablename__ = 'trip_logs_v11' # <--- Upgraded to V11 for New Statuses
     id = Column(Integer, primary_key=True)
     driver_id = Column(Integer, ForeignKey('users.id'))
     supervisor_id = Column(Integer, ForeignKey('users.id'))
-    status = Column(String, default="Started") 
+    status = Column(String, default="Waiting for Driver") # <--- NEW DEFAULT STATUS
     
     date = Column(String)
     vehicle_number = Column(String)
@@ -38,6 +38,7 @@ class TripLog(Base):
     out_km = Column(Float, default=0.0)
     in_time = Column(String)
     in_km = Column(Float, default=0.0)
+    
     vehicle_type = Column(String, nullable=True)
     vehicle_mode = Column(String, nullable=True)
     body_type = Column(String, nullable=True)
@@ -46,6 +47,7 @@ class TripLog(Base):
     client_name = Column(String, nullable=True)
     source = Column(String, nullable=True)     
     destination = Column(String, nullable=True)
+    vehicle_sourced_from = Column(String, nullable=True) # <--- NEW
     
     fuel_litres = Column(Float, default=0.0)
     fuel_price = Column(Float, default=0.0)
