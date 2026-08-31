@@ -3,7 +3,7 @@ import API from '../api';
 import { InputField, SelectField, DetailItem, StatusBadge, getCurrentDate } from './SharedUI';
 
 export default function AdminPanel() {
-  const [activeTab, setActiveTab] = useState('availability'); 
+  const [activeTab, setActiveTab] = useState('attendance'); 
   const [trips, setTrips] = useState([]);
   const [users, setUsers] = useState([]);
   const [vendors, setVendors] = useState([]);
@@ -55,7 +55,7 @@ export default function AdminPanel() {
       try {
           await API.post('/funds/', { supervisor_id: walletSup.id, amount: Number(newFund.amount), date: new Date().toISOString(), medium: newFund.medium });
           setNewFund({ amount: '', medium: 'Cash' });
-          openWalletModal(walletSup);
+          openWalletModal(walletSup); 
       } catch (err) { alert("Error adding funds."); }
   }
 
@@ -70,7 +70,23 @@ export default function AdminPanel() {
     });
   };
 
-  const handleBillSubmit = async (e) => { e.preventDefault(); try { const payload = {}; Object.keys(billData).forEach(k => { if (['vehicle_cost_type', 'client_name'].includes(k)) { payload[k] = billData[k] || (k === 'vehicle_cost_type' ? "Third Party" : ""); } else { payload[k] = Number(billData[k]) || 0; } }); await API.patch(`/trips/${billingTrip.id}/finalize`, payload); setBillingTrip(null); fetchAllData(); } catch (err) { alert("Failed. Ensure valid numbers."); } };
+  const handleBillSubmit = async (e) => { 
+    e.preventDefault(); 
+    try { 
+      const payload = {}; 
+      Object.keys(billData).forEach(k => { 
+        if (['vehicle_cost_type', 'client_name'].includes(k)) { 
+          payload[k] = billData[k] || (k === 'vehicle_cost_type' ? "Third Party" : ""); 
+        } else { 
+          payload[k] = Number(billData[k]) || 0; 
+        } 
+      }); 
+      await API.patch(`/trips/${billingTrip.id}/finalize`, payload); 
+      setBillingTrip(null); 
+      fetchAllData(); 
+    } catch (err) { alert("Failed to finalize. Ensure all numbers are valid."); } 
+  };
+  
   const handleEditDetailsSubmit = async (e) => { e.preventDefault(); try { await API.patch(`/trips/${editDetailsTrip.id}/admin_edit`, editDetailsData); setEditDetailsTrip(null); fetchAllData(); } catch (err) { alert("Failed."); } };
 
   const handleCreateSupervisor = async (e) => { e.preventDefault(); try { await API.post('/users/supervisor', { ...supForm, role: 'supervisor' }); alert("Created!"); setSupForm({ username: '', password: '', name: '', phone: '' }); fetchAllData(); } catch (err) { alert("Error."); } };
@@ -98,7 +114,6 @@ export default function AdminPanel() {
       vendorStats[vName].rev += t.b2c_billing; vendorStats[vName].cost += t.total_running_cost; vendorStats[vName].profit += t.profit; vendorStats[vName].trips += 1;
   });
 
-  // --- BRAND NEW: PDF GENERATOR FUNCTION ---
   const handleGeneratePDF = (trip) => {
     const driverName = getDriverName(trip.driver_id);
     const supervisorName = getSupervisorName(trip.supervisor_id);
@@ -169,21 +184,18 @@ export default function AdminPanel() {
         </body>
       </html>
     `;
-
-    // Open a temporary window, render the HTML, and instantly trigger the PDF Print dialog
     const pdfWindow = window.open('', '_blank');
     pdfWindow.document.write(invoiceHTML);
     pdfWindow.document.close();
     setTimeout(() => { pdfWindow.print(); }, 250); 
   };
-  // --- END PDF GENERATOR ---
 
   return (
     <div className="p-4 md:p-8 max-w-7xl mx-auto">
       <h2 className="text-3xl font-extrabold mb-6">Master Admin Dashboard</h2>
       <div className="flex flex-wrap gap-2 mb-6 bg-slate-200/50 p-1.5 rounded-xl inline-flex">
-        <button onClick={() => setActiveTab('availability')} className={`px-5 py-2.5 rounded-lg font-bold transition-all ${activeTab === 'availability' ? 'bg-white text-indigo-700 shadow-sm' : 'text-slate-500'}`}>Availability & Fleet</button>
         <button onClick={() => setActiveTab('attendance')} className={`px-5 py-2.5 rounded-lg font-bold transition-all ${activeTab === 'attendance' ? 'bg-white text-indigo-700 shadow-sm' : 'text-slate-500'}`}>Attendance & Payroll</button>
+        <button onClick={() => setActiveTab('availability')} className={`px-5 py-2.5 rounded-lg font-bold transition-all ${activeTab === 'availability' ? 'bg-white text-indigo-700 shadow-sm' : 'text-slate-500'}`}>Availability & Fleet</button>
         <button onClick={() => setActiveTab('approvals')} className={`px-5 py-2.5 rounded-lg font-bold transition-all flex items-center gap-2 ${activeTab === 'approvals' ? 'bg-white text-rose-600 shadow-sm' : 'text-slate-500'}`}>Approvals {pendingCount > 0 && <span className="bg-rose-500 text-white rounded-full px-2 py-0.5 text-xs">{pendingCount}</span>}</button>
         <button onClick={() => setActiveTab('trips')} className={`px-5 py-2.5 rounded-lg font-bold transition-all ${activeTab === 'trips' ? 'bg-white text-sky-700 shadow-sm' : 'text-slate-500'}`}>Financial Billing</button>
         <button onClick={() => setActiveTab('reports')} className={`px-5 py-2.5 rounded-lg font-bold transition-all ${activeTab === 'reports' ? 'bg-white text-emerald-700 shadow-sm' : 'text-slate-500'}`}>Profit Reports</button>
@@ -192,6 +204,68 @@ export default function AdminPanel() {
         <button onClick={() => setActiveTab('vendors')} className={`px-5 py-2.5 rounded-lg font-bold transition-all ${activeTab === 'vendors' ? 'bg-white text-sky-700 shadow-sm' : 'text-slate-500'}`}>Vendors</button>
         <button onClick={() => setActiveTab('vehicles')} className={`px-5 py-2.5 rounded-lg font-bold transition-all ${activeTab === 'vehicles' ? 'bg-white text-sky-700 shadow-sm' : 'text-slate-500'}`}>Vehicles</button>
       </div>
+
+      {activeTab === 'attendance' && (
+        <div className="bg-white p-6 rounded-2xl shadow-xl border border-slate-100">
+          <h3 className="text-xl font-bold mb-6 border-b pb-2">Driver Attendance & Cost Tracking</h3>
+          <div className="overflow-x-auto">
+            <table className="min-w-full text-left text-sm whitespace-nowrap">
+              <thead className="bg-slate-50 border-b">
+                <tr><th className="p-4">Driver Details</th><th className="p-4">Total Trips</th><th className="p-4">Unique Days Worked</th><th className="p-4">Overtime Allowance</th><th className="p-4">Base Driver Cost</th><th className="p-4">Action</th></tr>
+              </thead>
+              <tbody>
+                {users.filter(u => u.role === 'driver').map(driver => {
+                  const driverTrips = trips.filter(t => t.driver_id === driver.id && t.status !== 'Pending Approval');
+                  const uniqueDates = new Set(driverTrips.map(t => t.date));
+                  const daysPresent = uniqueDates.size; 
+                  const totalTrips = driverTrips.length;
+                  const totalOvertime = driverTrips.reduce((sum, t) => sum + (t.overtime_allowance || 0), 0);
+                  const totalDriverCost = driverTrips.reduce((sum, t) => sum + (t.driver_cost || 0), 0);
+                  
+                  return (
+                    <tr key={driver.id} className="border-b hover:bg-slate-50 transition-colors">
+                      <td className="p-4 font-bold text-indigo-700">{driver.name} <span className="text-xs text-slate-500 block font-semibold mt-1">📞 {driver.phone || 'No Phone'}</span></td>
+                      <td className="p-4 font-bold text-slate-800 text-lg">{totalTrips}</td>
+                      <td className="p-4 font-bold text-emerald-600 text-lg">{daysPresent} Days</td>
+                      <td className="p-4 text-amber-600 font-bold">₹{totalOvertime}</td>
+                      <td className="p-4 font-semibold text-slate-600">₹{totalDriverCost}</td>
+                      <td className="p-4"><button onClick={() => setViewDriverDetails(driver)} className="bg-sky-100 text-sky-700 px-3 py-1.5 rounded-lg font-bold hover:bg-sky-200 text-xs shadow-sm">View Details</button></td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {viewDriverDetails && (
+        <div className="fixed inset-0 bg-slate-900/60 flex items-center justify-center p-4 z-50">
+          <div className="bg-white p-8 rounded-3xl w-full max-w-5xl max-h-[90vh] overflow-y-auto">
+            <div className="flex justify-between items-center mb-6">
+                <h3 className="text-2xl font-bold">Trip Ledger for {viewDriverDetails.name}</h3>
+                <button onClick={() => setViewDriverDetails(null)} className="text-slate-400 font-bold bg-slate-100 p-2 rounded-full">✕</button>
+            </div>
+            <div className="overflow-x-auto">
+                <table className="min-w-full text-left text-sm whitespace-nowrap">
+                    <thead className="bg-slate-50 border-b"><tr><th className="p-3">Date</th><th className="p-3">Vehicle</th><th className="p-3">Route (KM)</th><th className="p-3">Base Cost</th><th className="p-3">Overtime</th><th className="p-3">Status</th></tr></thead>
+                    <tbody>
+                        {trips.filter(t => t.driver_id === viewDriverDetails.id && t.status !== 'Pending Approval').map(t => (
+                            <tr key={t.id} className="border-b">
+                                <td className="p-3 font-semibold text-slate-600">{t.date}</td>
+                                <td className="p-3 font-bold">{t.vehicle_number}</td>
+                                <td className="p-3">{t.in_km - t.out_km} km</td>
+                                <td className="p-3 font-bold text-sky-600">₹{t.driver_cost || 0}</td>
+                                <td className="p-3 font-bold text-amber-600">₹{t.overtime_allowance || 0}</td>
+                                <td className="p-3"><StatusBadge status={t.status} /></td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            </div>
+          </div>
+        </div>
+      )}
 
       {activeTab === 'availability' && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -216,7 +290,6 @@ export default function AdminPanel() {
                 const activeTrip = trips.find(t => t.vehicle_number === v.vehicle_number && activeStatuses.includes(t.status));
                 const recovered = trips.filter(t => t.vehicle_number === v.vehicle_number && t.vehicle_cost_type === 'Own Company').reduce((s, t) => s + (t.vehicle_cost || 0), 0);
                 const left = Math.max(0, v.emi - recovered);
-
                 return (
                   <div key={v.id} className="flex flex-col bg-slate-50 p-3 rounded-lg border border-slate-200">
                     <div className="flex justify-between items-center mb-2">
@@ -274,67 +347,6 @@ export default function AdminPanel() {
         </div>
       )}
 
-      {activeTab === 'attendance' && (
-        <div className="bg-white p-6 rounded-2xl shadow-xl border border-slate-100">
-          <h3 className="text-xl font-bold mb-6 border-b pb-2">Driver Attendance & Cost Tracking</h3>
-          <div className="overflow-x-auto">
-            <table className="min-w-full text-left text-sm whitespace-nowrap">
-              <thead className="bg-slate-50 border-b">
-                <tr><th className="p-4">Driver Details</th><th className="p-4">Total Trips</th><th className="p-4">Unique Days Worked</th><th className="p-4">Overtime Allowance</th><th className="p-4">Base Driver Cost</th><th className="p-4">Action</th></tr>
-              </thead>
-              <tbody>
-                {users.filter(u => u.role === 'driver').map(driver => {
-                  const driverTrips = trips.filter(t => t.driver_id === driver.id && t.status !== 'Pending Approval');
-                  const uniqueDates = new Set(driverTrips.map(t => t.date));
-                  const daysPresent = uniqueDates.size; 
-                  const totalTrips = driverTrips.length;
-                  const totalOvertime = driverTrips.reduce((sum, t) => sum + (t.overtime_allowance || 0), 0);
-                  const totalDriverCost = driverTrips.reduce((sum, t) => sum + (t.driver_cost || 0), 0);
-                  return (
-                    <tr key={driver.id} className="border-b hover:bg-slate-50 transition-colors">
-                      <td className="p-4 font-bold text-indigo-700">{driver.name} <span className="text-xs text-slate-500 block font-semibold mt-1">📞 {driver.phone || 'No Phone'}</span></td>
-                      <td className="p-4 font-bold text-slate-800 text-lg">{totalTrips}</td>
-                      <td className="p-4 font-bold text-emerald-600 text-lg">{daysPresent} Days</td>
-                      <td className="p-4 text-amber-600 font-bold">₹{totalOvertime}</td>
-                      <td className="p-4 font-semibold text-slate-600">₹{totalDriverCost}</td>
-                      <td className="p-4"><button onClick={() => setViewDriverDetails(driver)} className="bg-sky-100 text-sky-700 px-3 py-1.5 rounded-lg font-bold hover:bg-sky-200 text-xs shadow-sm">View Details</button></td>
-                    </tr>
-                  )
-                })}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
-
-      {viewDriverDetails && (
-        <div className="fixed inset-0 bg-slate-900/60 flex items-center justify-center p-4 z-50">
-          <div className="bg-white p-8 rounded-3xl w-full max-w-5xl max-h-[90vh] overflow-y-auto">
-            <div className="flex justify-between items-center mb-6">
-                <h3 className="text-2xl font-bold">Trip Ledger for {viewDriverDetails.name}</h3>
-                <button onClick={() => setViewDriverDetails(null)} className="text-slate-400 font-bold bg-slate-100 p-2 rounded-full">✕</button>
-            </div>
-            <div className="overflow-x-auto">
-                <table className="min-w-full text-left text-sm whitespace-nowrap">
-                    <thead className="bg-slate-50 border-b"><tr><th className="p-3">Date</th><th className="p-3">Vehicle</th><th className="p-3">Route (KM)</th><th className="p-3">Base Cost</th><th className="p-3">Overtime</th><th className="p-3">Status</th></tr></thead>
-                    <tbody>
-                        {trips.filter(t => t.driver_id === viewDriverDetails.id && t.status !== 'Pending Approval').map(t => (
-                            <tr key={t.id} className="border-b">
-                                <td className="p-3 font-semibold text-slate-600">{t.date}</td>
-                                <td className="p-3 font-bold">{t.vehicle_number}</td>
-                                <td className="p-3">{t.in_km - t.out_km} km</td>
-                                <td className="p-3 font-bold text-sky-600">₹{t.driver_cost || 0}</td>
-                                <td className="p-3 font-bold text-amber-600">₹{t.overtime_allowance || 0}</td>
-                                <td className="p-3"><StatusBadge status={t.status} /></td>
-                            </tr>
-                        ))}
-                    </tbody>
-                </table>
-            </div>
-          </div>
-        </div>
-      )}
-
       {activeTab === 'approvals' && (
         <div className="bg-white rounded-2xl shadow-xl border border-slate-100 overflow-x-auto">
           <table className="min-w-full text-left text-sm whitespace-nowrap">
@@ -376,9 +388,8 @@ export default function AdminPanel() {
                   <td className="p-4 font-bold text-rose-600">₹{trip.total_running_cost || 0}</td>
                   <td className="p-4 font-bold text-emerald-600">₹{trip.profit || 0}</td>
                   <td className="p-4">
-                    <div className="flex gap-2 flex-wrap">
+                    <div className="flex gap-2">
                       <button onClick={() => setViewingTrip(trip)} className="bg-slate-100 text-slate-700 px-3 py-1.5 rounded-lg font-bold hover:bg-slate-200 text-xs shadow-sm">View Log</button>
-                      
                       {(['Pending for Admin Final Review', 'Billed / Completed'].includes(trip.status)) && (
                          <>
                            <button onClick={() => { setEditDetailsTrip(trip); setEditDetailsData({ vehicle_type: trip.vehicle_type || '', vehicle_mode: trip.vehicle_mode || '', body_type: trip.body_type || '', vendor_name: trip.vendor_name || '', helper_name: trip.helper_name || '', client_name: trip.client_name || '', source: trip.source || '', destination: trip.destination || '', vehicle_sourced_from: trip.vehicle_sourced_from || '' }); }} className="bg-amber-100 text-amber-700 px-3 py-1.5 rounded-lg font-bold hover:bg-amber-200 text-xs shadow-sm">Edit Details</button>
@@ -386,9 +397,12 @@ export default function AdminPanel() {
                          </>
                       )}
                       
-                      {/* NEW: PDF INVOICE DOWNLOAD BUTTON */}
+                      {/* DOWNLOAD PDF BUTTON */}
                       {trip.status === 'Billed / Completed' && (
-                        <button onClick={() => handleGeneratePDF(trip)} className="bg-indigo-100 text-indigo-700 px-3 py-1.5 rounded-lg font-bold hover:bg-indigo-200 text-xs shadow-sm">Print Invoice</button>
+                        <button onClick={() => handleGeneratePDF(trip)} className="bg-red-100 text-red-700 px-3 py-1.5 rounded-lg font-bold hover:bg-red-200 text-xs shadow-sm flex items-center gap-1">
+                           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                           Download PDF
+                        </button>
                       )}
                     </div>
                   </td>
@@ -396,6 +410,70 @@ export default function AdminPanel() {
               ))}
             </tbody>
           </table>
+        </div>
+      )}
+
+      {/* FINALIZATION MODAL WITH SUMMARY VIEW AND SAFELY SCOPED LIVE MATH */}
+      {billingTrip && (
+        <div className="fixed inset-0 bg-slate-900/60 flex items-center justify-center p-4 z-50">
+          <div className="bg-white p-8 rounded-3xl w-full max-w-5xl max-h-[90vh] overflow-y-auto">
+            <h3 className="text-2xl font-bold mb-6">Financial Reconciliation (#{billingTrip.id})</h3>
+            
+            {/* SUMMARY OF SUPERVISOR INPUTS */}
+            <div className="bg-slate-50 p-5 rounded-2xl border border-slate-200 mb-6 grid grid-cols-2 md:grid-cols-4 gap-4 text-sm shadow-inner">
+                <div className="col-span-2 md:col-span-4 border-b pb-2 mb-2 font-black text-slate-700 uppercase tracking-wider">Trip Summary (Provided by Supervisor)</div>
+                <DetailItem label="Driver" value={getDriverName(billingTrip.driver_id)} />
+                <DetailItem label="Vehicle & Type" value={`${billingTrip.vehicle_number} (${billingTrip.vehicle_type || 'N/A'})`} />
+                <DetailItem label="Vendor" value={billingTrip.vendor_name} />
+                <DetailItem label="Sourced From" value={billingTrip.vehicle_sourced_from} />
+                <DetailItem label="Client" value={billingTrip.client_name} />
+                <DetailItem label="Route (Src -> Dst)" value={`${billingTrip.source || 'N/A'} -> ${billingTrip.destination || 'N/A'}`} />
+                <DetailItem label="Total Distance" value={`${billingTrip.in_km - billingTrip.out_km} km`} />
+                <DetailItem label="Travel Time" value={`${billingTrip.out_time || '-'} to ${billingTrip.in_time || '-'}`} />
+            </div>
+
+            <form onSubmit={handleBillSubmit}>
+              <div className="grid grid-cols-2 gap-4">
+                <InputField label="Fuel Litres" type="number" value={billData.fuel_litres} onChange={e => setBillData({...billData, fuel_litres: e.target.value})} />
+                <InputField label="Fuel Price / L" type="number" value={billData.fuel_price} onChange={e => setBillData({...billData, fuel_price: e.target.value})} />
+                <InputField label="Toll Charges" type="number" value={billData.toll_charges} onChange={e => setBillData({...billData, toll_charges: e.target.value})} />
+                <InputField label="Other Expenses" type="number" value={billData.other_expenses} onChange={e => setBillData({...billData, other_expenses: e.target.value})} />
+                
+                <div className="col-span-2 border-t pt-4 mt-2 grid grid-cols-3 gap-4">
+                  <InputField label="Driver Total Cost" type="number" value={billData.driver_cost} onChange={e => setBillData({...billData, driver_cost: e.target.value})} />
+                  <InputField label="Trip Days (Attendance)" type="number" value={billData.trip_days} onChange={e => setBillData({...billData, trip_days: e.target.value})} />
+                  <InputField label="Overtime Allowance" type="number" value={billData.overtime_allowance} onChange={e => setBillData({...billData, overtime_allowance: e.target.value})} />
+                </div>
+                
+                <div className="col-span-2 grid grid-cols-2 gap-4 border-t pt-4 mt-2">
+                  <SelectField label="Vehicle Cost Type" value={billData.vehicle_cost_type} onChange={e => setBillData({...billData, vehicle_cost_type: e.target.value, vehicle_cost: ''})} options={['Own Company', 'Third Party']} />
+                  <InputField label="Vehicle Cost" type="number" value={billData.vehicle_cost} disabled={billData.vehicle_cost_type === 'Own Company'} onChange={e => setBillData({...billData, vehicle_cost: e.target.value})} />
+                </div>
+                <div className="col-span-2 border-t pt-4 mt-2 bg-indigo-50 p-4 rounded-xl border border-indigo-100 space-y-4">
+                  <SelectField label="Client Billed" value={billData.client_name} onChange={e => setBillData({...billData, client_name: e.target.value})} options={clients.map(c=>c.name)} />
+                  <InputField label="B2C (Bill to Company) Revenue" type="number" value={billData.b2c_billing} onChange={e => setBillData({...billData, b2c_billing: e.target.value})} />
+                </div>
+              </div>
+
+              {/* LOCALLY SCOPED MATH RENDERING to prevent ReferenceErrors */}
+              {(() => {
+                 const currentLiveCost = (Number(billData.fuel_litres)||0) * (Number(billData.fuel_price)||0) + (Number(billData.toll_charges)||0) + (Number(billData.other_expenses)||0) + (Number(billData.driver_cost)||0) + (Number(billData.overtime_allowance)||0) + (Number(billData.vehicle_cost)||0);
+                 const currentLiveProfit = (Number(billData.b2c_billing)||0) - currentLiveCost;
+                 return (
+                    <div className="flex flex-col md:flex-row gap-4 border-t pt-6 mt-6">
+                      <div className="flex-1 bg-slate-100 p-4 rounded-xl text-center"><div className="text-xs font-bold text-slate-500">TOTAL EXPENSES</div><div className="text-2xl font-black text-rose-600">₹{currentLiveCost}</div></div>
+                      <div className="flex-1 bg-slate-100 p-4 rounded-xl text-center"><div className="text-xs font-bold text-slate-500">B2C REVENUE</div><div className="text-2xl font-black text-indigo-600">₹{Number(billData.b2c_billing) || 0}</div></div>
+                      <div className={`flex-1 p-4 rounded-xl text-center ${currentLiveProfit >= 0 ? 'bg-emerald-100' : 'bg-rose-100'}`}><div className={`text-xs font-bold ${currentLiveProfit >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>PROFIT</div><div className={`text-2xl font-black ${currentLiveProfit >= 0 ? 'text-emerald-700' : 'text-rose-700'}`}>₹{currentLiveProfit}</div></div>
+                    </div>
+                 );
+              })()}
+              
+              <div className="flex gap-4 mt-6">
+                <button type="button" onClick={() => setBillingTrip(null)} className="flex-1 bg-slate-100 py-4 rounded-xl font-bold">Cancel</button>
+                <button type="submit" className="flex-1 bg-emerald-600 text-white py-4 rounded-xl font-bold">Finalize Bill</button>
+              </div>
+            </form>
+          </div>
         </div>
       )}
 
@@ -471,49 +549,7 @@ export default function AdminPanel() {
         </div>
       )}
 
-      {billingTrip && (
-        <div className="fixed inset-0 bg-slate-900/60 flex items-center justify-center p-4 z-50">
-          <div className="bg-white p-8 rounded-3xl w-full max-w-4xl max-h-[90vh] overflow-y-auto">
-            <h3 className="text-2xl font-bold mb-6">Financial Reconciliation (#{billingTrip.id})</h3>
-            <form onSubmit={handleBillSubmit}>
-              <div className="grid grid-cols-2 gap-4">
-                <InputField label="Fuel Litres" type="number" value={billData.fuel_litres} onChange={e => setBillData({...billData, fuel_litres: e.target.value})} />
-                <InputField label="Fuel Price / L" type="number" value={billData.fuel_price} onChange={e => setBillData({...billData, fuel_price: e.target.value})} />
-                <InputField label="Toll Charges" type="number" value={billData.toll_charges} onChange={e => setBillData({...billData, toll_charges: e.target.value})} />
-                <InputField label="Other Expenses" type="number" value={billData.other_expenses} onChange={e => setBillData({...billData, other_expenses: e.target.value})} />
-                
-                <div className="col-span-2 border-t pt-4 mt-2 grid grid-cols-3 gap-4">
-                  <InputField label="Driver Total Cost" type="number" value={billData.driver_cost} onChange={e => setBillData({...billData, driver_cost: e.target.value})} />
-                  <InputField label="Trip Days" type="number" value={billData.trip_days} onChange={e => setBillData({...billData, trip_days: e.target.value})} />
-                  <InputField label="Overtime Allowance" type="number" value={billData.overtime_allowance} onChange={e => setBillData({...billData, overtime_allowance: e.target.value})} />
-                </div>
-                
-                <div className="col-span-2 grid grid-cols-2 gap-4 border-t pt-4 mt-2">
-                  <SelectField label="Vehicle Cost Type" value={billData.vehicle_cost_type} onChange={e => setBillData({...billData, vehicle_cost_type: e.target.value, vehicle_cost: ''})} options={['Own Company', 'Third Party']} />
-                  <InputField label="Vehicle Cost" type="number" value={billData.vehicle_cost} disabled={billData.vehicle_cost_type === 'Own Company'} onChange={e => setBillData({...billData, vehicle_cost: e.target.value})} />
-                </div>
-                <div className="col-span-2 border-t pt-4 mt-2 bg-indigo-50 p-4 rounded-xl border border-indigo-100 space-y-4">
-                  <SelectField label="Client Billed" value={billData.client_name} onChange={e => setBillData({...billData, client_name: e.target.value})} options={clients.map(c=>c.name)} />
-                  <InputField label="B2C (Bill to Company) Revenue" type="number" value={billData.b2c_billing} onChange={e => setBillData({...billData, b2c_billing: e.target.value})} />
-                </div>
-              </div>
-
-              <div className="flex flex-col md:flex-row gap-4 border-t pt-6 mt-6">
-                <div className="flex-1 bg-slate-100 p-4 rounded-xl text-center"><div className="text-xs font-bold text-slate-500">TOTAL EXPENSES</div><div className="text-2xl font-black text-rose-600">₹{liveCost}</div></div>
-                <div className="flex-1 bg-slate-100 p-4 rounded-xl text-center"><div className="text-xs font-bold text-slate-500">B2C REVENUE</div><div className="text-2xl font-black text-indigo-600">₹{Number(billData.b2c_billing) || 0}</div></div>
-                <div className={`flex-1 p-4 rounded-xl text-center ${liveProfit >= 0 ? 'bg-emerald-100' : 'bg-rose-100'}`}><div className={`text-xs font-bold ${liveProfit >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>PROFIT</div><div className={`text-2xl font-black ${liveProfit >= 0 ? 'text-emerald-700' : 'text-rose-700'}`}>₹{liveProfit}</div></div>
-              </div>
-              
-              <div className="flex gap-4 mt-6">
-                <button type="button" onClick={() => setBillingTrip(null)} className="flex-1 bg-slate-100 py-4 rounded-xl font-bold">Cancel</button>
-                <button type="submit" className="flex-1 bg-emerald-600 text-white py-4 rounded-xl font-bold">Finalize</button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* ADMIN TABS: SUPERVISORS WALLET */}
+      {/* ADMIN TABS: WALLETS, SUPERVISORS, CLIENTS, VENDORS, VEHICLES */}
       {activeTab === 'supervisors' && (
         <div className="bg-white p-8 rounded-2xl shadow-xl border border-slate-100">
           <div className="flex justify-between items-center mb-6">
