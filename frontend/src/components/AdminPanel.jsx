@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import API from '../api';
-import { InputField, SelectField, DetailItem, StatusBadge, getCurrentDate } from './SharedUI';
+import { InputField, SelectField, DetailItem, StatusBadge } from './SharedUI';
 
 export default function AdminPanel() {
-  const [activeTab, setActiveTab] = useState('availability'); 
+  const [activeTab, setActiveTab] = useState('attendance'); 
   const [trips, setTrips] = useState([]);
   const [users, setUsers] = useState([]);
   const [vendors, setVendors] = useState([]);
@@ -14,12 +14,14 @@ export default function AdminPanel() {
   const [editDetailsTrip, setEditDetailsTrip] = useState(null);
   const [editDetailsData, setEditDetailsData] = useState({ vehicle_type: '', vehicle_mode: '', body_type: '', vendor_name: '', helper_name: '', client_name: '', source: '', destination: '', vehicle_sourced_from: '' });
   const [viewingTrip, setViewingTrip] = useState(null);
+  const [viewDriverDetails, setViewDriverDetails] = useState(null); // <--- NEW: Driver Pop-up state
 
   // Admin Wallet Modal State
   const [walletSup, setWalletSup] = useState(null);
   const [walletData, setWalletData] = useState({ total_funded: 0, total_trip_expenses: 0, total_misc_expenses: 0, current_balance: 0 });
   const [miscExpenses, setMiscExpenses] = useState([]);
-  const [newFund, setNewFund] = useState({ amount: '', date: getCurrentDate() });
+  const [walletFunds, setWalletFunds] = useState([]); // <--- NEW: View history in admin
+  const [newFund, setNewFund] = useState({ amount: '', medium: 'Cash' });
 
   const vehicleTypes = ["Tata Ace", "Intra", "Bolero Pickup", "Verro", "Bara Dast", "10' FT", "14' FT", "17' FT", "20' FT", "22' FT", "32' FT SXL", "32' FT MXL"];
   const activeStatuses = ['Waiting for Driver', 'Reported', 'Trip Started', 'Submitted for Review'];
@@ -47,14 +49,15 @@ export default function AdminPanel() {
       setWalletSup(sup);
       API.get(`/wallet/${sup.id}`).then(res => setWalletData(res.data)).catch(console.error);
       API.get(`/misc_expenses/${sup.id}`).then(res => setMiscExpenses(res.data)).catch(console.error);
+      API.get(`/funds/${sup.id}`).then(res => setWalletFunds(res.data)).catch(console.error);
   };
 
   const handleFundSubmit = async (e) => {
       e.preventDefault();
       try {
-          await API.post('/funds/', { supervisor_id: walletSup.id, amount: Number(newFund.amount), date: newFund.date });
-          setNewFund({ amount: '', date: getCurrentDate() });
-          openWalletModal(walletSup); // Refresh
+          await API.post('/funds/', { supervisor_id: walletSup.id, amount: Number(newFund.amount), date: new Date().toISOString(), medium: newFund.medium });
+          setNewFund({ amount: '', medium: 'Cash' });
+          openWalletModal(walletSup); // Refresh data
       } catch (err) { alert("Error adding funds."); }
   }
 
@@ -77,13 +80,10 @@ export default function AdminPanel() {
 
   const handleCreateSupervisor = async (e) => { e.preventDefault(); try { await API.post('/users/supervisor', { ...supForm, role: 'supervisor' }); alert("Created!"); setSupForm({ username: '', password: '', name: '', phone: '' }); fetchAllData(); } catch (err) { alert("Error."); } };
   const handleDeleteUser = async (id) => { if (window.confirm("Delete this user permanently?")) { try { await API.delete(`/users/${id}`); fetchAllData(); } catch(err) { alert("Failed."); } } };
-  
   const handleAddVendor = async (e) => { e.preventDefault(); try { await API.post('/vendors_list/', { name: vendorName }); setVendorName(''); fetchAllData(); } catch (err) { alert("Error."); } };
   const handleDeleteVendor = async (id) => { if (window.confirm("Delete vendor?")) { try { await API.delete(`/vendors_list/${id}`); fetchAllData(); } catch(err) { alert("Failed."); } } };
-
   const handleAddClient = async (e) => { e.preventDefault(); try { await API.post('/clients_list/', { name: clientName }); setClientName(''); fetchAllData(); alert("Client Saved"); } catch (err) { alert("Error."); } };
   const handleDeleteClient = async (id) => { if (window.confirm("Delete client?")) { try { await API.delete(`/clients_list/${id}`); fetchAllData(); } catch(err) { alert("Failed."); } } };
-
   const handleAddVehicle = async (e) => { e.preventDefault(); try { await API.post('/vehicles_list/', { vehicle_number: vehicleForm.vehicle_number.replace(/\s+/g, '').toUpperCase(), ownership_type: vehicleForm.ownership_type, emi: Number(vehicleForm.emi) || 0 }); setVehicleForm({ vehicle_number: '', ownership_type: 'Third Party', emi: '' }); fetchAllData(); alert("Vehicle Added!"); } catch (err) { alert("Error."); } };
   const handleDeleteVehicle = async (id) => { if (window.confirm("Delete vehicle?")) { try { await API.delete(`/vehicles_list/${id}`); fetchAllData(); } catch(err) { alert("Failed."); } } };
 
@@ -107,8 +107,8 @@ export default function AdminPanel() {
     <div className="p-4 md:p-8 max-w-7xl mx-auto">
       <h2 className="text-3xl font-extrabold mb-6">Master Admin Dashboard</h2>
       <div className="flex flex-wrap gap-2 mb-6 bg-slate-200/50 p-1.5 rounded-xl inline-flex">
-        <button onClick={() => setActiveTab('availability')} className={`px-5 py-2.5 rounded-lg font-bold transition-all ${activeTab === 'availability' ? 'bg-white text-indigo-700 shadow-sm' : 'text-slate-500'}`}>Availability & Fleet</button>
         <button onClick={() => setActiveTab('attendance')} className={`px-5 py-2.5 rounded-lg font-bold transition-all ${activeTab === 'attendance' ? 'bg-white text-indigo-700 shadow-sm' : 'text-slate-500'}`}>Attendance & Payroll</button>
+        <button onClick={() => setActiveTab('availability')} className={`px-5 py-2.5 rounded-lg font-bold transition-all ${activeTab === 'availability' ? 'bg-white text-indigo-700 shadow-sm' : 'text-slate-500'}`}>Availability & Fleet</button>
         <button onClick={() => setActiveTab('approvals')} className={`px-5 py-2.5 rounded-lg font-bold transition-all flex items-center gap-2 ${activeTab === 'approvals' ? 'bg-white text-rose-600 shadow-sm' : 'text-slate-500'}`}>Approvals {pendingCount > 0 && <span className="bg-rose-500 text-white rounded-full px-2 py-0.5 text-xs">{pendingCount}</span>}</button>
         <button onClick={() => setActiveTab('trips')} className={`px-5 py-2.5 rounded-lg font-bold transition-all ${activeTab === 'trips' ? 'bg-white text-sky-700 shadow-sm' : 'text-slate-500'}`}>Financial Billing</button>
         <button onClick={() => setActiveTab('reports')} className={`px-5 py-2.5 rounded-lg font-bold transition-all ${activeTab === 'reports' ? 'bg-white text-emerald-700 shadow-sm' : 'text-slate-500'}`}>Profit Reports</button>
@@ -117,6 +117,73 @@ export default function AdminPanel() {
         <button onClick={() => setActiveTab('vendors')} className={`px-5 py-2.5 rounded-lg font-bold transition-all ${activeTab === 'vendors' ? 'bg-white text-sky-700 shadow-sm' : 'text-slate-500'}`}>Vendors</button>
         <button onClick={() => setActiveTab('vehicles')} className={`px-5 py-2.5 rounded-lg font-bold transition-all ${activeTab === 'vehicles' ? 'bg-white text-sky-700 shadow-sm' : 'text-slate-500'}`}>Vehicles</button>
       </div>
+
+      {activeTab === 'attendance' && (
+        <div className="bg-white p-6 rounded-2xl shadow-xl border border-slate-100">
+          <h3 className="text-xl font-bold mb-6 border-b pb-2">Driver Attendance & Cost Tracking</h3>
+          <div className="overflow-x-auto">
+            <table className="min-w-full text-left text-sm whitespace-nowrap">
+              <thead className="bg-slate-50 border-b">
+                <tr><th className="p-4">Driver Details</th><th className="p-4">Total Trips</th><th className="p-4">Unique Days Worked</th><th className="p-4">Overtime Allowance</th><th className="p-4">Base Driver Cost</th><th className="p-4">Action</th></tr>
+              </thead>
+              <tbody>
+                {users.filter(u => u.role === 'driver').map(driver => {
+                  const driverTrips = trips.filter(t => t.driver_id === driver.id && t.status !== 'Pending Approval');
+                  
+                  // STRICT UNIQUE DAYS CALCULATION
+                  const uniqueDates = new Set(driverTrips.map(t => t.date));
+                  const daysPresent = uniqueDates.size; 
+                  
+                  const totalTrips = driverTrips.length;
+                  const totalOvertime = driverTrips.reduce((sum, t) => sum + (t.overtime_allowance || 0), 0);
+                  const totalDriverCost = driverTrips.reduce((sum, t) => sum + (t.driver_cost || 0), 0);
+                  
+                  return (
+                    <tr key={driver.id} className="border-b hover:bg-slate-50 transition-colors">
+                      <td className="p-4 font-bold text-indigo-700">{driver.name} <span className="text-xs text-slate-500 block font-semibold mt-1">📞 {driver.phone || 'No Phone'}</span></td>
+                      <td className="p-4 font-bold text-slate-800 text-lg">{totalTrips}</td>
+                      <td className="p-4 font-bold text-emerald-600 text-lg">{daysPresent} Days</td>
+                      <td className="p-4 text-amber-600 font-bold">₹{totalOvertime}</td>
+                      <td className="p-4 font-semibold text-slate-600">₹{totalDriverCost}</td>
+                      <td className="p-4"><button onClick={() => setViewDriverDetails(driver)} className="bg-sky-100 text-sky-700 px-3 py-1.5 rounded-lg font-bold hover:bg-sky-200 text-xs shadow-sm">View Details</button></td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* DRIVER DETAILS POP-UP */}
+      {viewDriverDetails && (
+        <div className="fixed inset-0 bg-slate-900/60 flex items-center justify-center p-4 z-50">
+          <div className="bg-white p-8 rounded-3xl w-full max-w-5xl max-h-[90vh] overflow-y-auto">
+            <div className="flex justify-between items-center mb-6">
+                <h3 className="text-2xl font-bold">Trip Ledger for {viewDriverDetails.name}</h3>
+                <button onClick={() => setViewDriverDetails(null)} className="text-slate-400 font-bold bg-slate-100 p-2 rounded-full">✕</button>
+            </div>
+            
+            <div className="overflow-x-auto">
+                <table className="min-w-full text-left text-sm whitespace-nowrap">
+                    <thead className="bg-slate-50 border-b"><tr><th className="p-3">Date</th><th className="p-3">Vehicle</th><th className="p-3">Route (KM)</th><th className="p-3">Base Cost</th><th className="p-3">Overtime</th><th className="p-3">Status</th></tr></thead>
+                    <tbody>
+                        {trips.filter(t => t.driver_id === viewDriverDetails.id && t.status !== 'Pending Approval').map(t => (
+                            <tr key={t.id} className="border-b">
+                                <td className="p-3 font-semibold text-slate-600">{t.date}</td>
+                                <td className="p-3 font-bold">{t.vehicle_number}</td>
+                                <td className="p-3">{t.in_km - t.out_km} km</td>
+                                <td className="p-3 font-bold text-sky-600">₹{t.driver_cost || 0}</td>
+                                <td className="p-3 font-bold text-amber-600">₹{t.overtime_allowance || 0}</td>
+                                <td className="p-3"><StatusBadge status={t.status} /></td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            </div>
+          </div>
+        </div>
+      )}
 
       {activeTab === 'availability' && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -199,37 +266,6 @@ export default function AdminPanel() {
         </div>
       )}
 
-      {activeTab === 'attendance' && (
-        <div className="bg-white p-6 rounded-2xl shadow-xl border border-slate-100">
-          <h3 className="text-xl font-bold mb-6 border-b pb-2">Driver Attendance & Cost Tracking</h3>
-          <div className="overflow-x-auto">
-            <table className="min-w-full text-left text-sm whitespace-nowrap">
-              <thead className="bg-slate-50 border-b">
-                <tr><th className="p-4">Driver Details</th><th className="p-4">Total Trips</th><th className="p-4">Days Worked</th><th className="p-4">Overtime Allowance</th><th className="p-4">Base Driver Cost</th></tr>
-              </thead>
-              <tbody>
-                {users.filter(u => u.role === 'driver').map(driver => {
-                  const driverTrips = trips.filter(t => t.driver_id === driver.id && t.status !== 'Pending Approval');
-                  const daysPresent = driverTrips.reduce((sum, t) => sum + (t.trip_days || 1), 0); 
-                  const totalTrips = driverTrips.length;
-                  const totalOvertime = driverTrips.reduce((sum, t) => sum + (t.overtime_allowance || 0), 0);
-                  const totalDriverCost = driverTrips.reduce((sum, t) => sum + (t.driver_cost || 0), 0);
-                  return (
-                    <tr key={driver.id} className="border-b hover:bg-slate-50 transition-colors">
-                      <td className="p-4 font-bold text-indigo-700">{driver.name} <span className="text-xs text-slate-500 block font-semibold mt-1">📞 {driver.phone || 'No Phone'}</span></td>
-                      <td className="p-4 font-bold text-slate-800 text-lg">{totalTrips}</td>
-                      <td className="p-4 font-bold text-emerald-600 text-lg">{daysPresent} Days</td>
-                      <td className="p-4 text-amber-600 font-bold">₹{totalOvertime}</td>
-                      <td className="p-4 font-semibold text-slate-600">₹{totalDriverCost}</td>
-                    </tr>
-                  )
-                })}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
-
       {activeTab === 'approvals' && (
         <div className="bg-white rounded-2xl shadow-xl border border-slate-100 overflow-x-auto">
           <table className="min-w-full text-left text-sm whitespace-nowrap">
@@ -288,77 +324,6 @@ export default function AdminPanel() {
         </div>
       )}
 
-      {/* ADMIN WALLET & SUPERVISORS */}
-      {activeTab === 'supervisors' && (
-        <div className="bg-white p-8 rounded-2xl shadow-xl border border-slate-100">
-          <div className="flex justify-between items-center mb-6">
-              <h3 className="text-xl font-bold">Supervisors & Wallets</h3>
-              <form onSubmit={handleCreateSupervisor} className="flex gap-2">
-                <input type="text" placeholder="Name" value={supForm.name} onChange={e=>setSupForm({...supForm,name:e.target.value})} className="border p-2 rounded" />
-                <input type="text" placeholder="Username" value={supForm.username} onChange={e=>setSupForm({...supForm,username:e.target.value})} className="border p-2 rounded" />
-                <input type="password" placeholder="Password" value={supForm.password} onChange={e=>setSupForm({...supForm,password:e.target.value})} className="border p-2 rounded" />
-                <button type="submit" className="bg-sky-600 text-white px-4 rounded font-bold">Add</button>
-              </form>
-          </div>
-          
-          <div className="grid gap-4">
-            {users.filter(u=>u.role==='supervisor').map(sup => (
-              <div key={sup.id} className="bg-slate-50 p-4 rounded-xl border flex justify-between items-center">
-                  <div>
-                      <div className="font-bold text-slate-800 text-lg">{sup.name} <span className="text-sm font-normal text-slate-500">(@{sup.username})</span></div>
-                  </div>
-                  <div className="flex gap-2">
-                      <button onClick={() => openWalletModal(sup)} className="bg-emerald-100 text-emerald-700 px-4 py-2 rounded-lg font-bold">Manage Wallet & Expenses</button>
-                      <button onClick={() => handleDeleteUser(sup.id)} className="text-rose-500 px-4 font-bold">Delete</button>
-                  </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {walletSup && (
-        <div className="fixed inset-0 bg-slate-900/60 flex items-center justify-center p-4 z-50">
-          <div className="bg-white p-8 rounded-3xl w-full max-w-4xl max-h-[90vh] overflow-y-auto">
-            <div className="flex justify-between items-center mb-6">
-                <h3 className="text-2xl font-bold">Wallet: {walletSup.name}</h3>
-                <button onClick={() => setWalletSup(null)} className="text-slate-400 font-bold bg-slate-100 p-2 rounded-full">✕</button>
-            </div>
-            
-            <div className="grid grid-cols-4 gap-4 mb-8">
-                <div className="bg-indigo-50 p-4 rounded-xl border border-indigo-200 text-center"><div className="text-xs font-bold text-indigo-500">TOTAL FUNDED</div><div className="text-2xl font-black text-indigo-700">₹{walletData.total_funded}</div></div>
-                <div className="bg-rose-50 p-4 rounded-xl border border-rose-200 text-center"><div className="text-xs font-bold text-rose-500">TRIP EXPENSES</div><div className="text-2xl font-black text-rose-700">₹{walletData.total_trip_expenses}</div></div>
-                <div className="bg-rose-50 p-4 rounded-xl border border-rose-200 text-center"><div className="text-xs font-bold text-rose-500">MISC EXPENSES</div><div className="text-2xl font-black text-rose-700">₹{walletData.total_misc_expenses}</div></div>
-                <div className="bg-emerald-50 p-4 rounded-xl border border-emerald-200 text-center"><div className="text-xs font-bold text-emerald-500">CURRENT BALANCE</div><div className="text-2xl font-black text-emerald-700">₹{walletData.current_balance}</div></div>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                    <h4 className="font-bold mb-3 border-b pb-2">Send Funds</h4>
-                    <form onSubmit={handleFundSubmit} className="flex gap-2">
-                        <InputField type="number" label="Amount" value={newFund.amount} onChange={e=>setNewFund({...newFund, amount: e.target.value})} />
-                        <div className="mt-5"><button type="submit" className="bg-emerald-600 text-white px-6 py-3 rounded-xl font-bold">Send</button></div>
-                    </form>
-                </div>
-                <div>
-                    <h4 className="font-bold mb-3 border-b pb-2">Pending Misc Expenses</h4>
-                    {miscExpenses.filter(m => m.status === 'Pending').map(exp => (
-                        <div key={exp.id} className="bg-amber-50 p-3 rounded-lg border border-amber-200 mb-2 flex justify-between items-center">
-                            <div><div className="font-bold text-slate-800">₹{exp.amount}</div><div className="text-xs">{exp.description}</div></div>
-                            <div className="flex gap-2">
-                                <button onClick={() => handleMiscStatus(exp.id, 'Approved')} className="bg-emerald-500 text-white px-3 py-1 rounded text-xs font-bold">Approve</button>
-                                <button onClick={() => handleMiscStatus(exp.id, 'Rejected')} className="bg-rose-500 text-white px-3 py-1 rounded text-xs font-bold">Reject</button>
-                            </div>
-                        </div>
-                    ))}
-                    {miscExpenses.filter(m => m.status === 'Pending').length === 0 && <div className="text-sm italic text-slate-500">No pending expenses.</div>}
-                </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ADMIN READ ONLY LOG */}
       {viewingTrip && (
         <div className="fixed inset-0 bg-slate-900/60 flex items-center justify-center p-4 z-50">
           <div className="bg-white p-8 rounded-3xl w-full max-w-4xl max-h-[90vh] overflow-y-auto">
@@ -406,7 +371,6 @@ export default function AdminPanel() {
         </div>
       )}
 
-      {/* ADMIN OVERRIDE DETAILS */}
       {editDetailsTrip && (
         <div className="fixed inset-0 bg-slate-900/60 flex items-center justify-center p-4 z-50">
           <div className="bg-white p-8 rounded-3xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
@@ -432,7 +396,6 @@ export default function AdminPanel() {
         </div>
       )}
 
-      {/* ADMIN FINANCIAL OVERRIDE */}
       {billingTrip && (
         <div className="fixed inset-0 bg-slate-900/60 flex items-center justify-center p-4 z-50">
           <div className="bg-white p-8 rounded-3xl w-full max-w-4xl max-h-[90vh] overflow-y-auto">
@@ -475,7 +438,97 @@ export default function AdminPanel() {
         </div>
       )}
 
-      {/* ADMIN TABS: CLIENTS / VENDORS / VEHICLES */}
+      {/* ADMIN TABS: SUPERVISORS WALLET */}
+      {activeTab === 'supervisors' && (
+        <div className="bg-white p-8 rounded-2xl shadow-xl border border-slate-100">
+          <div className="flex justify-between items-center mb-6">
+              <h3 className="text-xl font-bold">Supervisors & Wallets</h3>
+              <form onSubmit={handleCreateSupervisor} className="flex gap-2">
+                <input type="text" placeholder="Name" value={supForm.name} onChange={e=>setSupForm({...supForm,name:e.target.value})} className="border p-2 rounded" />
+                <input type="text" placeholder="Username" value={supForm.username} onChange={e=>setSupForm({...supForm,username:e.target.value})} className="border p-2 rounded" />
+                <input type="password" placeholder="Password" value={supForm.password} onChange={e=>setSupForm({...supForm,password:e.target.value})} className="border p-2 rounded" />
+                <button type="submit" className="bg-sky-600 text-white px-4 rounded font-bold">Add</button>
+              </form>
+          </div>
+          
+          <div className="grid gap-4">
+            {users.filter(u=>u.role==='supervisor').map(sup => (
+              <div key={sup.id} className="bg-slate-50 p-4 rounded-xl border flex justify-between items-center">
+                  <div>
+                      <div className="font-bold text-slate-800 text-lg">{sup.name} <span className="text-sm font-normal text-slate-500">(@{sup.username})</span></div>
+                  </div>
+                  <div className="flex gap-2">
+                      <button onClick={() => openWalletModal(sup)} className="bg-emerald-100 text-emerald-700 px-4 py-2 rounded-lg font-bold hover:bg-emerald-200">Manage Wallet & Expenses</button>
+                      <button onClick={() => handleDeleteUser(sup.id)} className="text-rose-500 px-4 font-bold hover:text-rose-700">Delete</button>
+                  </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {walletSup && (
+        <div className="fixed inset-0 bg-slate-900/60 flex items-center justify-center p-4 z-50">
+          <div className="bg-white p-8 rounded-3xl w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+            <div className="flex justify-between items-center mb-6">
+                <h3 className="text-2xl font-bold">Wallet: {walletSup.name}</h3>
+                <button onClick={() => setWalletSup(null)} className="text-slate-400 font-bold bg-slate-100 p-2 rounded-full">✕</button>
+            </div>
+            
+            <div className="grid grid-cols-4 gap-4 mb-8">
+                <div className="bg-indigo-50 p-4 rounded-xl border border-indigo-200 text-center"><div className="text-xs font-bold text-indigo-500">TOTAL FUNDED</div><div className="text-2xl font-black text-indigo-700">₹{walletData.total_funded}</div></div>
+                <div className="bg-rose-50 p-4 rounded-xl border border-rose-200 text-center"><div className="text-xs font-bold text-rose-500">TRIP EXPENSES</div><div className="text-2xl font-black text-rose-700">₹{walletData.total_trip_expenses}</div></div>
+                <div className="bg-rose-50 p-4 rounded-xl border border-rose-200 text-center"><div className="text-xs font-bold text-rose-500">MISC EXPENSES</div><div className="text-2xl font-black text-rose-700">₹{walletData.total_misc_expenses}</div></div>
+                <div className="bg-emerald-50 p-4 rounded-xl border border-emerald-200 text-center"><div className="text-xs font-bold text-emerald-500">CURRENT BALANCE</div><div className="text-2xl font-black text-emerald-700">₹{walletData.current_balance}</div></div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                    <h4 className="font-bold mb-3 border-b pb-2">Send Funds to Supervisor</h4>
+                    <form onSubmit={handleFundSubmit} className="flex gap-2">
+                        <InputField type="number" label="Amount" value={newFund.amount} onChange={e=>setNewFund({...newFund, amount: e.target.value})} />
+                        <SelectField label="Medium" value={newFund.medium} onChange={e=>setNewFund({...newFund, medium: e.target.value})} options={['Cash', 'UPI', 'Bank Transfer']} />
+                        <div className="mt-5"><button type="submit" className="bg-emerald-600 text-white px-6 py-3 rounded-xl font-bold">Send</button></div>
+                    </form>
+                    
+                    <h4 className="font-bold mb-3 border-b pb-2 mt-8">Funding History</h4>
+                    <div className="space-y-2 max-h-[30vh] overflow-y-auto pr-2">
+                        {walletFunds.map(f => (
+                            <div key={f.id} className="bg-indigo-50 p-3 rounded-lg border border-indigo-100 flex justify-between items-center">
+                                <div><div className="font-bold text-indigo-800 text-lg">₹{f.amount}</div><div className="text-xs font-semibold text-indigo-500">Medium: {f.medium}</div></div>
+                                <div className="text-xs font-bold text-slate-500">{new Date(f.date).toLocaleString()}</div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+                <div>
+                    <h4 className="font-bold mb-3 border-b pb-2">Approve Misc Expenses</h4>
+                    {miscExpenses.filter(m => m.status === 'Pending').map(exp => (
+                        <div key={exp.id} className="bg-amber-50 p-3 rounded-lg border border-amber-200 mb-2 flex justify-between items-center">
+                            <div><div className="font-bold text-slate-800">₹{exp.amount}</div><div className="text-xs">{exp.description}</div></div>
+                            <div className="flex gap-2">
+                                <button onClick={() => handleMiscStatus(exp.id, 'Approved')} className="bg-emerald-500 text-white px-3 py-1 rounded text-xs font-bold">Approve</button>
+                                <button onClick={() => handleMiscStatus(exp.id, 'Rejected')} className="bg-rose-500 text-white px-3 py-1 rounded text-xs font-bold">Reject</button>
+                            </div>
+                        </div>
+                    ))}
+                    {miscExpenses.filter(m => m.status === 'Pending').length === 0 && <div className="text-sm italic text-slate-500">No pending expenses.</div>}
+                    
+                    <h4 className="font-bold mb-3 border-b pb-2 mt-8">Misc Expense History</h4>
+                    <div className="space-y-2 max-h-[30vh] overflow-y-auto pr-2">
+                        {miscExpenses.filter(m => m.status !== 'Pending').map(exp => (
+                            <div key={exp.id} className="bg-slate-50 p-3 rounded-lg border border-slate-200 flex justify-between items-center">
+                                <div><div className="font-bold text-slate-800 text-lg">₹{exp.amount}</div><div className="text-xs text-slate-500">{exp.description}</div></div>
+                                <StatusBadge status={exp.status === 'Approved' ? 'Billed / Completed' : 'Pending Approval'} />
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {activeTab === 'clients' && (
         <div className="bg-white p-8 rounded-2xl shadow-xl max-w-lg border border-slate-100">
           <h3 className="text-xl font-bold mb-4">Manage Clients</h3>

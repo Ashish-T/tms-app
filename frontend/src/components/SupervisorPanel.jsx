@@ -11,9 +11,9 @@ export default function SupervisorPanel() {
   const [clients, setClients] = useState([]);
   const [vehicles, setVehicles] = useState([]);
   
-  // Wallet State
   const [wallet, setWallet] = useState({ total_funded: 0, total_trip_expenses: 0, total_misc_expenses: 0, current_balance: 0 });
   const [miscExpenses, setMiscExpenses] = useState([]);
+  const [funds, setFunds] = useState([]); // <--- NEW STATE FOR FUND HISTORY
   const [newMisc, setNewMisc] = useState({ amount: '', description: '', date: getCurrentDate() });
 
   const [dispatchData, setDispatchData] = useState({ driver_id: '', vehicle_number: '', date: getCurrentDate() });
@@ -56,6 +56,7 @@ export default function SupervisorPanel() {
   const fetchWallet = (supId) => {
       API.get(`/wallet/${supId}`).then(res => setWallet(res.data)).catch(console.error);
       API.get(`/misc_expenses/${supId}`).then(res => setMiscExpenses(res.data)).catch(console.error);
+      API.get(`/funds/${supId}`).then(res => setFunds(res.data)).catch(console.error); // <--- FETCHES HISTORY
   }
 
   const handleMiscSubmit = async (e) => {
@@ -110,6 +111,7 @@ export default function SupervisorPanel() {
   const handleDeleteVehicle = async (id) => { if (window.confirm("Delete vehicle?")) { try { await API.delete(`/vehicles_list/${id}`); fetchAllData(); } catch(err) { alert("Failed."); } } };
 
   const getDriverName = (driverId) => { const driver = users.find(u => u.id === driverId); return driver ? driver.name : 'Unknown'; };
+  const getActiveVehicle = (driverId) => { const active = trips.find(t => t.driver_id === driverId && ['Pending Approval','Approved','Reported','Started'].includes(t.status)); return active ? active.vehicle_number : 'Available'; };
 
   return (
     <div className="p-4 md:p-8 max-w-7xl mx-auto">
@@ -141,24 +143,43 @@ export default function SupervisorPanel() {
                 </form>
             </div>
             
-            <div className="bg-white p-8 rounded-2xl shadow-xl border border-slate-100">
-                <h3 className="text-xl font-bold mb-4">Misc Expenses History</h3>
-                <div className="space-y-3 max-h-[60vh] overflow-y-auto">
-                    {miscExpenses.map(exp => (
-                        <div key={exp.id} className="bg-slate-50 p-3 rounded-lg border border-slate-200 flex justify-between items-center">
-                            <div>
-                                <div className="font-bold text-slate-800 text-lg">₹{exp.amount}</div>
-                                <div className="text-xs text-slate-500">{exp.description} ({exp.date})</div>
+            <div className="bg-white p-8 rounded-2xl shadow-xl border border-slate-100 flex flex-col gap-6">
+                <div>
+                    <h3 className="text-xl font-bold mb-4">Funds Received History</h3>
+                    <div className="space-y-2 max-h-[30vh] overflow-y-auto pr-2">
+                        {funds.map(f => (
+                            <div key={f.id} className="bg-indigo-50 p-3 rounded-lg border border-indigo-100 flex justify-between items-center">
+                                <div>
+                                    <div className="font-bold text-indigo-800 text-lg">₹{f.amount}</div>
+                                    <div className="text-xs font-semibold text-indigo-500">Medium: {f.medium}</div>
+                                </div>
+                                <div className="text-xs font-bold text-slate-500">{new Date(f.date).toLocaleString()}</div>
                             </div>
-                            <StatusBadge status={exp.status === 'Approved' ? 'Billed / Completed' : exp.status === 'Rejected' ? 'Pending Approval' : 'Waiting for Driver'} />
-                        </div>
-                    ))}
-                    {miscExpenses.length === 0 && <div className="text-slate-500 italic">No misc expenses raised.</div>}
+                        ))}
+                        {funds.length === 0 && <div className="text-slate-500 italic">No funds received yet.</div>}
+                    </div>
+                </div>
+
+                <div>
+                    <h3 className="text-xl font-bold mb-4 border-t pt-4">Misc Expenses Log</h3>
+                    <div className="space-y-2 max-h-[30vh] overflow-y-auto pr-2">
+                        {miscExpenses.map(exp => (
+                            <div key={exp.id} className="bg-slate-50 p-3 rounded-lg border border-slate-200 flex justify-between items-center">
+                                <div>
+                                    <div className="font-bold text-slate-800 text-lg">₹{exp.amount}</div>
+                                    <div className="text-xs text-slate-500">{exp.description} ({exp.date})</div>
+                                </div>
+                                <StatusBadge status={exp.status === 'Approved' ? 'Billed / Completed' : exp.status === 'Rejected' ? 'Pending Approval' : 'Waiting for Driver'} />
+                            </div>
+                        ))}
+                        {miscExpenses.length === 0 && <div className="text-slate-500 italic">No misc expenses raised.</div>}
+                    </div>
                 </div>
             </div>
         </div>
       )}
 
+      {/* ALL OTHER TABS & MODALS PRESERVED AS NORMAL... */}
       {activeTab === 'availability' && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="bg-white p-6 rounded-2xl shadow-xl border border-slate-100">
@@ -223,7 +244,6 @@ export default function SupervisorPanel() {
                     <div className="flex gap-2 flex-wrap">
                       {['Waiting for Driver'].includes(trip.status) && (<button onClick={() => { setShuffleTrip(trip); setShuffleVehicle(''); }} className="bg-amber-100 text-amber-700 px-3 py-1.5 rounded-lg font-bold hover:bg-amber-200 text-xs shadow-sm">Shuffle Vehicle</button>)}
                       
-                      {/* NEW: Expenses unlocked immediately! */}
                       {['Waiting for Driver', 'Reported', 'Trip Started', 'Completed', 'Submitted for Review'].includes(trip.status) && (
                          <button onClick={() => openExpenses(trip)} className="bg-rose-100 text-rose-700 px-3 py-1.5 rounded-lg font-bold hover:bg-rose-200 text-xs shadow-sm">Expenses</button>
                       )}
@@ -243,7 +263,6 @@ export default function SupervisorPanel() {
         </div>
       )}
 
-      {/* ALL MODALS (Review, Expenses, Log Arrival, etc.) GO HERE EXACTLY AS THEY WERE PREVIOUSLY */}
       {expenseTrip && (
         <div className="fixed inset-0 bg-slate-900/60 flex items-center justify-center p-4 z-50">
           <div className="bg-white p-8 rounded-3xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
@@ -314,7 +333,7 @@ export default function SupervisorPanel() {
               <div className="col-span-1 md:col-span-2 flex gap-4 mt-6">
                 <button type="button" onClick={() => setReviewTrip(null)} className="flex-1 bg-slate-100 py-3 rounded-xl font-bold text-slate-600">Cancel</button>
                 <button type="submit" className="flex-1 bg-sky-600 text-white py-3 rounded-xl font-bold">
-                  {['Completed'].includes(reviewTrip.status) ? "Submit Details for Review" : "Save Details (Trip Running)"}
+                  {['Completed'].includes(reviewTrip.status) ? "Submit Details for Review" : "Save Details"}
                 </button>
               </div>
             </form>
@@ -378,6 +397,7 @@ export default function SupervisorPanel() {
         </div>
       )}
 
+      {/* DRIVERS / VEHICLES TABS REMAIN SAME */}
       {activeTab === 'drivers' && (
         <div className="bg-white p-8 rounded-2xl shadow-xl max-w-lg border border-slate-100">
           <h3 className="text-xl font-bold mb-4">Create Driver Account</h3>

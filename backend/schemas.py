@@ -122,17 +122,18 @@ class VehicleResponse(BaseModel):
     emi: float
     model_config = ConfigDict(from_attributes=True)
 
-# --- NEW: WALLET SCHEMAS ---
 class FundTransferCreate(BaseModel):
     supervisor_id: int
     amount: float
     date: str
+    medium: str # <--- NEW
 
 class FundTransferResponse(BaseModel):
     id: int
     supervisor_id: int
     amount: float
     date: str
+    medium: str # <--- NEW
     model_config = ConfigDict(from_attributes=True)
 
 class MiscExpenseCreate(BaseModel):

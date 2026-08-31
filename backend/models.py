@@ -79,13 +79,13 @@ class VehicleList(Base):
     ownership_type = Column(String, default="Third Party")
     emi = Column(Float, default=0.0)
 
-# --- NEW: WALLET AND CASH MANAGEMENT ---
 class AdminFundTransfer(Base):
-    __tablename__ = 'admin_fund_transfers'
+    __tablename__ = 'admin_fund_transfers_v2' # <--- UPGRADED FOR MEDIUM TRACKING
     id = Column(Integer, primary_key=True)
     supervisor_id = Column(Integer, ForeignKey('users.id'))
     amount = Column(Float, default=0.0)
-    date = Column(String)
+    date = Column(String) 
+    medium = Column(String, default="Cash") # <--- NEW: Bank Transfer, UPI, Cash
 
 class SupervisorMiscExpense(Base):
     __tablename__ = 'supervisor_misc_expenses'
@@ -94,4 +94,4 @@ class SupervisorMiscExpense(Base):
     amount = Column(Float, default=0.0)
     description = Column(String)
     date = Column(String)
-    status = Column(String, default="Pending") # Pending, Approved, Rejected
+    status = Column(String, default="Pending")
