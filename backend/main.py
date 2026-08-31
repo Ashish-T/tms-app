@@ -53,6 +53,7 @@ def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(
     if user is None: raise HTTPException(status_code=401, detail="User not found")
     return user
 
+# --- AUTH ROUTES & USERS ---
 @app.post("/login", response_model=schemas.Token)
 def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
     user = db.query(models.User).filter(models.User.username == form_data.username).first()
@@ -98,6 +99,7 @@ def delete_user(user_id: int, db: Session = Depends(get_db), current_user: model
     if obj: db.delete(obj); db.commit()
     return {"ok": True}
 
+# --- PIPELINE: COLLABORATIVE TRIPS ---
 @app.post("/trips/", response_model=schemas.TripLogResponse)
 def create_trip(trip: schemas.TripSupervisorCreate, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
     if current_user.role != "supervisor": raise HTTPException(status_code=403, detail="Not authorized")
@@ -241,6 +243,7 @@ def get_trips(db: Session = Depends(get_db), current_user: models.User = Depends
     elif current_user.role == "driver": return db.query(models.TripLog).filter(models.TripLog.driver_id == current_user.id).order_by(models.TripLog.id.desc()).all()
     return []
 
+# --- VENDORS, CLIENTS, VEHICLES DROPDOWNS ---
 @app.get("/vendors_list/", response_model=List[schemas.DropdownItemResponse])
 def get_vendors(db: Session = Depends(get_db)): return db.query(models.VendorList).all()
 
@@ -297,6 +300,66 @@ def delete_vehicle(vehicle_id: int, db: Session = Depends(get_db), current_user:
     obj = db.query(models.VehicleList).filter(models.VehicleList.id == vehicle_id).first()
     if obj: db.delete(obj); db.commit()
     return {"ok": True}
+
+# --- WALLET AND CASH MANAGEMENT ---
+@app.post("/funds/", response_model=schemas.FundTransferResponse)
+def add_funds(fund: schemas.FundTransferCreate, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
+    if current_user.role != "admin": raise HTTPException(status_code=403, detail="Not authorized")
+    db_fund = models.AdminFundTransfer(**fund.model_dump())
+    db.add(db_fund)
+    db.commit()
+    db.refresh(db_fund)
+    return db_fund
+
+@app.get("/funds/{supervisor_id}", response_model=List[schemas.FundTransferResponse])
+def get_funds(supervisor_id: int, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
+    return db.query(models.AdminFundTransfer).filter(models.AdminFundTransfer.supervisor_id == supervisor_id).all()
+
+@app.post("/misc_expenses/", response_model=schemas.MiscExpenseResponse)
+def add_misc_expense(expense: schemas.MiscExpenseCreate, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
+    if current_user.role != "supervisor": raise HTTPException(status_code=403, detail="Not authorized")
+    db_exp = models.SupervisorMiscExpense(**expense.model_dump(), supervisor_id=current_user.id)
+    db.add(db_exp)
+    db.commit()
+    db.refresh(db_exp)
+    return db_exp
+
+@app.patch("/misc_expenses/{exp_id}/status", response_model=schemas.MiscExpenseResponse)
+def update_misc_expense(exp_id: int, update: schemas.MiscExpenseStatusUpdate, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
+    if current_user.role != "admin": raise HTTPException(status_code=403, detail="Not authorized")
+    db_exp = db.query(models.SupervisorMiscExpense).filter(models.SupervisorMiscExpense.id == exp_id).first()
+    db_exp.status = update.status
+    db.commit()
+    db.refresh(db_exp)
+    return db_exp
+
+@app.get("/misc_expenses/{supervisor_id}", response_model=List[schemas.MiscExpenseResponse])
+def get_misc_expenses(supervisor_id: int, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
+    return db.query(models.SupervisorMiscExpense).filter(models.SupervisorMiscExpense.supervisor_id == supervisor_id).order_by(models.SupervisorMiscExpense.id.desc()).all()
+
+@app.get("/wallet/{supervisor_id}", response_model=schemas.WalletSummaryResponse)
+def get_wallet_summary(supervisor_id: int, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
+    funds = db.query(models.AdminFundTransfer).filter(models.AdminFundTransfer.supervisor_id == supervisor_id).all()
+    total_funded = sum(f.amount for f in funds)
+
+    misc = db.query(models.SupervisorMiscExpense).filter(models.SupervisorMiscExpense.supervisor_id == supervisor_id, models.SupervisorMiscExpense.status == "Approved").all()
+    total_misc_expenses = sum(m.amount for m in misc)
+
+    trips = db.query(models.TripLog).filter(models.TripLog.supervisor_id == supervisor_id).all()
+    # Calculates only the CASH SPENT by the supervisor (EMI is not paid by them out of pocket)
+    total_trip_expenses = sum(
+        (t.fuel_litres * t.fuel_price) + t.toll_charges + t.other_expenses + t.driver_cost + t.overtime_allowance
+        for t in trips
+    )
+
+    current_balance = total_funded - total_trip_expenses - total_misc_expenses
+
+    return {
+        "total_funded": total_funded,
+        "total_trip_expenses": total_trip_expenses,
+        "total_misc_expenses": total_misc_expenses,
+        "current_balance": current_balance
+    }
 
 @app.on_event("startup")
 def on_startup():

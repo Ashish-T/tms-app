@@ -25,11 +25,11 @@ class User(Base):
     supervisor_id = Column(Integer, ForeignKey('users.id'), nullable=True)
 
 class TripLog(Base):
-    __tablename__ = 'trip_logs_v11' # <--- Upgraded to V11 for New Statuses
+    __tablename__ = 'trip_logs_v11' 
     id = Column(Integer, primary_key=True)
     driver_id = Column(Integer, ForeignKey('users.id'))
     supervisor_id = Column(Integer, ForeignKey('users.id'))
-    status = Column(String, default="Waiting for Driver") # <--- NEW DEFAULT STATUS
+    status = Column(String, default="Waiting for Driver") 
     
     date = Column(String)
     vehicle_number = Column(String)
@@ -47,7 +47,7 @@ class TripLog(Base):
     client_name = Column(String, nullable=True)
     source = Column(String, nullable=True)     
     destination = Column(String, nullable=True)
-    vehicle_sourced_from = Column(String, nullable=True) # <--- NEW
+    vehicle_sourced_from = Column(String, nullable=True) 
     
     fuel_litres = Column(Float, default=0.0)
     fuel_price = Column(Float, default=0.0)
@@ -78,3 +78,20 @@ class VehicleList(Base):
     vehicle_number = Column(String, unique=True)
     ownership_type = Column(String, default="Third Party")
     emi = Column(Float, default=0.0)
+
+# --- NEW: WALLET AND CASH MANAGEMENT ---
+class AdminFundTransfer(Base):
+    __tablename__ = 'admin_fund_transfers'
+    id = Column(Integer, primary_key=True)
+    supervisor_id = Column(Integer, ForeignKey('users.id'))
+    amount = Column(Float, default=0.0)
+    date = Column(String)
+
+class SupervisorMiscExpense(Base):
+    __tablename__ = 'supervisor_misc_expenses'
+    id = Column(Integer, primary_key=True)
+    supervisor_id = Column(Integer, ForeignKey('users.id'))
+    amount = Column(Float, default=0.0)
+    description = Column(String)
+    date = Column(String)
+    status = Column(String, default="Pending") # Pending, Approved, Rejected
