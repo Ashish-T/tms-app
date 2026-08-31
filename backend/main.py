@@ -98,14 +98,11 @@ def delete_user(user_id: int, db: Session = Depends(get_db), current_user: model
     if obj: db.delete(obj); db.commit()
     return {"ok": True}
 
-# --- NEW PIPELINE: LIFECYCLE ---
 @app.post("/trips/", response_model=schemas.TripLogResponse)
 def create_trip(trip: schemas.TripSupervisorCreate, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
     if current_user.role != "supervisor": raise HTTPException(status_code=403, detail="Not authorized")
-    active_trip = db.query(models.TripLog).filter(models.TripLog.vehicle_number == trip.vehicle_number, models.TripLog.status.notin_(["Billed / Completed", "Pending for Admin Final Review", "Completed"])).first()
+    active_trip = db.query(models.TripLog).filter(models.TripLog.vehicle_number == trip.vehicle_number, models.TripLog.status.notin_(["Billed / Completed", "Pending for Admin Final Review", "Completed", "Submitted for Review"])).first()
     if active_trip: raise HTTPException(status_code=400, detail="Vehicle is already assigned to an active trip!")
-    
-    # STATUS 1: By passes Admin, goes straight to Driver!
     db_trip = models.TripLog(**trip.model_dump(), supervisor_id=current_user.id, status="Waiting for Driver")
     db.add(db_trip)
     db.commit()
@@ -115,12 +112,10 @@ def create_trip(trip: schemas.TripSupervisorCreate, db: Session = Depends(get_db
 @app.patch("/trips/{trip_id}/shuffle_vehicle", response_model=schemas.TripLogResponse)
 def shuffle_vehicle(trip_id: int, update: schemas.TripVehicleUpdate, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
     if current_user.role != "supervisor": raise HTTPException(status_code=403, detail="Not authorized")
-    active_trip = db.query(models.TripLog).filter(models.TripLog.vehicle_number == update.vehicle_number, models.TripLog.status.notin_(["Billed / Completed", "Pending for Admin Final Review", "Completed"])).first()
+    active_trip = db.query(models.TripLog).filter(models.TripLog.vehicle_number == update.vehicle_number, models.TripLog.status.notin_(["Billed / Completed", "Pending for Admin Final Review", "Completed", "Submitted for Review"])).first()
     if active_trip: raise HTTPException(status_code=400, detail="Vehicle is already assigned to an active trip!")
-    
     db_trip = db.query(models.TripLog).filter(models.TripLog.id == trip_id).first()
     db_trip.vehicle_number = update.vehicle_number
-    # Exception to the rule: Shuffling a vehicle triggers Admin Approval
     db_trip.status = "Pending Approval"
     db.commit()
     db.refresh(db_trip)
@@ -138,9 +133,8 @@ def approve_trip(trip_id: int, db: Session = Depends(get_db), current_user: mode
 @app.patch("/trips/{trip_id}/report", response_model=schemas.TripLogResponse)
 def driver_report(trip_id: int, report: schemas.TripDriverReport, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
     if current_user.role != "driver": raise HTTPException(status_code=403, detail="Not authorized")
-    active = db.query(models.TripLog).filter(models.TripLog.driver_id == current_user.id, models.TripLog.status.in_(["Reported", "Trip Started", "Submitted for Review"])).first()
+    active = db.query(models.TripLog).filter(models.TripLog.driver_id == current_user.id, models.TripLog.status.in_(["Reported", "Trip Started"])).first()
     if active: raise HTTPException(status_code=400, detail="Close current trip first.")
-    
     db_trip = db.query(models.TripLog).filter(models.TripLog.id == trip_id).first()
     db_trip.reporting_time = report.reporting_time
     db_trip.status = "Reported"
@@ -154,7 +148,6 @@ def driver_start(trip_id: int, start_data: schemas.TripDriverStart, db: Session 
     db_trip = db.query(models.TripLog).filter(models.TripLog.id == trip_id).first()
     db_trip.out_time = start_data.out_time
     db_trip.out_km = start_data.out_km
-    # STATUS 2: Driver Starts
     db_trip.status = "Trip Started"
     db.commit()
     db.refresh(db_trip)
@@ -168,7 +161,8 @@ def end_trip(trip_id: int, trip_update: schemas.TripDriverUpdate, db: Session = 
     
     db_trip.in_time = trip_update.in_time
     db_trip.in_km = trip_update.in_km
-    # Only mark as completed if it hasn't advanced past the review stage yet
+    
+    # Status only advances to completed if the truck was actively running
     if db_trip.status in ["Trip Started", "Submitted for Review"]:
         db_trip.status = "Completed"
         
@@ -184,8 +178,10 @@ def supervisor_review(trip_id: int, review: schemas.TripSupervisorUpdate, db: Se
     
     for key, value in review.model_dump().items(): setattr(db_trip, key, value)
     
-    # STATUS 3: Submitted for Review
-    db_trip.status = "Submitted for Review"
+    # If the trip is already completely done, it advances to Review stage. Otherwise it stays running!
+    if db_trip.status == "Completed": 
+        db_trip.status = "Submitted for Review"
+        
     db.commit()
     db.refresh(db_trip)
     return db_trip
@@ -202,8 +198,10 @@ def supervisor_expenses(trip_id: int, expenses: schemas.TripFinancialsUpdate, db
     db_trip.total_running_cost = fuel_cost + expenses.toll_charges + expenses.other_expenses + expenses.driver_cost + expenses.overtime_allowance + expenses.vehicle_cost
     db_trip.profit = expenses.b2c_billing - db_trip.total_running_cost
     
-    # STATUS 4: Handed off to Admin
-    db_trip.status = "Pending for Admin Final Review"
+    # PREVENT PREMATURE CLOSING: Only send to Admin if the physical trip has actually finished!
+    if db_trip.status in ["Completed", "Submitted for Review"]:
+        db_trip.status = "Pending for Admin Final Review"
+        
     db.commit()
     db.refresh(db_trip)
     return db_trip
@@ -219,9 +217,8 @@ def admin_finalize(trip_id: int, billing: schemas.TripFinancialsUpdate, db: Sess
     fuel_cost = billing.fuel_litres * billing.fuel_price
     db_trip.total_running_cost = fuel_cost + billing.toll_charges + billing.other_expenses + billing.driver_cost + billing.overtime_allowance + billing.vehicle_cost
     db_trip.profit = billing.b2c_billing - db_trip.total_running_cost
-    
-    # STATUS 5: Final
     db_trip.status = "Billed / Completed"
+    
     db.commit()
     db.refresh(db_trip)
     return db_trip
@@ -244,7 +241,6 @@ def get_trips(db: Session = Depends(get_db), current_user: models.User = Depends
     elif current_user.role == "driver": return db.query(models.TripLog).filter(models.TripLog.driver_id == current_user.id).order_by(models.TripLog.id.desc()).all()
     return []
 
-# --- VENDORS, CLIENTS, VEHICLES DROPDOWNS ---
 @app.get("/vendors_list/", response_model=List[schemas.DropdownItemResponse])
 def get_vendors(db: Session = Depends(get_db)): return db.query(models.VendorList).all()
 

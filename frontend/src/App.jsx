@@ -81,16 +81,14 @@ function LoginScreen({ onLogin }) {
 
 function DriverPanel({ userName }) {
   const [trips, setTrips] = useState([]);
-  const [vehicles, setVehicles] = useState([]);
   const [actionTrip, setActiveTrip] = useState(null);
   const [startData, setStartData] = useState({ out_km: '' });
   const [endData, setEndData] = useState({ in_km: '' });
 
-  useEffect(() => { fetchTrips(); API.get('/vehicles_list/').then(res => setVehicles(res.data.map(v => v.vehicle_number))).catch(console.error); }, []);
+  useEffect(() => { fetchTrips(); }, []);
   const fetchTrips = () => API.get('/trips/').then(res => setTrips(res.data)).catch(console.error);
   
-  // Driver's active view: Anything that hasn't hit Admin pending review yet.
-  const hasActiveTrip = trips.some(t => ['Reported', 'Trip Started', 'Submitted for Review'].includes(t.status));
+  const hasActiveTrip = trips.some(t => ['Reported', 'Trip Started'].includes(t.status));
 
   const handleReport = async (id) => { try { await API.patch(`/trips/${id}/report`, { reporting_time: getCurrentTime() }); fetchTrips(); } catch (err) { alert(err.response?.data?.detail || "Error."); } };
   const handleStart = async (e, id) => { e.preventDefault(); try { await API.patch(`/trips/${id}/start`, { out_time: getCurrentTime(), out_km: Number(startData.out_km) }); setActiveTrip(null); setStartData({out_km:''}); fetchTrips(); } catch (err) { alert("Error."); } };
@@ -101,9 +99,10 @@ function DriverPanel({ userName }) {
       <h2 className="text-3xl font-extrabold mb-6">Welcome, {userName} 🚛</h2>
       <h3 className="text-xl font-bold mb-4">Your Dispatched Trips</h3>
       <div className="grid gap-4 mb-12">
-        {trips.filter(t => ['Waiting for Driver', 'Reported', 'Trip Started', 'Submitted for Review'].includes(t.status)).map(trip => (
+        {trips.filter(t => ['Waiting for Driver', 'Reported', 'Trip Started'].includes(t.status)).map(trip => (
           <div key={trip.id} className={`bg-white p-6 rounded-2xl shadow-sm border ${trip.status === 'Reported' || trip.status === 'Trip Started' ? 'border-sky-400 shadow-sky-100' : 'border-slate-100'}`}>
             <div className="flex justify-between items-center mb-4"><div><span className="font-bold text-xl">{trip.vehicle_number}</span><span className="text-slate-500 ml-2 font-medium">({trip.date})</span></div><StatusBadge status={trip.status} /></div>
+            
             {trip.status === 'Waiting for Driver' && (
               <button onClick={() => handleReport(trip.id)} disabled={hasActiveTrip} className={`px-6 py-3 rounded-xl font-bold w-full md:w-auto transition-all ${hasActiveTrip ? 'bg-slate-200 text-slate-400 cursor-not-allowed' : 'bg-sky-600 text-white shadow-md hover:bg-sky-700'}`}>
                 {hasActiveTrip ? 'Another trip is active' : 'Report for Duty'}
@@ -121,7 +120,7 @@ function DriverPanel({ userName }) {
                 ) : (<button onClick={() => setActiveTrip(trip.id)} className="bg-blue-600 text-white px-6 py-3 rounded-xl font-bold shadow-md">Enter Starting KM</button>)}
               </div>
             )}
-            {['Trip Started', 'Submitted for Review'].includes(trip.status) && (
+            {trip.status === 'Trip Started' && (
               <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
                 <div className="text-sm font-semibold text-slate-600 mb-4">Started at: <span className="text-indigo-600 font-bold text-lg">{trip.out_km} KM</span> ({trip.out_time})</div>
                 {actionTrip === trip.id ? (
@@ -135,12 +134,12 @@ function DriverPanel({ userName }) {
             )}
           </div>
         ))}
-        {trips.filter(t => ['Waiting for Driver', 'Reported', 'Trip Started', 'Submitted for Review'].includes(t.status)).length === 0 && <div className="text-slate-500 italic">No dispatched trips waiting for you.</div>}
+        {trips.filter(t => ['Waiting for Driver', 'Reported', 'Trip Started'].includes(t.status)).length === 0 && <div className="text-slate-500 italic">No dispatched trips waiting for you.</div>}
       </div>
 
       <h3 className="text-xl font-bold mb-4">Your Past Journeys</h3>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {trips.filter(t => ['Completed', 'Pending for Admin Final Review', 'Billed / Completed'].includes(t.status)).map(trip => (
+        {trips.filter(t => !['Waiting for Driver', 'Reported', 'Trip Started', 'Pending Approval'].includes(t.status)).map(trip => (
           <div key={trip.id} className="bg-slate-50 p-4 rounded-xl border border-slate-200">
             <div className="flex justify-between items-center mb-2"><span className="font-bold text-slate-800">{trip.vehicle_number}</span><span className="text-xs font-semibold text-slate-500">{trip.date}</span></div>
             <div className="text-sm text-slate-600 mb-2">Distance: {trip.in_km - trip.out_km} KM</div>
@@ -179,7 +178,9 @@ function SupervisorPanel() {
   const [vehicleForm, setVehicleForm] = useState({ vehicle_number: '', ownership_type: 'Third Party', emi: '' });
 
   const vehicleTypes = ["Tata Ace", "Intra", "Bolero Pickup", "Verro", "Bara Dast", "10' FT", "14' FT", "17' FT", "20' FT", "22' FT", "32' FT SXL", "32' FT MXL"];
-  const activeStatuses = ['Waiting for Driver', 'Reported', 'Trip Started', 'Submitted for Review'];
+  
+  // A truck/driver is ONLY busy if the physical trip has not ended yet!
+  const activeStatuses = ['Waiting for Driver', 'Reported', 'Trip Started'];
   
   useEffect(() => { fetchAllData(); }, []);
   const fetchAllData = () => {
@@ -307,21 +308,28 @@ function SupervisorPanel() {
                   <td className="p-4"><StatusBadge status={trip.status} /></td>
                   <td className="p-4">
                     <div className="flex gap-2">
-                      {/* Shuffle forces Admin Approval */}
+                      {/* Shuffle forces Admin Approval if it was waiting for a driver */}
                       {['Waiting for Driver'].includes(trip.status) && (<button onClick={() => { setShuffleTrip(trip); setShuffleVehicle(''); }} className="bg-amber-100 text-amber-700 px-3 py-1.5 rounded-lg font-bold hover:bg-amber-200 text-xs shadow-sm">Shuffle Vehicle</button>)}
                       
                       {/* Review Details immediately enabled after creation */}
-                      {!['Pending Approval', 'Billed / Completed'].includes(trip.status) && (
+                      {!['Pending Approval', 'Pending for Admin Final Review', 'Billed / Completed'].includes(trip.status) && (
                          <button onClick={() => { setReviewTrip(trip); setReviewData({ vehicle_type: trip.vehicle_type || '', vehicle_mode: trip.vehicle_mode || '', body_type: trip.body_type || '', vendor_name: trip.vendor_name || '', helper_name: trip.helper_name || '', client_name: trip.client_name || '', source: trip.source || '', destination: trip.destination || '', vehicle_sourced_from: trip.vehicle_sourced_from || '' }); }} className="bg-sky-100 text-sky-700 px-3 py-1.5 rounded-lg font-bold hover:bg-sky-200 text-xs shadow-sm">Review Details</button>
                       )}
-                      
+
                       {/* Expenses available when Trip Starts */}
-                      {['Trip Started', 'Submitted for Review', 'Completed', 'Pending for Admin Final Review'].includes(trip.status) && (<button onClick={() => openExpenses(trip)} className="bg-rose-100 text-rose-700 px-3 py-1.5 rounded-lg font-bold hover:bg-rose-200 text-xs shadow-sm">Expenses</button>)}
+                      {!['Pending Approval', 'Waiting for Driver', 'Reported', 'Billed / Completed', 'Pending for Admin Final Review'].includes(trip.status) && (
+                         <button onClick={() => openExpenses(trip)} className="bg-rose-100 text-rose-700 px-3 py-1.5 rounded-lg font-bold hover:bg-rose-200 text-xs shadow-sm">Expenses</button>
+                      )}
                       
-                      {/* Details View */}
-                      {['Pending for Admin Final Review', 'Billed / Completed'].includes(trip.status) && (<button onClick={() => setViewingTrip(trip)} className="bg-slate-100 text-slate-700 px-3 py-1.5 rounded-lg font-bold hover:bg-slate-200 text-xs shadow-sm">Details</button>)}
+                      {/* Read-Only Details */}
+                      {['Pending for Admin Final Review', 'Billed / Completed'].includes(trip.status) && (
+                         <button onClick={() => setViewingTrip(trip)} className="bg-slate-100 text-slate-700 px-3 py-1.5 rounded-lg font-bold hover:bg-slate-200 text-xs shadow-sm">Details</button>
+                      )}
                       
-                      {['Trip Started', 'Submitted for Review'].includes(trip.status) && (<button onClick={() => { setEndingTrip(trip); setEndData({ in_km: '' }); }} className="bg-emerald-100 text-emerald-700 px-3 py-1.5 rounded-lg font-bold hover:bg-emerald-200 text-xs shadow-sm">Log Arrival</button>)}
+                      {/* Log Arrival explicitly shown if trip is Started */}
+                      {['Trip Started', 'Submitted for Review'].includes(trip.status) && (
+                        <button onClick={() => { setEndingTrip(trip); setEndData({ in_km: '' }); }} className="bg-emerald-100 text-emerald-700 px-3 py-1.5 rounded-lg font-bold hover:bg-emerald-200 text-xs shadow-sm">Log Arrival</button>
+                      )}
                     </div>
                   </td>
                 </tr>
@@ -331,7 +339,7 @@ function SupervisorPanel() {
         </div>
       )}
 
-      {/* SUPERVISOR EXPENSES & B2C MODAL */}
+      {/* SUPERVISOR EXPENSES MODAL */}
       {expenseTrip && (
         <div className="fixed inset-0 bg-slate-900/60 flex items-center justify-center p-4 z-50">
           <div className="bg-white p-8 rounded-3xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
@@ -373,7 +381,10 @@ function SupervisorPanel() {
               )}
               <div className="flex gap-4 mt-8">
                 <button type="button" onClick={() => setExpenseTrip(null)} className="flex-1 bg-slate-100 py-4 rounded-xl font-bold">Cancel</button>
-                <button type="submit" className="flex-1 bg-sky-600 text-white py-4 rounded-xl font-bold">Submit to Admin</button>
+                <button type="submit" className="flex-1 bg-sky-600 text-white py-4 rounded-xl font-bold">
+                  {/* Dynamic Button Text! */}
+                  {['Completed', 'Submitted for Review'].includes(expenseTrip.status) ? "Submit to Admin for Billing" : "Save Expenses (Trip Running)"}
+                </button>
               </div>
             </form>
           </div>
@@ -400,7 +411,9 @@ function SupervisorPanel() {
               
               <div className="col-span-1 md:col-span-2 flex gap-4 mt-6">
                 <button type="button" onClick={() => setReviewTrip(null)} className="flex-1 bg-slate-100 py-3 rounded-xl font-bold text-slate-600">Cancel</button>
-                <button type="submit" className="flex-1 bg-sky-600 text-white py-3 rounded-xl font-bold">Save Review</button>
+                <button type="submit" className="flex-1 bg-sky-600 text-white py-3 rounded-xl font-bold">
+                  {['Completed'].includes(reviewTrip.status) ? "Submit Details for Review" : "Save Details"}
+                </button>
               </div>
             </form>
           </div>
@@ -463,7 +476,6 @@ function SupervisorPanel() {
         </div>
       )}
 
-      {/* TABS FOR DRIVERS & VEHICLES PRESERVED */}
       {activeTab === 'drivers' && (
         <div className="bg-white p-8 rounded-2xl shadow-xl max-w-lg border border-slate-100">
           <h3 className="text-xl font-bold mb-4">Create Driver Account</h3>
@@ -520,7 +532,7 @@ function AdminPanel() {
   const [viewingTrip, setViewingTrip] = useState(null);
 
   const vehicleTypes = ["Tata Ace", "Intra", "Bolero Pickup", "Verro", "Bara Dast", "10' FT", "14' FT", "17' FT", "20' FT", "22' FT", "32' FT SXL", "32' FT MXL"];
-  const activeStatuses = ['Waiting for Driver', 'Reported', 'Trip Started', 'Submitted for Review'];
+  const activeStatuses = ['Waiting for Driver', 'Reported', 'Trip Started'];
 
   const [billData, setBillData] = useState({ fuel_litres: '', fuel_price: '', toll_charges: '', other_expenses: '', driver_cost: '', trip_days: 1, overtime_allowance: '', vehicle_cost_type: '', vehicle_cost: '', b2c_billing: '', client_name: '' });
   
@@ -766,7 +778,6 @@ function AdminPanel() {
         </div>
       )}
 
-      {/* ADMIN READ ONLY LOG */}
       {viewingTrip && (
         <div className="fixed inset-0 bg-slate-900/60 flex items-center justify-center p-4 z-50">
           <div className="bg-white p-8 rounded-3xl w-full max-w-4xl max-h-[90vh] overflow-y-auto">
@@ -814,7 +825,6 @@ function AdminPanel() {
         </div>
       )}
 
-      {/* ADMIN OVERRIDE DETAILS */}
       {editDetailsTrip && (
         <div className="fixed inset-0 bg-slate-900/60 flex items-center justify-center p-4 z-50">
           <div className="bg-white p-8 rounded-3xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
@@ -840,7 +850,6 @@ function AdminPanel() {
         </div>
       )}
 
-      {/* ADMIN FINANCIAL OVERRIDE */}
       {billingTrip && (
         <div className="fixed inset-0 bg-slate-900/60 flex items-center justify-center p-4 z-50">
           <div className="bg-white p-8 rounded-3xl w-full max-w-4xl max-h-[90vh] overflow-y-auto">
@@ -883,7 +892,6 @@ function AdminPanel() {
         </div>
       )}
 
-      {/* TABS FOR SUPERVISORS / CLIENTS / VENDORS / VEHICLES */}
       {activeTab === 'supervisors' && (
         <div className="bg-white p-8 rounded-2xl shadow-xl max-w-lg border border-slate-100">
           <h3 className="text-xl font-bold mb-4">Create Supervisor Account</h3>
