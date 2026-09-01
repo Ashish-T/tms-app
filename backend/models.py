@@ -6,28 +6,18 @@ from dotenv import load_dotenv
 load_dotenv()
 Base = declarative_base()
 
-# --- SUPABASE / DATABASE CONNECTION LOGIC ---
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./tms.db")
-
-# Fix for SQLAlchemy 1.4+ which requires 'postgresql://' strictly
 if DATABASE_URL.startswith("postgres://"):
     DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
 
-# Configure connection based on SQLite (local) vs Supabase (Production)
 if DATABASE_URL.startswith("sqlite"):
     connect_args = {"check_same_thread": False}
     engine = create_engine(DATABASE_URL, connect_args=connect_args)
 else:
-    # SUPABASE OPTIMIZATION: Prevents dropped connections in production
-    engine = create_engine(
-        DATABASE_URL, 
-        pool_pre_ping=True, 
-        pool_recycle=300
-    )
+    engine = create_engine(DATABASE_URL, pool_pre_ping=True, pool_recycle=300)
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
-# --- DATABASE TABLES ---
 class User(Base):
     __tablename__ = 'users'
     id = Column(Integer, primary_key=True)
@@ -39,7 +29,7 @@ class User(Base):
     supervisor_id = Column(Integer, ForeignKey('users.id'), nullable=True)
 
 class TripLog(Base):
-    __tablename__ = 'trip_logs_v11' 
+    __tablename__ = 'trip_logs_v12' 
     id = Column(Integer, primary_key=True)
     driver_id = Column(Integer, ForeignKey('users.id'))
     supervisor_id = Column(Integer, ForeignKey('users.id'))
@@ -62,6 +52,7 @@ class TripLog(Base):
     source = Column(String, nullable=True)     
     destination = Column(String, nullable=True)
     vehicle_sourced_from = Column(String, nullable=True) 
+    pod_link = Column(String, nullable=True) 
     
     fuel_litres = Column(Float, default=0.0)
     fuel_price = Column(Float, default=0.0)
@@ -70,6 +61,8 @@ class TripLog(Base):
     driver_cost = Column(Float, default=0.0)
     trip_days = Column(Float, default=1.0)          
     overtime_allowance = Column(Float, default=0.0) 
+    advance_paid = Column(Float, default=0.0) 
+    
     vehicle_cost_type = Column(String, nullable=True)
     vehicle_cost = Column(Float, default=0.0)
     b2c_billing = Column(Float, default=0.0)

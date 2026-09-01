@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 from passlib.context import CryptContext
 import jwt
 from datetime import datetime, timedelta
-from typing import List
+from typing import List, Optional
 
 import models, schemas
 from models import SessionLocal, engine
@@ -16,16 +16,11 @@ app = FastAPI(title="TMS Enterprise RBAC API")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["https://tms-app-web.onrender.com", "http://localhost:5173"],
+    allow_origins=["https://tms-app-v2.onrender.com", "http://localhost:5173"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-# --- NEW HEALTH CHECK ROUTE ---
-@app.get("/")
-def health_check():
-    return {"status": "TMS Backend is running smoothly!"}
 
 SECRET_KEY = "super_secret_tms_key_change_in_production"
 ALGORITHM = "HS256"
@@ -58,7 +53,9 @@ def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(
     if user is None: raise HTTPException(status_code=401, detail="User not found")
     return user
 
-# --- AUTH ROUTES & USERS ---
+@app.get("/")
+def health_check(): return {"status": "TMS Backend is running smoothly!"}
+
 @app.post("/login", response_model=schemas.Token)
 def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
     user = db.query(models.User).filter(models.User.username == form_data.username).first()
@@ -70,6 +67,19 @@ def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depend
 
 @app.get("/users/me", response_model=schemas.UserResponse)
 def get_me(current_user: models.User = Depends(get_current_user)): return current_user
+
+@app.patch("/users/{user_id}/admin_password")
+def admin_reset_password(user_id: int, data: schemas.PasswordUpdate, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
+    if current_user.role != "admin": 
+        raise HTTPException(status_code=403, detail="Only the Master Admin can change passwords for other users.")
+    
+    target_user = db.query(models.User.id == user_id).first()
+    if not target_user:
+        raise HTTPException(status_code=404, detail="User not found.")
+        
+    target_user.password = pwd_context.hash(data.new_password)
+    db.commit()
+    return {"msg": "Password updated successfully by admin"}
 
 @app.get("/users/all", response_model=List[schemas.UserResponse])
 def get_all_users(db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
@@ -104,7 +114,6 @@ def delete_user(user_id: int, db: Session = Depends(get_db), current_user: model
     if obj: db.delete(obj); db.commit()
     return {"ok": True}
 
-# --- PIPELINE: COLLABORATIVE TRIPS ---
 @app.post("/trips/", response_model=schemas.TripLogResponse)
 def create_trip(trip: schemas.TripSupervisorCreate, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
     if current_user.role != "supervisor": raise HTTPException(status_code=403, detail="Not authorized")
@@ -169,7 +178,6 @@ def end_trip(trip_id: int, trip_update: schemas.TripDriverUpdate, db: Session = 
     db_trip.in_time = trip_update.in_time
     db_trip.in_km = trip_update.in_km
     
-    # Status only advances to completed if the truck was actively running
     if db_trip.status in ["Trip Started", "Submitted for Review"]:
         db_trip.status = "Completed"
         
@@ -185,7 +193,6 @@ def supervisor_review(trip_id: int, review: schemas.TripSupervisorUpdate, db: Se
     
     for key, value in review.model_dump().items(): setattr(db_trip, key, value)
     
-    # If the trip is already completely done, it advances to Review stage. Otherwise it stays running!
     if db_trip.status == "Completed": 
         db_trip.status = "Submitted for Review"
         
@@ -199,13 +206,15 @@ def supervisor_expenses(trip_id: int, expenses: schemas.TripFinancialsUpdate, db
     db_trip = db.query(models.TripLog).filter(models.TripLog.id == trip_id).first()
     if not db_trip: raise HTTPException(status_code=404, detail="Trip not found")
     
-    for key, value in expenses.model_dump().items(): setattr(db_trip, key, value)
+    # PRESERVE '0' VALUES EXPLICITLY
+    for key, value in expenses.model_dump().items():
+        if value is not None:
+            setattr(db_trip, key, value)
     
-    fuel_cost = expenses.fuel_litres * expenses.fuel_price
-    db_trip.total_running_cost = fuel_cost + expenses.toll_charges + expenses.other_expenses + expenses.driver_cost + expenses.overtime_allowance + expenses.vehicle_cost
-    db_trip.profit = expenses.b2c_billing - db_trip.total_running_cost
+    fuel_cost = (db_trip.fuel_litres or 0) * (db_trip.fuel_price or 0)
+    db_trip.total_running_cost = fuel_cost + (db_trip.toll_charges or 0) + (db_trip.other_expenses or 0) + (db_trip.driver_cost or 0) + (db_trip.overtime_allowance or 0) + (db_trip.vehicle_cost or 0)
+    db_trip.profit = (db_trip.b2c_billing or 0) - db_trip.total_running_cost
     
-    # PREVENT PREMATURE CLOSING: Only send to Admin if the physical trip has actually finished!
     if db_trip.status in ["Completed", "Submitted for Review"]:
         db_trip.status = "Pending for Admin Final Review"
         
@@ -219,11 +228,14 @@ def admin_finalize(trip_id: int, billing: schemas.TripFinancialsUpdate, db: Sess
     db_trip = db.query(models.TripLog).filter(models.TripLog.id == trip_id).first()
     if not db_trip: raise HTTPException(status_code=404, detail="Trip not found")
     
-    for key, value in billing.model_dump().items(): setattr(db_trip, key, value)
+    # PRESERVE '0' VALUES EXPLICITLY
+    for key, value in billing.model_dump().items():
+        if value is not None:
+            setattr(db_trip, key, value)
     
-    fuel_cost = billing.fuel_litres * billing.fuel_price
-    db_trip.total_running_cost = fuel_cost + billing.toll_charges + billing.other_expenses + billing.driver_cost + billing.overtime_allowance + billing.vehicle_cost
-    db_trip.profit = billing.b2c_billing - db_trip.total_running_cost
+    fuel_cost = (db_trip.fuel_litres or 0) * (db_trip.fuel_price or 0)
+    db_trip.total_running_cost = fuel_cost + (db_trip.toll_charges or 0) + (db_trip.other_expenses or 0) + (db_trip.driver_cost or 0) + (db_trip.overtime_allowance or 0) + (db_trip.vehicle_cost or 0)
+    db_trip.profit = (db_trip.b2c_billing or 0) - db_trip.total_running_cost
     db_trip.status = "Billed / Completed"
     
     db.commit()
@@ -242,13 +254,18 @@ def admin_edit_trip(trip_id: int, edit_data: schemas.TripSupervisorUpdate, db: S
     return db_trip
 
 @app.get("/trips/", response_model=List[schemas.TripLogResponse])
-def get_trips(db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
-    if current_user.role == "admin": return db.query(models.TripLog).order_by(models.TripLog.id.desc()).all()
-    elif current_user.role == "supervisor": return db.query(models.TripLog).filter(models.TripLog.supervisor_id == current_user.id).order_by(models.TripLog.id.desc()).all()
-    elif current_user.role == "driver": return db.query(models.TripLog).filter(models.TripLog.driver_id == current_user.id).order_by(models.TripLog.id.desc()).all()
-    return []
+def get_trips(start_date: Optional[str] = None, end_date: Optional[str] = None, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
+    query = db.query(models.TripLog)
+    
+    if current_user.role == "supervisor": query = query.filter(models.TripLog.supervisor_id == current_user.id)
+    elif current_user.role == "driver": query = query.filter(models.TripLog.driver_id == current_user.id)
+    
+    if start_date: query = query.filter(models.TripLog.date >= start_date)
+    if end_date: query = query.filter(models.TripLog.date <= end_date)
+    
+    # Returns latest 500 trips to prevent UI crash
+    return query.order_by(models.TripLog.id.desc()).limit(500).all()
 
-# --- VENDORS, CLIENTS, VEHICLES DROPDOWNS ---
 @app.get("/vendors_list/", response_model=List[schemas.DropdownItemResponse])
 def get_vendors(db: Session = Depends(get_db)): return db.query(models.VendorList).all()
 
@@ -306,7 +323,6 @@ def delete_vehicle(vehicle_id: int, db: Session = Depends(get_db), current_user:
     if obj: db.delete(obj); db.commit()
     return {"ok": True}
 
-# --- WALLET AND CASH MANAGEMENT ---
 @app.post("/funds/", response_model=schemas.FundTransferResponse)
 def add_funds(fund: schemas.FundTransferCreate, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
     if current_user.role != "admin": raise HTTPException(status_code=403, detail="Not authorized")
@@ -351,7 +367,6 @@ def get_wallet_summary(supervisor_id: int, db: Session = Depends(get_db), curren
     total_misc_expenses = sum(m.amount for m in misc)
 
     trips = db.query(models.TripLog).filter(models.TripLog.supervisor_id == supervisor_id).all()
-    # Calculates only the CASH SPENT by the supervisor (EMI is not paid by them out of pocket)
     total_trip_expenses = sum(
         (t.fuel_litres * t.fuel_price) + t.toll_charges + t.other_expenses + t.driver_cost + t.overtime_allowance
         for t in trips

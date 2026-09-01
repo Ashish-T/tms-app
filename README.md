@@ -162,3 +162,10 @@ The backend automatically handles database migrations on startup using `Base.met
 
 ## 🔒 License
 This project is open-source and available under the MIT License.
+
+Need to make changes for deploying new appliation version
+1. Create a different supabase database
+2, add backend service url to - frontend/src/api.js
+3. Change the database credentials in .env file
+4. also add the environment variable on render backend service.
+5. In the main.py, we need to add the new backend url
