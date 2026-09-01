@@ -41,7 +41,7 @@ export default function App() {
 
   return (
     <Router>
-      <div className="min-h-screen font-sans text-gray-900 bg-[url('/futuristic-hud-interface-background-with-blue-gradient-technology-circles-vector_2.jpg')] bg-cover bg-center bg-fixed">
+      <div className="min-h-screen font-sans text-gray-900 bg-[url('/background.jpg')] bg-cover bg-center bg-fixed">
         
         <nav className="bg-sky-600/95 backdrop-blur-sm px-6 py-4 sticky top-0 z-40 shadow-xl flex justify-between items-center text-gray-200 border-b border-sky-500/50">
           <h1 className="font-black text-2xl tracking-wide drop-shadow-md">TMS<span className="text-orange-400">.</span></h1>
