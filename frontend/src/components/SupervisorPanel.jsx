@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import API from '../api';
 import { InputField, SelectField, DetailItem, getCurrentTime, getCurrentDate, StatusBadge } from './SharedUI';
+import { supabase } from '../supabaseClient'; 
 
 export default function SupervisorPanel() {
   const [me, setMe] = useState(null);
@@ -10,8 +11,8 @@ export default function SupervisorPanel() {
   const [vendors, setVendors] = useState([]);
   const [clients, setClients] = useState([]);
   const [vehicles, setVehicles] = useState([]);
+  const [uploading, setUploading] = useState(false);
   
-  // Date Filters
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
 
@@ -76,6 +77,28 @@ export default function SupervisorPanel() {
       } catch (err) { alert("Failed to submit."); }
   }
 
+  const handleFileUpload = async (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    setUploading(true);
+    const fileExt = file.name.split('.').pop();
+    const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
+    const filePath = `${fileName}`;
+
+    try {
+      const { error: uploadError } = await supabase.storage.from('pods').upload(filePath, file);
+      if (uploadError) throw uploadError;
+
+      const { data } = supabase.storage.from('pods').getPublicUrl(filePath);
+      setReviewData({ ...reviewData, pod_link: data.publicUrl });
+    } catch (error) {
+      alert('Error uploading document: ' + error.message);
+    } finally {
+      setUploading(false);
+    }
+  };
+
   const openExpenses = (trip) => {
     setExpenseTrip(trip); setExpTab('expenses');
     const assignedVehicle = vehicles.find(v => v.vehicle_number === trip.vehicle_number);
@@ -121,20 +144,20 @@ export default function SupervisorPanel() {
   const getDriverName = (driverId) => { const driver = users.find(u => u.id === driverId); return driver ? driver.name : 'Unknown'; };
 
   return (
-    <div className="p-4 md:p-8 max-w-7xl mx-auto">
-      <h2 className="text-3xl font-extrabold mb-6 text-gray-900">Supervisor Dispatch Center</h2>
-      <div className="flex flex-wrap gap-2 mb-6 bg-gray-300 p-1.5 rounded-xl inline-flex">
-        <button onClick={() => setActiveTab('availability')} className={`px-5 py-2.5 rounded-lg font-bold transition-all ${activeTab === 'availability' ? 'bg-gray-200 text-sky-700 shadow-sm' : 'text-gray-600'}`}>Availability Board</button>
-        <button onClick={() => setActiveTab('dispatch')} className={`px-5 py-2.5 rounded-lg font-bold transition-all ${activeTab === 'dispatch' ? 'bg-gray-200 text-sky-700 shadow-sm' : 'text-gray-600'}`}>Dispatch New Trip</button>
-        <button onClick={() => setActiveTab('trips')} className={`px-5 py-2.5 rounded-lg font-bold transition-all ${activeTab === 'trips' ? 'bg-gray-200 text-sky-700 shadow-sm' : 'text-gray-600'}`}>Manage Trips</button>
-        <button onClick={() => setActiveTab('wallet')} className={`px-5 py-2.5 rounded-lg font-bold transition-all ${activeTab === 'wallet' ? 'bg-gray-200 text-emerald-700 shadow-sm' : 'text-gray-600'}`}>My Wallet</button>
-        <button onClick={() => setActiveTab('drivers')} className={`px-5 py-2.5 rounded-lg font-bold transition-all ${activeTab === 'drivers' ? 'bg-gray-200 text-sky-700 shadow-sm' : 'text-gray-600'}`}>Add Driver</button>
-        <button onClick={() => setActiveTab('vehicles')} className={`px-5 py-2.5 rounded-lg font-bold transition-all ${activeTab === 'vehicles' ? 'bg-gray-200 text-sky-700 shadow-sm' : 'text-gray-600'}`}>Manage Vehicles</button>
+    <div className="p-4 md:p-8 max-w-7xl mx-auto backdrop-blur-sm bg-gray-200/90 rounded-3xl shadow-2xl border border-gray-300">
+      <h2 className="text-3xl font-extrabold mb-6 text-gray-900 drop-shadow-sm">Supervisor Dispatch Center</h2>
+      <div className="flex flex-wrap gap-2 mb-6 bg-gray-300/80 p-1.5 rounded-xl inline-flex border border-gray-400/50 shadow-inner">
+        <button onClick={() => setActiveTab('availability')} className={`px-5 py-2.5 rounded-lg font-bold transition-all ${activeTab === 'availability' ? 'bg-gray-200 text-sky-700 shadow-sm border border-gray-300' : 'text-gray-600 hover:bg-gray-300'}`}>Availability Board</button>
+        <button onClick={() => setActiveTab('dispatch')} className={`px-5 py-2.5 rounded-lg font-bold transition-all ${activeTab === 'dispatch' ? 'bg-gray-200 text-sky-700 shadow-sm border border-gray-300' : 'text-gray-600 hover:bg-gray-300'}`}>Dispatch New Trip</button>
+        <button onClick={() => setActiveTab('trips')} className={`px-5 py-2.5 rounded-lg font-bold transition-all ${activeTab === 'trips' ? 'bg-gray-200 text-sky-700 shadow-sm border border-gray-300' : 'text-gray-600 hover:bg-gray-300'}`}>Manage Trips</button>
+        <button onClick={() => setActiveTab('wallet')} className={`px-5 py-2.5 rounded-lg font-bold transition-all ${activeTab === 'wallet' ? 'bg-gray-200 text-emerald-700 shadow-sm border border-gray-300' : 'text-gray-600 hover:bg-gray-300'}`}>My Wallet</button>
+        <button onClick={() => setActiveTab('drivers')} className={`px-5 py-2.5 rounded-lg font-bold transition-all ${activeTab === 'drivers' ? 'bg-gray-200 text-sky-700 shadow-sm border border-gray-300' : 'text-gray-600 hover:bg-gray-300'}`}>Add Driver</button>
+        <button onClick={() => setActiveTab('vehicles')} className={`px-5 py-2.5 rounded-lg font-bold transition-all ${activeTab === 'vehicles' ? 'bg-gray-200 text-sky-700 shadow-sm border border-gray-300' : 'text-gray-600 hover:bg-gray-300'}`}>Manage Vehicles</button>
       </div>
 
       {activeTab === 'wallet' && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="bg-gray-200 p-8 rounded-2xl shadow-xl border border-gray-400">
+            <div className="bg-gray-200/95 p-8 rounded-2xl shadow-xl border border-gray-400">
                 <h3 className="text-2xl font-black text-emerald-800 mb-6">Current Balance: ₹{wallet.current_balance}</h3>
                 <div className="space-y-4 text-sm font-bold text-gray-700">
                     <div className="flex justify-between bg-gray-300 p-3 rounded-lg border border-gray-400"><span>Total Funded by Admin:</span><span className="text-indigo-600">₹{wallet.total_funded}</span></div>
@@ -146,16 +169,16 @@ export default function SupervisorPanel() {
                     <h4 className="text-lg font-bold text-gray-900">Raise Misc Expense</h4>
                     <InputField label="Amount (₹)" type="number" value={newMisc.amount} onChange={e=>setNewMisc({...newMisc, amount: e.target.value})} />
                     <InputField label="Description" value={newMisc.description} onChange={e=>setNewMisc({...newMisc, description: e.target.value})} placeholder="E.g., Vehicle Repair" />
-                    <button type="submit" className="w-full bg-emerald-600 text-gray-200 font-bold py-3 rounded-xl hover:bg-emerald-700">Submit for Approval</button>
+                    <button type="submit" className="w-full bg-emerald-600 text-gray-200 font-bold py-3 rounded-xl hover:bg-emerald-700 shadow-md">Submit for Approval</button>
                 </form>
             </div>
             
-            <div className="bg-gray-200 p-8 rounded-2xl shadow-xl border border-gray-400 flex flex-col gap-6">
+            <div className="bg-gray-200/95 p-8 rounded-2xl shadow-xl border border-gray-400 flex flex-col gap-6">
                 <div>
                     <h3 className="text-xl font-bold mb-4 text-gray-900">Funds Received History</h3>
                     <div className="space-y-2 max-h-[30vh] overflow-y-auto pr-2">
                         {funds.map(f => (
-                            <div key={f.id} className="bg-indigo-100 p-3 rounded-lg border border-indigo-200 flex justify-between items-center">
+                            <div key={f.id} className="bg-indigo-100 p-3 rounded-lg border border-indigo-200 flex justify-between items-center shadow-sm">
                                 <div>
                                     <div className="font-bold text-indigo-800 text-lg">₹{f.amount}</div>
                                     <div className="text-xs font-semibold text-indigo-600">Medium: {f.medium}</div>
@@ -171,7 +194,7 @@ export default function SupervisorPanel() {
                     <h3 className="text-xl font-bold mb-4 border-t border-gray-400 pt-4 text-gray-900">Misc Expenses Log</h3>
                     <div className="space-y-2 max-h-[30vh] overflow-y-auto pr-2">
                         {miscExpenses.map(exp => (
-                            <div key={exp.id} className="bg-gray-300 p-3 rounded-lg border border-gray-400 flex justify-between items-center">
+                            <div key={exp.id} className="bg-gray-300 p-3 rounded-lg border border-gray-400 flex justify-between items-center shadow-sm">
                                 <div>
                                     <div className="font-bold text-gray-900 text-lg">₹{exp.amount}</div>
                                     <div className="text-xs text-gray-600">{exp.description} ({exp.date})</div>
@@ -188,13 +211,13 @@ export default function SupervisorPanel() {
 
       {activeTab === 'availability' && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div className="bg-gray-200 p-6 rounded-2xl shadow-xl border border-gray-400">
+          <div className="bg-gray-200/95 p-6 rounded-2xl shadow-xl border border-gray-400">
             <h3 className="text-xl font-bold border-b border-gray-400 pb-2 mb-4 text-indigo-800">🧑‍✈️ My Drivers</h3>
             <div className="space-y-3">
               {users.filter(u=>u.role==='driver').map(d => {
                 const activeTrip = trips.find(t => t.driver_id === d.id && activeStatuses.includes(t.status));
                 return (
-                  <div key={d.id} className="flex justify-between items-center bg-gray-300 p-3 rounded-lg border border-gray-400">
+                  <div key={d.id} className="flex justify-between items-center bg-gray-300 p-3 rounded-lg border border-gray-400 shadow-sm">
                     <div className="font-bold text-gray-900">{d.name}</div>
                     {activeTrip ? <div className="text-xs font-bold text-orange-600 bg-orange-200 px-3 py-1 rounded-full">Busy (#{activeTrip.id})</div> : <div className="text-xs font-bold text-emerald-600 bg-emerald-200 px-3 py-1 rounded-full">Available</div>}
                   </div>
@@ -202,13 +225,13 @@ export default function SupervisorPanel() {
               })}
             </div>
           </div>
-          <div className="bg-gray-200 p-6 rounded-2xl shadow-xl border border-gray-400">
+          <div className="bg-gray-200/95 p-6 rounded-2xl shadow-xl border border-gray-400">
             <h3 className="text-xl font-bold border-b border-gray-400 pb-2 mb-4 text-sky-800">🚛 System Vehicles</h3>
             <div className="space-y-3 max-h-[60vh] overflow-y-auto">
               {vehicles.map(v => {
                 const activeTrip = trips.find(t => t.vehicle_number === v.vehicle_number && activeStatuses.includes(t.status));
                 return (
-                  <div key={v.id} className="flex justify-between items-center bg-gray-300 p-3 rounded-lg border border-gray-400">
+                  <div key={v.id} className="flex justify-between items-center bg-gray-300 p-3 rounded-lg border border-gray-400 shadow-sm">
                     <div className="font-bold text-gray-900">{v.vehicle_number} <span className="text-xs font-normal text-gray-600 block">{v.ownership_type}</span></div>
                     {activeTrip ? <div className="text-xs font-bold text-orange-600 bg-orange-200 px-3 py-1 rounded-full">Busy (#{activeTrip.id})</div> : <div className="text-xs font-bold text-emerald-600 bg-emerald-200 px-3 py-1 rounded-full">Available</div>}
                   </div>
@@ -220,34 +243,34 @@ export default function SupervisorPanel() {
       )}
 
       {activeTab === 'dispatch' && (
-        <div className="bg-gray-200 p-8 rounded-2xl shadow-xl max-w-2xl border border-gray-400">
+        <div className="bg-gray-200/95 p-8 rounded-2xl shadow-xl max-w-2xl border border-gray-400">
           <h3 className="text-2xl font-bold mb-6 text-gray-900">Create Trip Assignment</h3>
           <form onSubmit={handleDispatch} className="space-y-5">
             <SelectField label="Select Driver" value={dispatchData.driver_id} onChange={e => setDispatchData({...dispatchData, driver_id: Number(e.target.value)})} optionObjects={users.filter(u=>u.role==='driver')} />
             <div className="flex flex-col space-y-1.5">
               <label className="text-sm font-semibold text-gray-800">Assign Vehicle Number</label>
-              <input list="vehicles-list" required placeholder="Type or select..." value={dispatchData.vehicle_number} onChange={(e) => setDispatchData(prev => ({...prev, vehicle_number: e.target.value.replace(/\s+/g, '').toUpperCase()}))} className="bg-gray-300 border border-gray-400 text-gray-900 rounded-xl focus:ring-4 focus:ring-sky-500/20 block w-full p-3 outline-none" />
+              <input list="vehicles-list" required placeholder="Type or select..." value={dispatchData.vehicle_number} onChange={(e) => setDispatchData(prev => ({...prev, vehicle_number: e.target.value.replace(/\s+/g, '').toUpperCase()}))} className="bg-gray-300 border border-gray-400 text-gray-900 rounded-xl focus:ring-4 focus:ring-sky-500/20 block w-full p-3 outline-none shadow-inner" />
               <datalist id="vehicles-list">{vehicles.map((v, i) => <option key={i} value={v.vehicle_number} />)}</datalist>
             </div>
             <InputField label="Trip Date" type="date" value={dispatchData.date} onChange={e => setDispatchData({...dispatchData, date: e.target.value})} />
-            <button type="submit" className="w-full bg-sky-600 text-gray-200 py-4 rounded-xl font-bold mt-4 shadow-lg shadow-sky-600/30">Dispatch to Driver</button>
+            <button type="submit" className="w-full bg-sky-600 text-gray-200 py-4 rounded-xl font-bold mt-4 shadow-md hover:bg-sky-700">Dispatch to Driver</button>
           </form>
         </div>
       )}
 
       {activeTab === 'trips' && (
-        <div className="bg-gray-200 p-6 rounded-2xl shadow-xl border border-gray-400 overflow-x-auto">
-          <div className="flex flex-wrap gap-4 mb-4 bg-gray-300 p-4 rounded-xl border border-gray-400 items-end">
+        <div className="bg-gray-200/95 p-6 rounded-2xl shadow-xl border border-gray-400 overflow-x-auto">
+          <div className="flex flex-wrap gap-4 mb-4 bg-gray-300 p-4 rounded-xl border border-gray-400 items-end shadow-inner">
              <div className="flex-1 min-w-[200px]"><InputField type="date" label="Filter Start Date" value={startDate} onChange={e=>setStartDate(e.target.value)} /></div>
              <div className="flex-1 min-w-[200px]"><InputField type="date" label="Filter End Date" value={endDate} onChange={e=>setEndDate(e.target.value)} /></div>
-             <button onClick={() => {setStartDate(''); setEndDate('');}} className="bg-gray-400 text-gray-800 px-4 py-3 rounded-xl font-bold border border-gray-500 hover:bg-gray-500">Clear</button>
+             <button onClick={() => {setStartDate(''); setEndDate('');}} className="bg-gray-400 text-gray-800 px-4 py-3 rounded-xl font-bold border border-gray-500 hover:bg-gray-500 shadow-sm">Clear</button>
           </div>
           
           <table className="min-w-full text-left text-sm whitespace-nowrap">
             <thead className="bg-gray-300 border-b border-gray-400"><tr><th className="p-4 text-gray-800">ID / Date</th><th className="p-4 text-gray-800">Driver</th><th className="p-4 text-gray-800">Vehicle</th><th className="p-4 text-gray-800">Status</th><th className="p-4 text-gray-800">Action</th></tr></thead>
             <tbody>
               {trips.map(trip => (
-                <tr key={trip.id} className="border-b border-gray-400">
+                <tr key={trip.id} className="border-b border-gray-400 hover:bg-gray-300/50">
                   <td className="p-4 font-bold text-gray-900">#{trip.id} <span className="text-gray-600 block font-normal">{trip.date}</span></td>
                   <td className="p-4 font-bold text-sky-600">{getDriverName(trip.driver_id)}</td>
                   <td className="p-4 text-gray-800">{trip.vehicle_number}</td>
@@ -276,12 +299,12 @@ export default function SupervisorPanel() {
       )}
 
       {expenseTrip && (
-        <div className="fixed inset-0 bg-gray-900/60 flex items-center justify-center p-4 z-50">
-          <div className="bg-gray-200 p-8 rounded-3xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 bg-gray-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <div className="bg-gray-200 p-8 rounded-3xl w-full max-w-2xl max-h-[90vh] overflow-y-auto shadow-2xl border border-gray-400">
             <h3 className="text-2xl font-bold mb-6 text-gray-900">Log Expenses & Driver Advance (#{expenseTrip.id})</h3>
-            <div className="flex space-x-2 mb-6 bg-gray-300 p-1.5 rounded-xl border border-gray-400">
-              <button onClick={() => setExpTab('expenses')} className={`flex-1 py-2 rounded-lg font-bold transition-all ${expTab === 'expenses' ? 'bg-gray-200 text-orange-600 shadow-sm' : 'text-gray-600'}`}>Vehicle & Driver Costs</button>
-              <button onClick={() => setExpTab('b2c')} className={`flex-1 py-2 rounded-lg font-bold transition-all ${expTab === 'b2c' ? 'bg-gray-200 text-indigo-600 shadow-sm' : 'text-gray-600'}`}>B2C Billing</button>
+            <div className="flex space-x-2 mb-6 bg-gray-300 p-1.5 rounded-xl border border-gray-400 shadow-inner">
+              <button onClick={() => setExpTab('expenses')} className={`flex-1 py-2 rounded-lg font-bold transition-all ${expTab === 'expenses' ? 'bg-gray-200 text-orange-600 shadow-sm border border-gray-400' : 'text-gray-600 hover:bg-gray-400/50'}`}>Vehicle & Driver Costs</button>
+              <button onClick={() => setExpTab('b2c')} className={`flex-1 py-2 rounded-lg font-bold transition-all ${expTab === 'b2c' ? 'bg-gray-200 text-indigo-600 shadow-sm border border-gray-400' : 'text-gray-600 hover:bg-gray-400/50'}`}>B2C Billing</button>
             </div>
             <form onSubmit={handleExpenseSubmit}>
               {expTab === 'expenses' && (
@@ -309,15 +332,15 @@ export default function SupervisorPanel() {
                     <InputField label="B2C (Bill to Company) Revenue" type="number" value={expData.b2c_billing} onChange={e => setExpData({...expData, b2c_billing: e.target.value})} />
                   </div>
                   <div className="flex flex-col md:flex-row gap-4 border-t border-gray-400 pt-6">
-                    <div className="flex-1 bg-gray-300 p-4 rounded-xl text-center"><div className="text-xs font-bold text-gray-600">TOTAL EXPENSES</div><div className="text-2xl font-black text-orange-600">₹{liveCost}</div></div>
-                    <div className="flex-1 bg-gray-300 p-4 rounded-xl text-center"><div className="text-xs font-bold text-gray-600">B2C BILLING</div><div className="text-2xl font-black text-indigo-600">₹{Number(expData.b2c_billing) || 0}</div></div>
-                    <div className={`flex-1 p-4 rounded-xl text-center ${liveProfit >= 0 ? 'bg-emerald-200' : 'bg-orange-200'}`}><div className={`text-xs font-bold ${liveProfit >= 0 ? 'text-emerald-700' : 'text-orange-700'}`}>PROFIT</div><div className={`text-2xl font-black ${liveProfit >= 0 ? 'text-emerald-800' : 'text-orange-800'}`}>₹{liveProfit}</div></div>
+                    <div className="flex-1 bg-gray-300 p-4 rounded-xl text-center shadow-inner"><div className="text-xs font-bold text-gray-600">TOTAL EXPENSES</div><div className="text-2xl font-black text-orange-600">₹{liveCost}</div></div>
+                    <div className="flex-1 bg-gray-300 p-4 rounded-xl text-center shadow-inner"><div className="text-xs font-bold text-gray-600">B2C BILLING</div><div className="text-2xl font-black text-indigo-600">₹{Number(expData.b2c_billing) || 0}</div></div>
+                    <div className={`flex-1 p-4 rounded-xl text-center shadow-sm border ${liveProfit >= 0 ? 'bg-emerald-200 border-emerald-300' : 'bg-orange-200 border-orange-300'}`}><div className={`text-xs font-bold ${liveProfit >= 0 ? 'text-emerald-700' : 'text-orange-700'}`}>PROFIT</div><div className={`text-2xl font-black ${liveProfit >= 0 ? 'text-emerald-800' : 'text-orange-800'}`}>₹{liveProfit}</div></div>
                   </div>
                 </div>
               )}
               <div className="flex gap-4 mt-8">
-                <button type="button" onClick={() => setExpenseTrip(null)} className="flex-1 bg-gray-300 text-gray-800 py-4 rounded-xl font-bold">Cancel</button>
-                <button type="submit" className="flex-1 bg-sky-600 text-gray-200 py-4 rounded-xl font-bold">
+                <button type="button" onClick={() => setExpenseTrip(null)} className="flex-1 bg-gray-300 text-gray-800 py-4 rounded-xl font-bold hover:bg-gray-400 shadow-sm">Cancel</button>
+                <button type="submit" className="flex-1 bg-sky-600 text-gray-200 py-4 rounded-xl font-bold hover:bg-sky-700 shadow-md">
                   {['Completed', 'Submitted for Review'].includes(expenseTrip.status) ? "Submit to Admin for Billing" : "Save Expenses (Trip Running)"}
                 </button>
               </div>
@@ -327,8 +350,8 @@ export default function SupervisorPanel() {
       )}
 
       {reviewTrip && (
-        <div className="fixed inset-0 bg-gray-900/60 flex items-center justify-center p-4 z-50">
-          <div className="bg-gray-200 p-8 rounded-3xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 bg-gray-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <div className="bg-gray-200 p-8 rounded-3xl w-full max-w-2xl max-h-[90vh] overflow-y-auto shadow-2xl border border-gray-400">
             <h3 className="text-2xl font-bold mb-6 text-gray-900">Review & Upload POD (#{reviewTrip.id})</h3>
             <form onSubmit={handleReviewSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <SelectField label="Vehicle Type" value={reviewData.vehicle_type} onChange={e => setReviewData({...reviewData, vehicle_type: e.target.value})} options={vehicleTypes} />
@@ -343,11 +366,22 @@ export default function SupervisorPanel() {
               <InputField label="Destination (To)" value={reviewData.destination} onChange={e => setReviewData({...reviewData, destination: e.target.value})} />
               <InputField label="Helper Name" value={reviewData.helper_name} onChange={e => setReviewData({...reviewData, helper_name: e.target.value})} />
               
-              <InputField label="Proof of Delivery (Drive/Cloud Link)" value={reviewData.pod_link} onChange={e => setReviewData({...reviewData, pod_link: e.target.value})} placeholder="https://drive.google.com/..." />
+              <div className="col-span-1 md:col-span-2 flex flex-col space-y-1.5 mt-2 bg-gray-300 p-4 rounded-xl border border-gray-400">
+                <label className="text-sm font-semibold text-gray-800">Upload Proof of Delivery (POD)</label>
+                <input 
+                  type="file" 
+                  accept="image/*,.pdf" 
+                  onChange={handleFileUpload} 
+                  disabled={uploading} 
+                  className="bg-gray-200 border border-gray-400 text-gray-900 rounded-xl block w-full p-2 outline-none file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-bold file:bg-sky-600 file:text-gray-200 hover:file:bg-sky-700 shadow-inner" 
+                />
+                {uploading && <span className="text-xs font-bold text-sky-600">Uploading to secure storage...</span>}
+                {reviewData.pod_link && <span className="text-xs font-bold text-emerald-600 mt-1 flex items-center gap-1"><svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path></svg> File attached successfully!</span>}
+              </div>
               
               <div className="col-span-1 md:col-span-2 flex gap-4 mt-6">
-                <button type="button" onClick={() => setReviewTrip(null)} className="flex-1 bg-gray-300 py-3 rounded-xl font-bold text-gray-700">Cancel</button>
-                <button type="submit" className="flex-1 bg-sky-600 text-gray-200 py-3 rounded-xl font-bold">
+                <button type="button" onClick={() => setReviewTrip(null)} className="flex-1 bg-gray-300 py-3 rounded-xl font-bold text-gray-700 hover:bg-gray-400 shadow-sm">Cancel</button>
+                <button type="submit" disabled={uploading} className="flex-1 bg-sky-600 text-gray-200 py-3 rounded-xl font-bold disabled:opacity-50 hover:bg-sky-700 shadow-md">
                   {['Completed'].includes(reviewTrip.status) ? "Submit Details for Review" : "Save Details (Trip Running)"}
                 </button>
               </div>
@@ -357,17 +391,17 @@ export default function SupervisorPanel() {
       )}
 
       {shuffleTrip && (
-        <div className="fixed inset-0 bg-gray-900/60 flex items-center justify-center p-4 z-50">
-          <div className="bg-gray-200 p-8 rounded-3xl w-full max-w-md">
+        <div className="fixed inset-0 bg-gray-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <div className="bg-gray-200 p-8 rounded-3xl w-full max-w-md shadow-2xl border border-gray-400">
             <h3 className="text-2xl font-bold mb-6 text-gray-900">Change Vehicle for #{shuffleTrip.id}</h3>
             <form onSubmit={handleShuffle}>
               <div className="flex flex-col space-y-1.5 mb-6">
                 <label className="text-sm font-semibold text-gray-800">New Vehicle Number</label>
-                <input list="vehicles-list" required value={shuffleVehicle} onChange={(e) => setShuffleVehicle(e.target.value.replace(/\s+/g, '').toUpperCase())} className="bg-gray-300 border border-gray-400 text-gray-900 rounded-xl focus:ring-4 focus:ring-sky-500/20 block w-full p-3 outline-none" />
+                <input list="vehicles-list" required value={shuffleVehicle} onChange={(e) => setShuffleVehicle(e.target.value.replace(/\s+/g, '').toUpperCase())} className="bg-gray-300 border border-gray-400 text-gray-900 rounded-xl focus:ring-4 focus:ring-sky-500/20 block w-full p-3 outline-none shadow-inner" />
               </div>
               <div className="flex gap-4">
-                <button type="button" onClick={() => setShuffleTrip(null)} className="flex-1 bg-gray-300 py-3 rounded-xl font-bold text-gray-800">Cancel</button>
-                <button type="submit" className="flex-1 bg-amber-500 text-gray-200 py-3 rounded-xl font-bold">Request Approval</button>
+                <button type="button" onClick={() => setShuffleTrip(null)} className="flex-1 bg-gray-300 py-3 rounded-xl font-bold text-gray-800 hover:bg-gray-400 shadow-sm">Cancel</button>
+                <button type="submit" className="flex-1 bg-amber-500 text-gray-200 py-3 rounded-xl font-bold hover:bg-amber-600 shadow-md">Request Approval</button>
               </div>
             </form>
           </div>
@@ -375,9 +409,9 @@ export default function SupervisorPanel() {
       )}
 
       {viewingTrip && (
-        <div className="fixed inset-0 bg-gray-900/60 flex items-center justify-center p-4 z-50">
-          <div className="bg-gray-200 p-8 rounded-3xl w-full max-w-4xl max-h-[90vh] overflow-y-auto">
-            <div className="flex justify-between items-center mb-6"><h3 className="text-2xl font-bold text-gray-900">Details (#{viewingTrip.id})</h3><button onClick={() => setViewingTrip(null)} className="text-gray-500 font-bold bg-gray-300 p-2 rounded-full">✕</button></div>
+        <div className="fixed inset-0 bg-gray-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <div className="bg-gray-200 p-8 rounded-3xl w-full max-w-4xl max-h-[90vh] overflow-y-auto shadow-2xl border border-gray-400">
+            <div className="flex justify-between items-center mb-6"><h3 className="text-2xl font-bold text-gray-900">Details (#{viewingTrip.id})</h3><button onClick={() => setViewingTrip(null)} className="text-gray-500 font-bold bg-gray-300 p-2 rounded-full hover:bg-gray-400">✕</button></div>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <DetailItem label="Vehicle" value={viewingTrip.vehicle_number} />
               <DetailItem label="Vehicle Type" value={viewingTrip.vehicle_type} />
@@ -391,21 +425,24 @@ export default function SupervisorPanel() {
               <DetailItem label="Starting KM / Time" value={`${viewingTrip.out_km} / ${viewingTrip.out_time}`} />
               <DetailItem label="Stop KM / Time" value={`${viewingTrip.in_km} / ${viewingTrip.in_time}`} />
               <DetailItem label="Total Route" value={`${viewingTrip.in_km - viewingTrip.out_km} km`} />
+              <div className="col-span-2 md:col-span-4 mt-2">
+                 <DetailItem label="POD Document" value={viewingTrip.pod_link ? <a href={viewingTrip.pod_link} target="_blank" className="text-sky-600 hover:underline">View Uploaded Document</a> : "Not Uploaded"} />
+              </div>
             </div>
           </div>
         </div>
       )}
 
       {endingTrip && (
-        <div className="fixed inset-0 bg-gray-900/60 flex items-center justify-center p-4 z-50">
-          <div className="bg-gray-200 p-8 rounded-3xl w-full max-w-sm">
+        <div className="fixed inset-0 bg-gray-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <div className="bg-gray-200 p-8 rounded-3xl w-full max-w-sm shadow-2xl border border-gray-400">
             <h3 className="text-2xl font-bold mb-6 text-gray-900">Log Arrival (#{endingTrip.id})</h3>
-            <div className="mb-4 text-sm font-semibold text-gray-700 bg-gray-300 p-3 rounded-lg border border-gray-400">Started at: <span className="text-sky-600 text-lg">{endingTrip.out_km} KM</span></div>
+            <div className="mb-4 text-sm font-semibold text-gray-700 bg-gray-300 p-3 rounded-lg border border-gray-400 shadow-inner">Started at: <span className="text-sky-600 text-lg">{endingTrip.out_km} KM</span></div>
             <form onSubmit={handleEndTrip} className="space-y-4">
               <InputField label="Stop KM" type="number" name="in_km" value={endData.in_km} onChange={e=>setEndData({in_km: e.target.value})} />
               <div className="flex gap-4 mt-6">
-                <button type="button" onClick={() => setEndingTrip(null)} className="flex-1 bg-gray-300 py-3 rounded-xl font-bold text-gray-800">Cancel</button>
-                <button type="submit" className="flex-1 bg-emerald-600 text-gray-200 py-3 rounded-xl font-bold">Complete</button>
+                <button type="button" onClick={() => setEndingTrip(null)} className="flex-1 bg-gray-300 py-3 rounded-xl font-bold text-gray-800 hover:bg-gray-400 shadow-sm">Cancel</button>
+                <button type="submit" className="flex-1 bg-emerald-600 text-gray-200 py-3 rounded-xl font-bold hover:bg-emerald-700 shadow-md">Complete</button>
               </div>
             </form>
           </div>
@@ -413,20 +450,20 @@ export default function SupervisorPanel() {
       )}
 
       {activeTab === 'drivers' && (
-        <div className="bg-gray-200 p-8 rounded-2xl shadow-xl max-w-lg border border-gray-400">
+        <div className="bg-gray-200/95 p-8 rounded-2xl shadow-xl max-w-lg border border-gray-400">
           <h3 className="text-xl font-bold mb-4 text-gray-900">Create Driver Account</h3>
           <form onSubmit={handleCreateDriver} className="space-y-4">
             <InputField label="Full Name" value={driverForm.name} onChange={e => setDriverForm({...driverForm, name: e.target.value})} />
             <InputField label="Phone Number" type="number" value={driverForm.phone} onChange={e => setDriverForm({...driverForm, phone: e.target.value})} />
             <InputField label="Login Username" value={driverForm.username} onChange={e => setDriverForm({...driverForm, username: e.target.value})} />
             <InputField label="Login Password" type="password" value={driverForm.password} onChange={e => setDriverForm({...driverForm, password: e.target.value})} />
-            <button type="submit" className="w-full bg-sky-600 text-gray-200 py-3 rounded-xl font-bold">Create Account</button>
+            <button type="submit" className="w-full bg-sky-600 text-gray-200 py-3 rounded-xl font-bold shadow-md hover:bg-sky-700">Create Account</button>
           </form>
         </div>
       )}
 
       {activeTab === 'vehicles' && (
-        <div className="bg-gray-200 p-8 rounded-2xl shadow-xl max-w-lg border border-gray-400">
+        <div className="bg-gray-200/95 p-8 rounded-2xl shadow-xl max-w-lg border border-gray-400">
           <h3 className="text-xl font-bold mb-4 text-gray-900">Register New Vehicle</h3>
           <form onSubmit={handleAddVehicle} className="flex flex-col gap-4 mb-6">
             <InputField label="Vehicle Number (No Spaces)" value={vehicleForm.vehicle_number} onChange={e => setVehicleForm({...vehicleForm, vehicle_number: e.target.value.replace(/\s+/g, '').toUpperCase()})} uppercase />
@@ -434,17 +471,17 @@ export default function SupervisorPanel() {
             {vehicleForm.ownership_type === 'Own Company' && (
               <InputField label="Monthly EMI (₹)" type="number" value={vehicleForm.emi} onChange={e => setVehicleForm({...vehicleForm, emi: e.target.value})} />
             )}
-            <button type="submit" className="bg-sky-600 text-gray-200 py-3 rounded-xl font-bold hover:bg-sky-700">Add Vehicle</button>
+            <button type="submit" className="bg-sky-600 text-gray-200 py-3 rounded-xl font-bold hover:bg-sky-700 shadow-md">Add Vehicle</button>
           </form>
           <h4 className="text-sm font-bold text-gray-600 uppercase tracking-wider border-b border-gray-400 pb-2 mb-4">Approved Vehicles</h4>
           <div className="grid grid-cols-1 gap-2">
             {vehicles.map(v => (
-              <div key={v.id} className="bg-gray-300 p-3 rounded-lg border border-gray-400 text-sm flex items-center justify-between">
+              <div key={v.id} className="bg-gray-300 p-3 rounded-lg border border-gray-400 text-sm flex items-center justify-between shadow-sm">
                 <div>
                   <div className="font-bold text-gray-900 flex items-center gap-2"><span className="w-2 h-2 rounded-full bg-emerald-500"></span>{v.vehicle_number}</div>
                   <div className="text-xs text-gray-600 mt-1">{v.ownership_type} {v.ownership_type === 'Own Company' ? `(EMI: ₹${v.emi})` : ''}</div>
                 </div>
-                <button onClick={() => handleDeleteVehicle(v.id)} className="text-orange-600 hover:text-orange-800 font-bold px-2 py-1 bg-orange-200 rounded text-xs">Delete</button>
+                <button onClick={() => handleDeleteVehicle(v.id)} className="text-orange-600 hover:text-orange-800 font-bold px-2 py-1 bg-orange-200 rounded text-xs border border-orange-300">Delete</button>
               </div>
             ))}
           </div>
