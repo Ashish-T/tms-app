@@ -77,6 +77,7 @@ export default function SupervisorPanel() {
       } catch (err) { alert("Failed to submit."); }
   }
 
+  // --- DEEP ERROR LOGGING UPLOAD FUNCTION ---
   const handleFileUpload = async (event) => {
     const file = event.target.files[0];
     if (!file) return;
@@ -86,16 +87,21 @@ export default function SupervisorPanel() {
     const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
 
     try {
-      // Removed upsert: true to prevent conflicts with Strict RLS policies
-      const { error: uploadError } = await supabase.storage.from('pods').upload(fileName, file, {
-        contentType: file.type
+      const { data, error: uploadError } = await supabase.storage.from('pods').upload(fileName, file, {
+        cacheControl: '3600',
+        upsert: false
       });
-      if (uploadError) throw uploadError;
 
-      const { data } = supabase.storage.from('pods').getPublicUrl(fileName);
-      setReviewData({ ...reviewData, pod_link: data.publicUrl });
+      if (uploadError) {
+        console.error("Supabase Error Object:", uploadError);
+        throw new Error(uploadError.message || uploadError.error || "Unknown 400 Bad Request");
+      }
+
+      const { data: publicUrlData } = supabase.storage.from('pods').getPublicUrl(fileName);
+      setReviewData({ ...reviewData, pod_link: publicUrlData.publicUrl });
+      
     } catch (error) {
-      alert('Error uploading document: ' + error.message);
+      alert(`SUPABASE UPLOAD REJECTED:\n\n${error.message}\n\nPlease check your Supabase bucket name and policies.`);
     } finally {
       setUploading(false);
     }
