@@ -6,14 +6,28 @@ from dotenv import load_dotenv
 load_dotenv()
 Base = declarative_base()
 
+# --- SUPABASE / DATABASE CONNECTION LOGIC ---
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./tms.db")
+
+# Fix for SQLAlchemy 1.4+ which requires 'postgresql://' strictly
 if DATABASE_URL.startswith("postgres://"):
     DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
 
-connect_args = {"check_same_thread": False} if DATABASE_URL.startswith("sqlite") else {}
-engine = create_engine(DATABASE_URL, connect_args=connect_args)
+# Configure connection based on SQLite (local) vs Supabase (Production)
+if DATABASE_URL.startswith("sqlite"):
+    connect_args = {"check_same_thread": False}
+    engine = create_engine(DATABASE_URL, connect_args=connect_args)
+else:
+    # SUPABASE OPTIMIZATION: Prevents dropped connections in production
+    engine = create_engine(
+        DATABASE_URL, 
+        pool_pre_ping=True, 
+        pool_recycle=300
+    )
+
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
+# --- DATABASE TABLES ---
 class User(Base):
     __tablename__ = 'users'
     id = Column(Integer, primary_key=True)
@@ -25,11 +39,11 @@ class User(Base):
     supervisor_id = Column(Integer, ForeignKey('users.id'), nullable=True)
 
 class TripLog(Base):
-    __tablename__ = 'trip_logs_v11' # <--- Upgraded to V11 for New Statuses
+    __tablename__ = 'trip_logs_v11' 
     id = Column(Integer, primary_key=True)
     driver_id = Column(Integer, ForeignKey('users.id'))
     supervisor_id = Column(Integer, ForeignKey('users.id'))
-    status = Column(String, default="Waiting for Driver") # <--- NEW DEFAULT STATUS
+    status = Column(String, default="Waiting for Driver") 
     
     date = Column(String)
     vehicle_number = Column(String)
@@ -47,7 +61,7 @@ class TripLog(Base):
     client_name = Column(String, nullable=True)
     source = Column(String, nullable=True)     
     destination = Column(String, nullable=True)
-    vehicle_sourced_from = Column(String, nullable=True) # <--- NEW
+    vehicle_sourced_from = Column(String, nullable=True) 
     
     fuel_litres = Column(Float, default=0.0)
     fuel_price = Column(Float, default=0.0)
@@ -78,3 +92,20 @@ class VehicleList(Base):
     vehicle_number = Column(String, unique=True)
     ownership_type = Column(String, default="Third Party")
     emi = Column(Float, default=0.0)
+
+class AdminFundTransfer(Base):
+    __tablename__ = 'admin_fund_transfers_v2' 
+    id = Column(Integer, primary_key=True)
+    supervisor_id = Column(Integer, ForeignKey('users.id'))
+    amount = Column(Float, default=0.0)
+    date = Column(String) 
+    medium = Column(String, default="Cash") 
+
+class SupervisorMiscExpense(Base):
+    __tablename__ = 'supervisor_misc_expenses'
+    id = Column(Integer, primary_key=True)
+    supervisor_id = Column(Integer, ForeignKey('users.id'))
+    amount = Column(Float, default=0.0)
+    description = Column(String)
+    date = Column(String)
+    status = Column(String, default="Pending")

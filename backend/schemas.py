@@ -52,7 +52,7 @@ class TripSupervisorUpdate(BaseModel):
     client_name: str
     source: str
     destination: str
-    vehicle_sourced_from: str  # <--- NEW
+    vehicle_sourced_from: str  
 
 class TripFinancialsUpdate(BaseModel):
     fuel_litres: float
@@ -65,7 +65,7 @@ class TripFinancialsUpdate(BaseModel):
     vehicle_cost_type: Optional[str] = "Third Party"
     vehicle_cost: float
     b2c_billing: float
-    client_name: Optional[str] = None
+    client_name: Optional[str] = None 
 
 class TripLogResponse(BaseModel):
     id: int
@@ -87,7 +87,7 @@ class TripLogResponse(BaseModel):
     client_name: Optional[str]
     source: Optional[str]
     destination: Optional[str]
-    vehicle_sourced_from: Optional[str] # <--- NEW
+    vehicle_sourced_from: Optional[str] 
     fuel_litres: float
     fuel_price: float
     toll_charges: float
@@ -121,3 +121,40 @@ class VehicleResponse(BaseModel):
     ownership_type: str
     emi: float
     model_config = ConfigDict(from_attributes=True)
+
+class FundTransferCreate(BaseModel):
+    supervisor_id: int
+    amount: float
+    date: str
+    medium: str # <--- NEW
+
+class FundTransferResponse(BaseModel):
+    id: int
+    supervisor_id: int
+    amount: float
+    date: str
+    medium: str # <--- NEW
+    model_config = ConfigDict(from_attributes=True)
+
+class MiscExpenseCreate(BaseModel):
+    amount: float
+    description: str
+    date: str
+
+class MiscExpenseStatusUpdate(BaseModel):
+    status: str
+
+class MiscExpenseResponse(BaseModel):
+    id: int
+    supervisor_id: int
+    amount: float
+    description: str
+    date: str
+    status: str
+    model_config = ConfigDict(from_attributes=True)
+
+class WalletSummaryResponse(BaseModel):
+    total_funded: float
+    total_trip_expenses: float
+    total_misc_expenses: float
+    current_balance: float
