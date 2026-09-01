@@ -549,24 +549,32 @@ export default function AdminPanel() {
             <div className="bg-gray-200 p-5 md:p-6 rounded-2xl w-full max-w-5xl m-auto shadow-2xl border border-gray-400 relative">
               <h3 className="text-xl font-bold mb-3 text-gray-900">Financial Reconciliation (#{billingTrip.id})</h3>
               
-              {/* ULTRA-COMPACT TRIP SUMMARY */}
+              {!billingTrip.pod_link && (
+                <div className="bg-rose-100 border border-rose-300 text-rose-800 p-3 rounded-xl mb-4 font-bold flex justify-between items-center text-sm shadow-sm">
+                    <div className="flex items-center gap-2"><svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg> POD MISSING: Supervisor has not attached the Proof of Delivery.</div>
+                    <span className="bg-white px-2 py-1 rounded text-xs text-rose-600 shadow-sm border border-rose-200">You may still Finalize the Bill.</span>
+                </div>
+              )}
+
               <div className="bg-gray-300 p-3 rounded-xl border border-gray-400 mb-4 grid grid-cols-2 md:grid-cols-4 gap-3 text-sm shadow-inner">
                   <div className="col-span-2 md:col-span-4 border-b border-gray-400 pb-1 mb-1 font-black text-gray-800 uppercase tracking-wider text-xs">Trip Summary (Provided by Supervisor)</div>
                   <div><span className="block text-[10px] font-bold text-gray-500 uppercase">Driver</span><span className="font-semibold text-gray-900">{getDriverName(billingTrip.driver_id)}</span></div>
                   <div><span className="block text-[10px] font-bold text-gray-500 uppercase">Vehicle & Type</span><span className="font-semibold text-gray-900">{billingTrip.vehicle_number} ({billingTrip.vehicle_type || 'N/A'})</span></div>
                   <div><span className="block text-[10px] font-bold text-gray-500 uppercase">Vendor</span><span className="font-semibold text-gray-900">{billingTrip.vendor_name || '-'}</span></div>
                   <div><span className="block text-[10px] font-bold text-gray-500 uppercase">Sourced From</span><span className="font-semibold text-gray-900">{billingTrip.vehicle_sourced_from || '-'}</span></div>
-                  <div><span className="block text-[10px] font-bold text-gray-500 uppercase">Client</span><span className="font-semibold text-gray-900">{billingTrip.client_name || '-'}</span></div>
-                  <div><span className="block text-[10px] font-bold text-gray-500 uppercase">Route (Src -&gt; Dst)</span><span className="font-semibold text-gray-900">{billingTrip.source || '-'} -&gt; {billingTrip.destination || '-'}</span></div>
+                  
+                  <div><span className="block text-[10px] font-bold text-gray-500 uppercase">Reporting Time</span><span className="font-semibold text-gray-900">{billingTrip.reporting_time || '-'}</span></div>
+                  <div><span className="block text-[10px] font-bold text-gray-500 uppercase">Start Time</span><span className="font-semibold text-gray-900">{billingTrip.out_time || '-'}</span></div>
                   <div><span className="block text-[10px] font-bold text-gray-500 uppercase">Total Distance</span><span className="font-semibold text-gray-900">{billingTrip.in_km - billingTrip.out_km} km</span></div>
                   <div><span className="block text-[10px] font-bold text-gray-500 uppercase">Travel Time</span><span className="font-semibold text-gray-900">{billingTrip.out_time || '-'} to {billingTrip.in_time || '-'}</span></div>
-                  <div className="col-span-2 md:col-span-4 border-t border-gray-400 pt-2 mt-1">
-                    <span className="block text-[10px] font-bold text-gray-500 uppercase">Advance Given (Kharcha)</span><span className="font-semibold text-orange-600">₹{billingTrip.advance_paid || 0}</span>
+                  <div className="col-span-2 md:col-span-4 border-t border-gray-400 pt-2 mt-1 flex gap-4">
+                    <div><span className="block text-[10px] font-bold text-gray-500 uppercase">Client</span><span className="font-semibold text-gray-900">{billingTrip.client_name || '-'}</span></div>
+                    <div><span className="block text-[10px] font-bold text-gray-500 uppercase">Route</span><span className="font-semibold text-gray-900">{billingTrip.source || '-'} -&gt; {billingTrip.destination || '-'}</span></div>
+                    <div><span className="block text-[10px] font-bold text-gray-500 uppercase">Advance Given (Kharcha)</span><span className="font-semibold text-orange-600">₹{billingTrip.advance_paid || 0}</span></div>
                   </div>
               </div>
 
               <form onSubmit={handleBillSubmit}>
-                {/* STRICT 4-COLUMN LAYOUT TO REDUCE VERTICAL HEIGHT BY 50% */}
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                   <InputField label="Fuel Litres" type="number" value={billData.fuel_litres} onChange={e => setBillData({...billData, fuel_litres: e.target.value})} />
                   <InputField label="Fuel Price / L" type="number" value={billData.fuel_price} onChange={e => setBillData({...billData, fuel_price: e.target.value})} />
@@ -714,8 +722,12 @@ export default function AdminPanel() {
                 <DetailItem label="Source (From)" value={viewingTrip.source} />
                 <DetailItem label="Destination (To)" value={viewingTrip.destination} />
                 <DetailItem label="Status" value={viewingTrip.status} />
-                <DetailItem label="Starting KM / Time" value={`${viewingTrip.out_km} / ${viewingTrip.out_time}`} />
-                <DetailItem label="Stop KM / Time" value={`${viewingTrip.in_km} / ${viewingTrip.in_time}`} />
+                
+                {/* ADDED REPORTING & START TIME TO VIEW LOG */}
+                <DetailItem label="Reporting Time" value={viewingTrip.reporting_time} />
+                <DetailItem label="Start Time / KM" value={`${viewingTrip.out_time} (${viewingTrip.out_km} km)`} />
+                <DetailItem label="Stop KM / Time" value={`${viewingTrip.in_km} km / ${viewingTrip.in_time}`} />
+                
                 <DetailItem label="Total Route" value={`${viewingTrip.in_km - viewingTrip.out_km} km`} />
                 <div className="col-span-2 md:col-span-4 mt-2">
                    <DetailItem label="POD Document" value={viewingTrip.pod_link ? <a href={viewingTrip.pod_link} target="_blank" className="text-sky-600 hover:underline">View Uploaded Document</a> : "Not Uploaded"} />

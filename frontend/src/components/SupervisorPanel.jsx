@@ -86,9 +86,9 @@ export default function SupervisorPanel() {
     const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
 
     try {
-      // Removed upsert completely to bypass 400 bad request logic with policies
       const { data, error: uploadError } = await supabase.storage.from('pods').upload(fileName, file, {
-        cacheControl: '3600'
+        cacheControl: '3600',
+        upsert: false
       });
 
       if (uploadError) {
@@ -100,7 +100,7 @@ export default function SupervisorPanel() {
       setReviewData({ ...reviewData, pod_link: publicUrlData.publicUrl });
       
     } catch (error) {
-      alert(`SUPABASE UPLOAD REJECTED:\n\n${error.message}\n\nPlease verify your Supabase Policy allows 'INSERT' and targets 'public' AND 'anon'.`);
+      alert(`SUPABASE UPLOAD REJECTED:\n\n${error.message}\n\nPlease check your Supabase bucket name and policies.`);
     } finally {
       setUploading(false);
     }
@@ -287,12 +287,10 @@ export default function SupervisorPanel() {
                       <div className="flex gap-2 flex-wrap">
                         {['Waiting for Driver'].includes(trip.status) && (<button onClick={() => { setShuffleTrip(trip); setShuffleVehicle(''); }} className="bg-amber-200 text-amber-800 px-3 py-1.5 rounded-lg font-bold hover:bg-amber-300 text-xs shadow-sm">Shuffle Vehicle</button>)}
                         
-                        {/* RESTORED EXPLICIT "Expenses" BUTTON NAME */}
                         {['Waiting for Driver', 'Reported', 'Trip Started', 'Completed', 'Submitted for Review'].includes(trip.status) && (
                            <button onClick={() => openExpenses(trip)} className="bg-orange-200 text-orange-800 px-3 py-1.5 rounded-lg font-bold hover:bg-orange-300 text-xs shadow-sm">Expenses</button>
                         )}
 
-                        {/* RESTORED EXPLICIT "Review Details" BUTTON NAME */}
                         {!['Pending Approval', 'Pending for Admin Final Review', 'Billed / Completed'].includes(trip.status) && (
                            <button onClick={() => { setReviewTrip(trip); setReviewData({ vehicle_type: trip.vehicle_type || '', vehicle_mode: trip.vehicle_mode || '', body_type: trip.body_type || '', vendor_name: trip.vendor_name || '', helper_name: trip.helper_name || '', client_name: trip.client_name || '', source: trip.source || '', destination: trip.destination || '', vehicle_sourced_from: trip.vehicle_sourced_from || '', pod_link: trip.pod_link || '' }); }} className="bg-sky-200 text-sky-800 px-3 py-1.5 rounded-lg font-bold hover:bg-sky-300 text-xs shadow-sm">Review Details</button>
                         )}
@@ -396,7 +394,6 @@ export default function SupervisorPanel() {
                 <div className="flex gap-4 mt-8">
                   <button type="button" onClick={() => setExpenseTrip(null)} className="flex-1 bg-gray-300 py-4 rounded-xl font-bold text-gray-700 hover:bg-gray-400 shadow-sm">Cancel</button>
                   <button type="submit" className="flex-1 bg-sky-600 text-gray-200 py-4 rounded-xl font-bold hover:bg-sky-700 shadow-md">
-                    {/* RESTORED EXPLICIT SUBMIT TEXT */}
                     {['Completed', 'Submitted for Review'].includes(expenseTrip.status) ? "Submit to Admin Billing" : "Save Expenses (Trip Running)"}
                   </button>
                 </div>
@@ -425,7 +422,7 @@ export default function SupervisorPanel() {
                 <InputField label="Helper Name" value={reviewData.helper_name} onChange={e => setReviewData({...reviewData, helper_name: e.target.value})} />
                 
                 <div className="col-span-1 md:col-span-2 flex flex-col space-y-1.5 mt-4 bg-gray-300 p-6 rounded-xl border border-gray-400">
-                  <label className="text-sm font-semibold text-gray-800">Upload Proof of Delivery (POD)</label>
+                  <label className="text-sm font-semibold text-gray-800">Upload Proof of Delivery (POD) <span className="text-gray-500 font-normal italic">(Optional)</span></label>
                   <input 
                     type="file" 
                     accept="image/*,.pdf" 
@@ -440,7 +437,6 @@ export default function SupervisorPanel() {
                 <div className="col-span-1 md:col-span-2 flex gap-4 mt-8">
                   <button type="button" onClick={() => setReviewTrip(null)} className="flex-1 bg-gray-300 py-4 rounded-xl font-bold text-gray-700 hover:bg-gray-400 shadow-sm">Cancel</button>
                   <button type="submit" disabled={uploading} className="flex-1 bg-sky-600 text-gray-200 py-4 rounded-xl font-bold disabled:opacity-50 hover:bg-sky-700 shadow-md">
-                    {/* RESTORED EXPLICIT SUBMIT TEXT */}
                     {['Completed'].includes(reviewTrip.status) ? "Submit Details to Admin" : "Save Details (Trip Running)"}
                   </button>
                 </div>

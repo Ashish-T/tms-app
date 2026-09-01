@@ -39,9 +39,14 @@ export default function App() {
 
   if (!role) return <LoginScreen onLogin={handleLogin} />;
 
+  // DYNAMIC BACKGROUND: Driver gets lightweight solid Sky Blue, Admin/Supervisor get the heavy image
+  const backgroundClass = role === 'driver' 
+    ? "bg-sky-50" 
+    : "bg-[url('/background.jpg')] bg-cover bg-center bg-fixed";
+
   return (
     <Router>
-      <div className="min-h-screen font-sans text-gray-900 bg-[url('/background.jpg')] bg-cover bg-center bg-fixed">
+      <div className={`min-h-screen font-sans text-gray-900 ${backgroundClass}`}>
         
         <nav className="bg-sky-600/95 backdrop-blur-sm px-6 py-4 sticky top-0 z-40 shadow-xl flex justify-between items-center text-gray-200 border-b border-sky-500/50">
           <h1 className="font-black text-2xl tracking-wide drop-shadow-md">TMS<span className="text-orange-400">.</span></h1>
