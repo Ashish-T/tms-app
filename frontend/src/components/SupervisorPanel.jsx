@@ -299,8 +299,8 @@ export default function SupervisorPanel() {
       )}
 
       {expenseTrip && (
-        <div className="fixed inset-0 bg-gray-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <div className="bg-gray-200 p-8 rounded-3xl w-full max-w-2xl max-h-[90vh] overflow-y-auto shadow-2xl border border-gray-400">
+        <div className="fixed inset-0 bg-gray-900/60 backdrop-blur-sm z-50 flex overflow-y-auto p-4 sm:p-8">
+          <div className="bg-gray-200 p-8 rounded-3xl w-full max-w-2xl m-auto shadow-2xl border border-gray-400 relative">
             <h3 className="text-2xl font-bold mb-6 text-gray-900">Log Expenses & Driver Advance (#{expenseTrip.id})</h3>
             <div className="flex space-x-2 mb-6 bg-gray-300 p-1.5 rounded-xl border border-gray-400 shadow-inner">
               <button onClick={() => setExpTab('expenses')} className={`flex-1 py-2 rounded-lg font-bold transition-all ${expTab === 'expenses' ? 'bg-gray-200 text-orange-600 shadow-sm border border-gray-400' : 'text-gray-600 hover:bg-gray-400/50'}`}>Vehicle & Driver Costs</button>
@@ -350,8 +350,8 @@ export default function SupervisorPanel() {
       )}
 
       {reviewTrip && (
-        <div className="fixed inset-0 bg-gray-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <div className="bg-gray-200 p-8 rounded-3xl w-full max-w-2xl max-h-[90vh] overflow-y-auto shadow-2xl border border-gray-400">
+        <div className="fixed inset-0 bg-gray-900/60 backdrop-blur-sm z-50 flex overflow-y-auto p-4 sm:p-8">
+          <div className="bg-gray-200 p-8 rounded-3xl w-full max-w-2xl m-auto shadow-2xl border border-gray-400 relative">
             <h3 className="text-2xl font-bold mb-6 text-gray-900">Review & Upload POD (#{reviewTrip.id})</h3>
             <form onSubmit={handleReviewSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <SelectField label="Vehicle Type" value={reviewData.vehicle_type} onChange={e => setReviewData({...reviewData, vehicle_type: e.target.value})} options={vehicleTypes} />
@@ -391,8 +391,8 @@ export default function SupervisorPanel() {
       )}
 
       {shuffleTrip && (
-        <div className="fixed inset-0 bg-gray-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <div className="bg-gray-200 p-8 rounded-3xl w-full max-w-md shadow-2xl border border-gray-400">
+        <div className="fixed inset-0 bg-gray-900/60 backdrop-blur-sm z-50 flex overflow-y-auto p-4 sm:p-8">
+          <div className="bg-gray-200 p-8 rounded-3xl w-full max-w-md m-auto shadow-2xl border border-gray-400 relative">
             <h3 className="text-2xl font-bold mb-6 text-gray-900">Change Vehicle for #{shuffleTrip.id}</h3>
             <form onSubmit={handleShuffle}>
               <div className="flex flex-col space-y-1.5 mb-6">
@@ -409,8 +409,8 @@ export default function SupervisorPanel() {
       )}
 
       {viewingTrip && (
-        <div className="fixed inset-0 bg-gray-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <div className="bg-gray-200 p-8 rounded-3xl w-full max-w-4xl max-h-[90vh] overflow-y-auto shadow-2xl border border-gray-400">
+        <div className="fixed inset-0 bg-gray-900/60 backdrop-blur-sm z-50 flex overflow-y-auto p-4 sm:p-8">
+          <div className="bg-gray-200 p-8 rounded-3xl w-full max-w-4xl m-auto shadow-2xl border border-gray-400 relative">
             <div className="flex justify-between items-center mb-6"><h3 className="text-2xl font-bold text-gray-900">Details (#{viewingTrip.id})</h3><button onClick={() => setViewingTrip(null)} className="text-gray-500 font-bold bg-gray-300 p-2 rounded-full hover:bg-gray-400">✕</button></div>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <DetailItem label="Vehicle" value={viewingTrip.vehicle_number} />
@@ -434,8 +434,8 @@ export default function SupervisorPanel() {
       )}
 
       {endingTrip && (
-        <div className="fixed inset-0 bg-gray-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <div className="bg-gray-200 p-8 rounded-3xl w-full max-w-sm shadow-2xl border border-gray-400">
+        <div className="fixed inset-0 bg-gray-900/60 backdrop-blur-sm z-50 flex overflow-y-auto p-4 sm:p-8">
+          <div className="bg-gray-200 p-8 rounded-3xl w-full max-w-sm m-auto shadow-2xl border border-gray-400 relative">
             <h3 className="text-2xl font-bold mb-6 text-gray-900">Log Arrival (#{endingTrip.id})</h3>
             <div className="mb-4 text-sm font-semibold text-gray-700 bg-gray-300 p-3 rounded-lg border border-gray-400 shadow-inner">Started at: <span className="text-sky-600 text-lg">{endingTrip.out_km} KM</span></div>
             <form onSubmit={handleEndTrip} className="space-y-4">

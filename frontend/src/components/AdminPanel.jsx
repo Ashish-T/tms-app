@@ -187,22 +187,22 @@ export default function AdminPanel() {
   };
 
   return (
-    <div className="p-4 md:p-8 max-w-7xl mx-auto">
-      <h2 className="text-3xl font-extrabold mb-6 text-gray-900">Master Admin Dashboard</h2>
-      <div className="flex flex-wrap gap-2 mb-6 bg-gray-300 p-1.5 rounded-xl inline-flex">
-        <button onClick={() => setActiveTab('attendance')} className={`px-5 py-2.5 rounded-lg font-bold transition-all ${activeTab === 'attendance' ? 'bg-gray-200 text-indigo-700 shadow-sm' : 'text-gray-600'}`}>Attendance & Payroll</button>
-        <button onClick={() => setActiveTab('availability')} className={`px-5 py-2.5 rounded-lg font-bold transition-all ${activeTab === 'availability' ? 'bg-gray-200 text-indigo-700 shadow-sm' : 'text-gray-600'}`}>Availability & Fleet</button>
-        <button onClick={() => setActiveTab('approvals')} className={`px-5 py-2.5 rounded-lg font-bold transition-all flex items-center gap-2 ${activeTab === 'approvals' ? 'bg-gray-200 text-orange-600 shadow-sm' : 'text-gray-600'}`}>Approvals {pendingCount > 0 && <span className="bg-orange-500 text-gray-200 rounded-full px-2 py-0.5 text-xs">{pendingCount}</span>}</button>
-        <button onClick={() => setActiveTab('trips')} className={`px-5 py-2.5 rounded-lg font-bold transition-all ${activeTab === 'trips' ? 'bg-gray-200 text-sky-700 shadow-sm' : 'text-gray-600'}`}>Financial Billing</button>
-        <button onClick={() => setActiveTab('reports')} className={`px-5 py-2.5 rounded-lg font-bold transition-all ${activeTab === 'reports' ? 'bg-gray-200 text-emerald-700 shadow-sm' : 'text-gray-600'}`}>Profit Reports</button>
-        <button onClick={() => setActiveTab('supervisors')} className={`px-5 py-2.5 rounded-lg font-bold transition-all ${activeTab === 'supervisors' ? 'bg-gray-200 text-sky-700 shadow-sm' : 'text-gray-600'}`}>Supervisors & Wallets</button>
-        <button onClick={() => setActiveTab('clients')} className={`px-5 py-2.5 rounded-lg font-bold transition-all ${activeTab === 'clients' ? 'bg-gray-200 text-sky-700 shadow-sm' : 'text-gray-600'}`}>Clients</button>
-        <button onClick={() => setActiveTab('vendors')} className={`px-5 py-2.5 rounded-lg font-bold transition-all ${activeTab === 'vendors' ? 'bg-gray-200 text-sky-700 shadow-sm' : 'text-gray-600'}`}>Vendors</button>
-        <button onClick={() => setActiveTab('vehicles')} className={`px-5 py-2.5 rounded-lg font-bold transition-all ${activeTab === 'vehicles' ? 'bg-gray-200 text-sky-700 shadow-sm' : 'text-gray-600'}`}>Vehicles</button>
+    <div className="p-4 md:p-8 max-w-7xl mx-auto backdrop-blur-sm bg-gray-200/90 rounded-3xl shadow-2xl border border-gray-300">
+      <h2 className="text-3xl font-extrabold mb-6 text-white drop-shadow-md">Master Admin Dashboard</h2>
+      <div className="flex flex-wrap gap-2 mb-6 bg-gray-300/80 p-1.5 rounded-xl inline-flex border border-gray-400/50 shadow-inner">
+        <button onClick={() => setActiveTab('attendance')} className={`px-5 py-2.5 rounded-lg font-bold transition-all ${activeTab === 'attendance' ? 'bg-gray-200 text-indigo-700 shadow-sm border border-gray-300' : 'text-gray-600 hover:bg-gray-300'}`}>Attendance & Payroll</button>
+        <button onClick={() => setActiveTab('availability')} className={`px-5 py-2.5 rounded-lg font-bold transition-all ${activeTab === 'availability' ? 'bg-gray-200 text-indigo-700 shadow-sm border border-gray-300' : 'text-gray-600 hover:bg-gray-300'}`}>Availability & Fleet</button>
+        <button onClick={() => setActiveTab('approvals')} className={`px-5 py-2.5 rounded-lg font-bold transition-all flex items-center gap-2 ${activeTab === 'approvals' ? 'bg-gray-200 text-orange-600 shadow-sm border border-gray-300' : 'text-gray-600 hover:bg-gray-300'}`}>Approvals {pendingCount > 0 && <span className="bg-orange-500 text-gray-200 rounded-full px-2 py-0.5 text-xs">{pendingCount}</span>}</button>
+        <button onClick={() => setActiveTab('trips')} className={`px-5 py-2.5 rounded-lg font-bold transition-all ${activeTab === 'trips' ? 'bg-gray-200 text-sky-700 shadow-sm border border-gray-300' : 'text-gray-600 hover:bg-gray-300'}`}>Financial Billing</button>
+        <button onClick={() => setActiveTab('reports')} className={`px-5 py-2.5 rounded-lg font-bold transition-all ${activeTab === 'reports' ? 'bg-gray-200 text-emerald-700 shadow-sm border border-gray-300' : 'text-gray-600 hover:bg-gray-300'}`}>Profit Reports</button>
+        <button onClick={() => setActiveTab('supervisors')} className={`px-5 py-2.5 rounded-lg font-bold transition-all ${activeTab === 'supervisors' ? 'bg-gray-200 text-sky-700 shadow-sm border border-gray-300' : 'text-gray-600 hover:bg-gray-300'}`}>Supervisors & Wallets</button>
+        <button onClick={() => setActiveTab('clients')} className={`px-5 py-2.5 rounded-lg font-bold transition-all ${activeTab === 'clients' ? 'bg-gray-200 text-sky-700 shadow-sm border border-gray-300' : 'text-gray-600 hover:bg-gray-300'}`}>Clients</button>
+        <button onClick={() => setActiveTab('vendors')} className={`px-5 py-2.5 rounded-lg font-bold transition-all ${activeTab === 'vendors' ? 'bg-gray-200 text-sky-700 shadow-sm border border-gray-300' : 'text-gray-600 hover:bg-gray-300'}`}>Vendors</button>
+        <button onClick={() => setActiveTab('vehicles')} className={`px-5 py-2.5 rounded-lg font-bold transition-all ${activeTab === 'vehicles' ? 'bg-gray-200 text-sky-700 shadow-sm border border-gray-300' : 'text-gray-600 hover:bg-gray-300'}`}>Vehicles</button>
       </div>
 
       {activeTab === 'attendance' && (
-        <div className="bg-gray-200 p-6 rounded-2xl shadow-xl border border-gray-400">
+        <div className="bg-gray-200/95 p-6 rounded-2xl shadow-xl border border-gray-400">
           <h3 className="text-xl font-bold mb-6 border-b border-gray-400 pb-2 text-gray-900">Driver Attendance & Payroll</h3>
           <div className="overflow-x-auto">
             <table className="min-w-full text-left text-sm whitespace-nowrap">
@@ -220,7 +220,7 @@ export default function AdminPanel() {
                   const netPayable = totalDriverCost + totalOvertime - totalAdvance;
                   
                   return (
-                    <tr key={driver.id} className="border-b border-gray-400 hover:bg-gray-300 transition-colors">
+                    <tr key={driver.id} className="border-b border-gray-400 hover:bg-gray-300/50 transition-colors">
                       <td className="p-4 font-bold text-indigo-700">{driver.name} <span className="text-xs text-gray-600 block font-semibold mt-1">📞 {driver.phone || 'No Phone'}</span></td>
                       <td className="p-4 font-bold text-gray-900">{totalTrips}</td>
                       <td className="p-4 font-bold text-sky-700">{uniqueDates.size} Days</td>
@@ -239,8 +239,8 @@ export default function AdminPanel() {
       )}
 
       {viewDriverDetails && (
-        <div className="fixed inset-0 bg-gray-900/60 flex items-center justify-center p-4 z-50">
-          <div className="bg-gray-200 p-8 rounded-3xl w-full max-w-6xl max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 bg-gray-900/60 backdrop-blur-sm z-50 flex overflow-y-auto p-4 sm:p-8">
+          <div className="bg-gray-200 p-8 rounded-3xl w-full max-w-6xl m-auto shadow-2xl border border-gray-400 relative">
             <div className="flex justify-between items-center mb-6">
                 <h3 className="text-2xl font-bold text-gray-900">Payroll Ledger for {viewDriverDetails.name}</h3>
                 <button onClick={() => setViewDriverDetails(null)} className="text-gray-500 font-bold bg-gray-300 p-2 rounded-full hover:bg-gray-400">✕</button>
@@ -273,7 +273,7 @@ export default function AdminPanel() {
 
       {activeTab === 'reports' && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div className="bg-gray-200 p-6 rounded-2xl shadow-xl border border-gray-400">
+          <div className="bg-gray-200/95 p-6 rounded-2xl shadow-xl border border-gray-400">
             <h3 className="text-xl font-bold border-b border-gray-400 pb-2 mb-4 text-emerald-800">🏢 Client Profitability Analytics</h3>
             <div className="space-y-4">
               {Object.keys(clientStats).map(c => {
@@ -299,7 +299,7 @@ export default function AdminPanel() {
             </div>
           </div>
           
-          <div className="bg-gray-200 p-6 rounded-2xl shadow-xl border border-gray-400">
+          <div className="bg-gray-200/95 p-6 rounded-2xl shadow-xl border border-gray-400">
             <h3 className="text-xl font-bold border-b border-gray-400 pb-2 mb-4 text-amber-800">🤝 Vendor Logistics</h3>
             <div className="space-y-4">
               {Object.keys(vendorStats).map(v => (
@@ -319,13 +319,13 @@ export default function AdminPanel() {
 
       {activeTab === 'availability' && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div className="bg-gray-200 p-6 rounded-2xl shadow-xl border border-gray-400">
+          <div className="bg-gray-200/95 p-6 rounded-2xl shadow-xl border border-gray-400">
             <h3 className="text-xl font-bold border-b border-gray-400 pb-2 mb-4 text-indigo-800">🧑‍✈️ Driver Status</h3>
             <div className="space-y-3 max-h-[60vh] overflow-y-auto">
               {users.filter(u=>u.role==='driver').map(d => {
                 const activeTrip = trips.find(t => t.driver_id === d.id && activeStatuses.includes(t.status));
                 return (
-                  <div key={d.id} className="flex justify-between items-center bg-gray-300 p-3 rounded-lg border border-gray-400">
+                  <div key={d.id} className="flex justify-between items-center bg-gray-300 p-3 rounded-lg border border-gray-400 shadow-sm">
                     <div className="font-bold text-gray-900">{d.name} <span className="text-xs font-normal block text-gray-600">Under: {getSupervisorName(d.supervisor_id)}</span></div>
                     {activeTrip ? <div className="text-xs font-bold text-orange-600 bg-orange-200 px-3 py-1 rounded-full">Busy (#{activeTrip.id})</div> : <div className="text-xs font-bold text-emerald-600 bg-emerald-200 px-3 py-1 rounded-full">Available</div>}
                   </div>
@@ -333,7 +333,7 @@ export default function AdminPanel() {
               })}
             </div>
           </div>
-          <div className="bg-gray-200 p-6 rounded-2xl shadow-xl border border-gray-400">
+          <div className="bg-gray-200/95 p-6 rounded-2xl shadow-xl border border-gray-400">
             <h3 className="text-xl font-bold border-b border-gray-400 pb-2 mb-4 text-sky-800">🚛 Vehicle Status & EMI</h3>
             <div className="space-y-3 max-h-[60vh] overflow-y-auto">
               {vehicles.map(v => {
@@ -341,7 +341,7 @@ export default function AdminPanel() {
                 const recovered = trips.filter(t => t.vehicle_number === v.vehicle_number && t.vehicle_cost_type === 'Own Company').reduce((s, t) => s + (t.vehicle_cost || 0), 0);
                 const left = Math.max(0, v.emi - recovered);
                 return (
-                  <div key={v.id} className="flex flex-col bg-gray-300 p-3 rounded-lg border border-gray-400">
+                  <div key={v.id} className="flex flex-col bg-gray-300 p-3 rounded-lg border border-gray-400 shadow-sm">
                     <div className="flex justify-between items-center mb-2">
                         <div className="font-bold text-gray-900">{v.vehicle_number} <span className="text-xs font-normal text-gray-600 block">{v.ownership_type}</span></div>
                         {activeTrip ? <div className="text-xs font-bold text-orange-600 bg-orange-200 px-3 py-1 rounded-full">Busy (#{activeTrip.id})</div> : <div className="text-xs font-bold text-emerald-600 bg-emerald-200 px-3 py-1 rounded-full">Available</div>}
@@ -362,12 +362,12 @@ export default function AdminPanel() {
       )}
 
       {activeTab === 'approvals' && (
-        <div className="bg-gray-200 rounded-2xl shadow-xl border border-gray-400 overflow-x-auto">
+        <div className="bg-gray-200/95 rounded-2xl shadow-xl border border-gray-400 overflow-x-auto">
           <table className="min-w-full text-left text-sm whitespace-nowrap">
             <thead className="bg-gray-300 border-b border-gray-400"><tr><th className="p-4 text-gray-800">ID</th><th className="p-4 text-gray-800">Personnel</th><th className="p-4 text-gray-800">Assigned Vehicle</th><th className="p-4 text-gray-800">Status</th><th className="p-4 text-gray-800">Action</th></tr></thead>
             <tbody>
               {trips.filter(t => t.status === 'Pending Approval').map(trip => (
-                <tr key={trip.id} className="border-b border-gray-400">
+                <tr key={trip.id} className="border-b border-gray-400 hover:bg-gray-300/50">
                   <td className="p-4 font-bold text-gray-900">#{trip.id}</td>
                   <td className="p-4"><span className="font-bold text-gray-900 block">D: {getDriverName(trip.driver_id)}</span><span className="text-gray-600 text-xs">S: {getSupervisorName(trip.supervisor_id)}</span></td>
                   <td className="p-4 font-bold text-sky-600">{trip.vehicle_number}</td>
@@ -382,7 +382,7 @@ export default function AdminPanel() {
       )}
 
       {activeTab === 'trips' && (
-        <div className="bg-gray-200 p-6 rounded-2xl shadow-xl border border-gray-400 overflow-x-auto">
+        <div className="bg-gray-200/95 p-6 rounded-2xl shadow-xl border border-gray-400 overflow-x-auto">
           <div className="flex flex-wrap gap-4 mb-4 bg-gray-300 p-4 rounded-xl border border-gray-400 items-end shadow-inner">
              <div className="flex-1 min-w-[200px]"><InputField type="date" label="Filter Start Date" value={startDate} onChange={e=>setStartDate(e.target.value)} /></div>
              <div className="flex-1 min-w-[200px]"><InputField type="date" label="Filter End Date" value={endDate} onChange={e=>setEndDate(e.target.value)} /></div>
@@ -395,7 +395,7 @@ export default function AdminPanel() {
             </thead>
             <tbody>
               {trips.filter(t => t.status !== 'Pending Approval').map(trip => (
-                <tr key={trip.id} className="border-b border-gray-400">
+                <tr key={trip.id} className="border-b border-gray-400 hover:bg-gray-300/50">
                   <td className="p-4 font-bold text-gray-900">#{trip.id}</td>
                   <td className="p-4 font-semibold text-gray-700">{trip.date}</td>
                   <td className="p-4">
@@ -434,8 +434,8 @@ export default function AdminPanel() {
       )}
 
       {billingTrip && (
-        <div className="fixed inset-0 bg-gray-900/60 flex items-center justify-center p-4 z-50">
-          <div className="bg-gray-200 p-8 rounded-3xl w-full max-w-5xl max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 bg-gray-900/60 backdrop-blur-sm z-50 flex overflow-y-auto p-4 sm:p-8">
+          <div className="bg-gray-200 p-8 rounded-3xl w-full max-w-5xl m-auto shadow-2xl border border-gray-400 relative">
             <h3 className="text-2xl font-bold mb-6 text-gray-900">Financial Reconciliation (#{billingTrip.id})</h3>
             
             <div className="bg-gray-300 p-5 rounded-2xl border border-gray-400 mb-6 grid grid-cols-2 md:grid-cols-4 gap-4 text-sm shadow-inner">
@@ -479,16 +479,16 @@ export default function AdminPanel() {
                  const currentLiveProfit = (Number(billData.b2c_billing)||0) - currentLiveCost;
                  return (
                     <div className="flex flex-col md:flex-row gap-4 border-t border-gray-400 pt-6 mt-6">
-                      <div className="flex-1 bg-gray-300 p-4 rounded-xl text-center"><div className="text-xs font-bold text-gray-700">TOTAL EXPENSES</div><div className="text-2xl font-black text-orange-600">₹{currentLiveCost}</div></div>
-                      <div className="flex-1 bg-gray-300 p-4 rounded-xl text-center"><div className="text-xs font-bold text-gray-700">B2C REVENUE</div><div className="text-2xl font-black text-indigo-600">₹{Number(billData.b2c_billing) || 0}</div></div>
-                      <div className={`flex-1 p-4 rounded-xl text-center ${currentLiveProfit >= 0 ? 'bg-emerald-200' : 'bg-orange-200'}`}><div className={`text-xs font-bold ${currentLiveProfit >= 0 ? 'text-emerald-700' : 'text-orange-700'}`}>PROFIT</div><div className={`text-2xl font-black ${currentLiveProfit >= 0 ? 'text-emerald-800' : 'text-orange-800'}`}>₹{currentLiveProfit}</div></div>
+                      <div className="flex-1 bg-gray-300 p-4 rounded-xl text-center shadow-inner"><div className="text-xs font-bold text-gray-700">TOTAL EXPENSES</div><div className="text-2xl font-black text-orange-600">₹{currentLiveCost}</div></div>
+                      <div className="flex-1 bg-gray-300 p-4 rounded-xl text-center shadow-inner"><div className="text-xs font-bold text-gray-700">B2C REVENUE</div><div className="text-2xl font-black text-indigo-600">₹{Number(billData.b2c_billing) || 0}</div></div>
+                      <div className={`flex-1 p-4 rounded-xl text-center shadow-sm border ${currentLiveProfit >= 0 ? 'bg-emerald-200 border-emerald-300' : 'bg-orange-200 border-orange-300'}`}><div className={`text-xs font-bold ${currentLiveProfit >= 0 ? 'text-emerald-700' : 'text-orange-700'}`}>PROFIT</div><div className={`text-2xl font-black ${currentLiveProfit >= 0 ? 'text-emerald-800' : 'text-orange-800'}`}>₹{currentLiveProfit}</div></div>
                     </div>
                  );
               })()}
               
               <div className="flex gap-4 mt-6">
-                <button type="button" onClick={() => setBillingTrip(null)} className="flex-1 bg-gray-300 py-4 rounded-xl font-bold text-gray-800">Cancel</button>
-                <button type="submit" className="flex-1 bg-emerald-600 text-gray-200 py-4 rounded-xl font-bold">Finalize Bill</button>
+                <button type="button" onClick={() => setBillingTrip(null)} className="flex-1 bg-gray-300 py-4 rounded-xl font-bold text-gray-800 hover:bg-gray-400 shadow-sm">Cancel</button>
+                <button type="submit" className="flex-1 bg-emerald-600 text-gray-200 py-4 rounded-xl font-bold hover:bg-emerald-700 shadow-md">Finalize Bill</button>
               </div>
             </form>
           </div>
@@ -496,8 +496,8 @@ export default function AdminPanel() {
       )}
 
       {viewingTrip && (
-        <div className="fixed inset-0 bg-gray-900/60 flex items-center justify-center p-4 z-50">
-          <div className="bg-gray-200 p-8 rounded-3xl w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 bg-gray-900/60 backdrop-blur-sm z-50 flex overflow-y-auto p-4 sm:p-8">
+          <div className="bg-gray-200 p-8 rounded-3xl w-full max-w-4xl m-auto shadow-2xl border border-gray-400 relative">
             <div className="flex justify-between items-center mb-6"><h3 className="text-2xl font-bold text-gray-900">Complete Trip Log (#{viewingTrip.id})</h3><button onClick={() => setViewingTrip(null)} className="text-gray-500 font-bold bg-gray-300 p-2 rounded-full hover:bg-gray-400">✕</button></div>
             <h4 className="font-bold border-b border-gray-400 pb-1 mb-4 text-gray-700">Supervisor & Driver Inputs</h4>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
@@ -535,9 +535,9 @@ export default function AdminPanel() {
             
             {viewingTrip.status === 'Billed / Completed' && (
                 <div className="mt-6 flex flex-col md:flex-row gap-4">
-                  <div className="flex-1 bg-gray-300 p-4 rounded-xl border border-gray-400 text-center"><div className="text-sm font-bold text-gray-700">TOTAL EXPENSES</div><div className="text-3xl font-black text-orange-600">₹{viewingTrip.total_running_cost}</div></div>
-                  <div className="flex-1 bg-indigo-100 p-4 rounded-xl border border-indigo-200 text-center"><div className="text-sm font-bold text-indigo-700">B2C REVENUE</div><div className="text-3xl font-black text-indigo-800">₹{viewingTrip.b2c_billing}</div></div>
-                  <div className="flex-1 bg-emerald-100 p-4 rounded-xl border border-emerald-200 text-center"><div className="text-sm font-bold text-emerald-700">NET PROFIT</div><div className="text-3xl font-black text-emerald-800">₹{viewingTrip.profit}</div></div>
+                  <div className="flex-1 bg-gray-300 p-4 rounded-xl border border-gray-400 text-center shadow-inner"><div className="text-sm font-bold text-gray-700">TOTAL EXPENSES</div><div className="text-3xl font-black text-orange-600">₹{viewingTrip.total_running_cost}</div></div>
+                  <div className="flex-1 bg-indigo-100 p-4 rounded-xl border border-indigo-200 text-center shadow-inner"><div className="text-sm font-bold text-indigo-700">B2C REVENUE</div><div className="text-3xl font-black text-indigo-800">₹{viewingTrip.b2c_billing}</div></div>
+                  <div className="flex-1 bg-emerald-100 p-4 rounded-xl border border-emerald-200 text-center shadow-inner"><div className="text-sm font-bold text-emerald-700">NET PROFIT</div><div className="text-3xl font-black text-emerald-800">₹{viewingTrip.profit}</div></div>
                 </div>
             )}
           </div>
@@ -545,8 +545,8 @@ export default function AdminPanel() {
       )}
 
       {editDetailsTrip && (
-        <div className="fixed inset-0 bg-gray-900/60 flex items-center justify-center p-4 z-50">
-          <div className="bg-gray-200 p-8 rounded-3xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 bg-gray-900/60 backdrop-blur-sm z-50 flex overflow-y-auto p-4 sm:p-8">
+          <div className="bg-gray-200 p-8 rounded-3xl w-full max-w-2xl m-auto shadow-2xl border border-gray-400 relative">
             <h3 className="text-2xl font-bold mb-6 text-gray-900">Admin Override: Trip #{editDetailsTrip.id}</h3>
             <form onSubmit={handleEditDetailsSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <SelectField label="Vehicle Type" value={editDetailsData.vehicle_type} onChange={e => setEditDetailsData({...editDetailsData, vehicle_type: e.target.value})} options={vehicleTypes} />
@@ -563,8 +563,8 @@ export default function AdminPanel() {
               <InputField label="POD Link" value={editDetailsData.pod_link} onChange={e => setEditDetailsData({...editDetailsData, pod_link: e.target.value})} placeholder="https://..." />
               
               <div className="col-span-1 md:col-span-2 flex gap-4 mt-6">
-                <button type="button" onClick={() => setEditDetailsTrip(null)} className="flex-1 bg-gray-300 py-3 rounded-xl font-bold text-gray-800 hover:bg-gray-400">Cancel</button>
-                <button type="submit" className="flex-1 bg-amber-500 text-gray-200 py-3 rounded-xl font-bold hover:bg-amber-600">Override Details</button>
+                <button type="button" onClick={() => setEditDetailsTrip(null)} className="flex-1 bg-gray-300 py-3 rounded-xl font-bold text-gray-800 hover:bg-gray-400 shadow-sm">Cancel</button>
+                <button type="submit" className="flex-1 bg-amber-500 text-gray-200 py-3 rounded-xl font-bold hover:bg-amber-600 shadow-md">Override Details</button>
               </div>
             </form>
           </div>
@@ -572,7 +572,7 @@ export default function AdminPanel() {
       )}
 
       {activeTab === 'supervisors' && (
-        <div className="bg-gray-200 p-8 rounded-2xl shadow-xl border border-gray-400">
+        <div className="bg-gray-200/95 p-8 rounded-2xl shadow-xl border border-gray-400">
           <div className="flex justify-between items-center mb-6">
               <h3 className="text-xl font-bold text-gray-900">Supervisors & Wallets</h3>
               <form onSubmit={handleCreateSupervisor} className="flex gap-2">
@@ -600,8 +600,8 @@ export default function AdminPanel() {
       )}
 
       {walletSup && (
-        <div className="fixed inset-0 bg-gray-900/60 flex items-center justify-center p-4 z-50">
-          <div className="bg-gray-200 p-8 rounded-3xl w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 bg-gray-900/60 backdrop-blur-sm z-50 flex overflow-y-auto p-4 sm:p-8">
+          <div className="bg-gray-200 p-8 rounded-3xl w-full max-w-4xl m-auto shadow-2xl border border-gray-400 relative">
             <div className="flex justify-between items-center mb-6">
                 <h3 className="text-2xl font-bold text-gray-900">Wallet: {walletSup.name}</h3>
                 <button onClick={() => setWalletSup(null)} className="text-gray-500 font-bold bg-gray-300 p-2 rounded-full hover:bg-gray-400">✕</button>
@@ -662,7 +662,7 @@ export default function AdminPanel() {
       )}
 
       {activeTab === 'clients' && (
-        <div className="bg-gray-200 p-8 rounded-2xl shadow-xl max-w-lg border border-gray-400">
+        <div className="bg-gray-200/95 p-8 rounded-2xl shadow-xl max-w-lg border border-gray-400">
           <h3 className="text-xl font-bold mb-4 text-gray-900">Manage Clients</h3>
           <form onSubmit={handleAddClient} className="flex gap-4 mb-6">
             <input type="text" value={clientName} onChange={e => setClientName(e.target.value)} required placeholder="Add Client Name..." className="flex-1 bg-gray-300 border border-gray-400 text-gray-900 rounded-xl p-3 outline-none" />
@@ -677,7 +677,7 @@ export default function AdminPanel() {
       )}
 
       {activeTab === 'vendors' && (
-        <div className="bg-gray-200 p-8 rounded-2xl shadow-xl max-w-lg border border-gray-400">
+        <div className="bg-gray-200/95 p-8 rounded-2xl shadow-xl max-w-lg border border-gray-400">
           <h3 className="text-xl font-bold mb-4 text-gray-900">Manage Vendors</h3>
           <form onSubmit={handleAddVendor} className="flex gap-4 mb-6">
             <input type="text" value={vendorName} onChange={e => setVendorName(e.target.value)} required placeholder="Add Vendor Name..." className="flex-1 bg-gray-300 border border-gray-400 text-gray-900 rounded-xl p-3 outline-none" />
@@ -692,7 +692,7 @@ export default function AdminPanel() {
       )}
 
       {activeTab === 'vehicles' && (
-        <div className="bg-gray-200 p-8 rounded-2xl shadow-xl max-w-lg border border-gray-400">
+        <div className="bg-gray-200/95 p-8 rounded-2xl shadow-xl max-w-lg border border-gray-400">
           <h3 className="text-xl font-bold mb-4 text-gray-900">Register New Vehicle</h3>
           <form onSubmit={handleAddVehicle} className="flex flex-col gap-4 mb-6">
             <InputField label="Vehicle Number (No Spaces)" value={vehicleForm.vehicle_number} onChange={e => setVehicleForm({...vehicleForm, vehicle_number: e.target.value.replace(/\s+/g, '').toUpperCase()})} uppercase />
@@ -700,17 +700,17 @@ export default function AdminPanel() {
             {vehicleForm.ownership_type === 'Own Company' && (
               <InputField label="Monthly EMI (₹)" type="number" value={vehicleForm.emi} onChange={e => setVehicleForm({...vehicleForm, emi: e.target.value})} />
             )}
-            <button type="submit" className="bg-sky-600 text-gray-200 py-3 rounded-xl font-bold hover:bg-sky-700">Add Vehicle</button>
+            <button type="submit" className="bg-sky-600 text-gray-200 py-3 rounded-xl font-bold hover:bg-sky-700 shadow-md">Add Vehicle</button>
           </form>
           <h4 className="text-sm font-bold text-gray-600 uppercase tracking-wider border-b border-gray-400 pb-2 mb-4">Approved Vehicles</h4>
           <div className="grid grid-cols-1 gap-2">
             {vehicles.map(v => (
-              <div key={v.id} className="bg-gray-300 p-3 rounded-lg border border-gray-400 text-sm flex items-center justify-between">
+              <div key={v.id} className="bg-gray-300 p-3 rounded-lg border border-gray-400 text-sm flex items-center justify-between shadow-sm">
                 <div>
                   <div className="font-bold text-gray-900 flex items-center gap-2"><span className="w-2 h-2 rounded-full bg-emerald-500"></span>{v.vehicle_number}</div>
                   <div className="text-xs text-gray-600 mt-1">{v.ownership_type} {v.ownership_type === 'Own Company' ? `(EMI: ₹${v.emi})` : ''}</div>
                 </div>
-                <button onClick={() => handleDeleteVehicle(v.id)} className="text-orange-600 hover:text-orange-800 font-bold px-2 py-1 bg-orange-200 rounded text-xs">Delete</button>
+                <button onClick={() => handleDeleteVehicle(v.id)} className="text-orange-600 hover:text-orange-800 font-bold px-2 py-1 bg-orange-200 rounded text-xs border border-orange-300">Delete</button>
               </div>
             ))}
           </div>
