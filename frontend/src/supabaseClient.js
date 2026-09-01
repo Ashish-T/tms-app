@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 
-const supabaseUrl = 'https://[YOUR-PROJECT-ID].supabase.co';
-const supabaseAnonKey = 'eyJhbG...[YOUR-ANON-KEY]...';
+// Ensure the URL starts with https:// and has no brackets
+const supabaseUrl = 'https://hsirbelsywximwapqktq.supabase.co'; 
+const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...'; 
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
