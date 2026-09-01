@@ -16,7 +16,6 @@ export default function SupervisorPanel() {
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
 
-  const [walletSup, setWalletSup] = useState(null);
   const [wallet, setWallet] = useState({ total_funded: 0, total_trip_expenses: 0, total_misc_expenses: 0, current_balance: 0 });
   const [miscExpenses, setMiscExpenses] = useState([]);
   const [funds, setFunds] = useState([]);
@@ -87,9 +86,9 @@ export default function SupervisorPanel() {
     const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
 
     try {
+      // Removed upsert completely to bypass 400 bad request logic with policies
       const { data, error: uploadError } = await supabase.storage.from('pods').upload(fileName, file, {
-        cacheControl: '3600',
-        upsert: false
+        cacheControl: '3600'
       });
 
       if (uploadError) {
@@ -101,7 +100,7 @@ export default function SupervisorPanel() {
       setReviewData({ ...reviewData, pod_link: publicUrlData.publicUrl });
       
     } catch (error) {
-      alert(`SUPABASE UPLOAD REJECTED:\n\n${error.message}\n\nPlease check your Supabase bucket name and policies.`);
+      alert(`SUPABASE UPLOAD REJECTED:\n\n${error.message}\n\nPlease verify your Supabase Policy allows 'INSERT' and targets 'public' AND 'anon'.`);
     } finally {
       setUploading(false);
     }
@@ -288,12 +287,14 @@ export default function SupervisorPanel() {
                       <div className="flex gap-2 flex-wrap">
                         {['Waiting for Driver'].includes(trip.status) && (<button onClick={() => { setShuffleTrip(trip); setShuffleVehicle(''); }} className="bg-amber-200 text-amber-800 px-3 py-1.5 rounded-lg font-bold hover:bg-amber-300 text-xs shadow-sm">Shuffle Vehicle</button>)}
                         
+                        {/* RESTORED EXPLICIT "Expenses" BUTTON NAME */}
                         {['Waiting for Driver', 'Reported', 'Trip Started', 'Completed', 'Submitted for Review'].includes(trip.status) && (
-                           <button onClick={() => openExpenses(trip)} className="bg-orange-200 text-orange-800 px-3 py-1.5 rounded-lg font-bold hover:bg-orange-300 text-xs shadow-sm">Expenses & Advance</button>
+                           <button onClick={() => openExpenses(trip)} className="bg-orange-200 text-orange-800 px-3 py-1.5 rounded-lg font-bold hover:bg-orange-300 text-xs shadow-sm">Expenses</button>
                         )}
 
+                        {/* RESTORED EXPLICIT "Review Details" BUTTON NAME */}
                         {!['Pending Approval', 'Pending for Admin Final Review', 'Billed / Completed'].includes(trip.status) && (
-                           <button onClick={() => { setReviewTrip(trip); setReviewData({ vehicle_type: trip.vehicle_type || '', vehicle_mode: trip.vehicle_mode || '', body_type: trip.body_type || '', vendor_name: trip.vendor_name || '', helper_name: trip.helper_name || '', client_name: trip.client_name || '', source: trip.source || '', destination: trip.destination || '', vehicle_sourced_from: trip.vehicle_sourced_from || '', pod_link: trip.pod_link || '' }); }} className="bg-sky-200 text-sky-800 px-3 py-1.5 rounded-lg font-bold hover:bg-sky-300 text-xs shadow-sm">Review & Upload POD</button>
+                           <button onClick={() => { setReviewTrip(trip); setReviewData({ vehicle_type: trip.vehicle_type || '', vehicle_mode: trip.vehicle_mode || '', body_type: trip.body_type || '', vendor_name: trip.vendor_name || '', helper_name: trip.helper_name || '', client_name: trip.client_name || '', source: trip.source || '', destination: trip.destination || '', vehicle_sourced_from: trip.vehicle_sourced_from || '', pod_link: trip.pod_link || '' }); }} className="bg-sky-200 text-sky-800 px-3 py-1.5 rounded-lg font-bold hover:bg-sky-300 text-xs shadow-sm">Review Details</button>
                         )}
                         
                         {['Pending for Admin Final Review', 'Billed / Completed'].includes(trip.status) && (<button onClick={() => setViewingTrip(trip)} className="bg-gray-400 text-gray-800 px-3 py-1.5 rounded-lg font-bold hover:bg-gray-500 text-xs shadow-sm">Details</button>)}
@@ -348,13 +349,13 @@ export default function SupervisorPanel() {
       </div>
 
       {/* ========================================================================================= */}
-      {/* ALL MODALS NOW LIVE OUTSIDE THE MAIN CONTAINER SO THEY CAN BREAK FREE AND COVER THE SCREEN */}
+      {/* ALL MODALS PLACED OUTSIDE THE BLURRED CONTAINER TO PREVENT TRAPPING & RESTORE FULL SCROLL */}
       {/* ========================================================================================= */}
 
       {expenseTrip && (
         <div className="fixed inset-0 z-[100] bg-gray-900/80 backdrop-blur-sm overflow-y-auto">
           <div className="flex min-h-full items-center justify-center p-4 py-10">
-            <div className="bg-gray-200 p-6 md:p-10 rounded-3xl w-full max-w-4xl shadow-2xl border border-gray-400">
+            <div className="bg-gray-200 p-6 md:p-10 rounded-3xl w-full max-w-4xl shadow-2xl border border-gray-400 relative">
               <h3 className="text-2xl font-bold mb-6 text-gray-900">Log Expenses & Driver Advance (#{expenseTrip.id})</h3>
               <div className="flex space-x-2 mb-6 bg-gray-300 p-1.5 rounded-xl border border-gray-400 shadow-inner">
                 <button onClick={() => setExpTab('expenses')} className={`flex-1 py-2 rounded-lg font-bold transition-all ${expTab === 'expenses' ? 'bg-gray-200 text-orange-600 shadow-sm border border-gray-400' : 'text-gray-600 hover:bg-gray-400/50'}`}>Vehicle & Driver Costs</button>
@@ -393,9 +394,10 @@ export default function SupervisorPanel() {
                   </div>
                 )}
                 <div className="flex gap-4 mt-8">
-                  <button type="button" onClick={() => setExpenseTrip(null)} className="flex-1 bg-gray-300 text-gray-800 py-4 rounded-xl font-bold hover:bg-gray-400 shadow-sm">Cancel</button>
+                  <button type="button" onClick={() => setExpenseTrip(null)} className="flex-1 bg-gray-300 py-4 rounded-xl font-bold text-gray-700 hover:bg-gray-400 shadow-sm">Cancel</button>
                   <button type="submit" className="flex-1 bg-sky-600 text-gray-200 py-4 rounded-xl font-bold hover:bg-sky-700 shadow-md">
-                    {['Completed', 'Submitted for Review'].includes(expenseTrip.status) ? "Submit to Admin for Billing" : "Save Expenses (Trip Running)"}
+                    {/* RESTORED EXPLICIT SUBMIT TEXT */}
+                    {['Completed', 'Submitted for Review'].includes(expenseTrip.status) ? "Submit to Admin Billing" : "Save Expenses (Trip Running)"}
                   </button>
                 </div>
               </form>
@@ -407,7 +409,7 @@ export default function SupervisorPanel() {
       {reviewTrip && (
         <div className="fixed inset-0 z-[100] bg-gray-900/80 backdrop-blur-sm overflow-y-auto">
           <div className="flex min-h-full items-center justify-center p-4 py-10">
-            <div className="bg-gray-200 p-6 md:p-10 rounded-3xl w-full max-w-4xl shadow-2xl border border-gray-400">
+            <div className="bg-gray-200 p-6 md:p-10 rounded-3xl w-full max-w-4xl shadow-2xl border border-gray-400 relative">
               <h3 className="text-2xl font-bold mb-6 text-gray-900">Review & Upload POD (#{reviewTrip.id})</h3>
               <form onSubmit={handleReviewSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <SelectField label="Vehicle Type" value={reviewData.vehicle_type} onChange={e => setReviewData({...reviewData, vehicle_type: e.target.value})} options={vehicleTypes} />
@@ -438,7 +440,8 @@ export default function SupervisorPanel() {
                 <div className="col-span-1 md:col-span-2 flex gap-4 mt-8">
                   <button type="button" onClick={() => setReviewTrip(null)} className="flex-1 bg-gray-300 py-4 rounded-xl font-bold text-gray-700 hover:bg-gray-400 shadow-sm">Cancel</button>
                   <button type="submit" disabled={uploading} className="flex-1 bg-sky-600 text-gray-200 py-4 rounded-xl font-bold disabled:opacity-50 hover:bg-sky-700 shadow-md">
-                    {['Completed'].includes(reviewTrip.status) ? "Submit Details for Review" : "Save Details (Trip Running)"}
+                    {/* RESTORED EXPLICIT SUBMIT TEXT */}
+                    {['Completed'].includes(reviewTrip.status) ? "Submit Details to Admin" : "Save Details (Trip Running)"}
                   </button>
                 </div>
               </form>
@@ -450,7 +453,7 @@ export default function SupervisorPanel() {
       {shuffleTrip && (
         <div className="fixed inset-0 z-[100] bg-gray-900/80 backdrop-blur-sm overflow-y-auto">
           <div className="flex min-h-full items-center justify-center p-4 py-10">
-            <div className="bg-gray-200 p-8 rounded-3xl w-full max-w-lg shadow-2xl border border-gray-400">
+            <div className="bg-gray-200 p-8 rounded-3xl w-full max-w-lg shadow-2xl border border-gray-400 relative">
               <h3 className="text-2xl font-bold mb-6 text-gray-900">Change Vehicle for #{shuffleTrip.id}</h3>
               <form onSubmit={handleShuffle}>
                 <div className="flex flex-col space-y-1.5 mb-6">
@@ -470,7 +473,7 @@ export default function SupervisorPanel() {
       {viewingTrip && (
         <div className="fixed inset-0 z-[100] bg-gray-900/80 backdrop-blur-sm overflow-y-auto">
           <div className="flex min-h-full items-center justify-center p-4 py-10">
-            <div className="bg-gray-200 p-8 rounded-3xl w-full max-w-4xl shadow-2xl border border-gray-400">
+            <div className="bg-gray-200 p-8 rounded-3xl w-full max-w-4xl shadow-2xl border border-gray-400 relative">
               <div className="flex justify-between items-center mb-6"><h3 className="text-2xl font-bold text-gray-900">Details (#{viewingTrip.id})</h3><button onClick={() => setViewingTrip(null)} className="text-gray-500 font-bold bg-gray-300 p-2 rounded-full hover:bg-gray-400">✕</button></div>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <DetailItem label="Vehicle" value={viewingTrip.vehicle_number} />
@@ -497,7 +500,7 @@ export default function SupervisorPanel() {
       {endingTrip && (
         <div className="fixed inset-0 z-[100] bg-gray-900/80 backdrop-blur-sm overflow-y-auto">
           <div className="flex min-h-full items-center justify-center p-4 py-10">
-            <div className="bg-gray-200 p-8 rounded-3xl w-full max-w-sm shadow-2xl border border-gray-400">
+            <div className="bg-gray-200 p-8 rounded-3xl w-full max-w-sm shadow-2xl border border-gray-400 relative">
               <h3 className="text-2xl font-bold mb-6 text-gray-900">Log Arrival (#{endingTrip.id})</h3>
               <div className="mb-4 text-sm font-semibold text-gray-700 bg-gray-300 p-3 rounded-lg border border-gray-400 shadow-inner">Started at: <span className="text-sky-600 text-lg">{endingTrip.out_km} KM</span></div>
               <form onSubmit={handleEndTrip} className="space-y-4">
