@@ -68,13 +68,18 @@ def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depend
 @app.get("/users/me", response_model=schemas.UserResponse)
 def get_me(current_user: models.User = Depends(get_current_user)): return current_user
 
-@app.patch("/users/me/password")
-def update_password(data: schemas.PasswordUpdate, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
-    if not pwd_context.verify(data.current_password, current_user.password):
-        raise HTTPException(status_code=400, detail="Incorrect current password")
-    current_user.password = pwd_context.hash(data.new_password)
+@app.patch("/users/{user_id}/admin_password")
+def admin_reset_password(user_id: int, data: schemas.PasswordUpdate, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
+    if current_user.role != "admin": 
+        raise HTTPException(status_code=403, detail="Only the Master Admin can change passwords for other users.")
+    
+    target_user = db.query(models.User.id == user_id).first()
+    if not target_user:
+        raise HTTPException(status_code=404, detail="User not found.")
+        
+    target_user.password = pwd_context.hash(data.new_password)
     db.commit()
-    return {"msg": "Password updated successfully"}
+    return {"msg": "Password updated successfully by admin"}
 
 @app.get("/users/all", response_model=List[schemas.UserResponse])
 def get_all_users(db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
@@ -201,11 +206,14 @@ def supervisor_expenses(trip_id: int, expenses: schemas.TripFinancialsUpdate, db
     db_trip = db.query(models.TripLog).filter(models.TripLog.id == trip_id).first()
     if not db_trip: raise HTTPException(status_code=404, detail="Trip not found")
     
-    for key, value in expenses.model_dump().items(): setattr(db_trip, key, value)
+    # PRESERVE '0' VALUES EXPLICITLY
+    for key, value in expenses.model_dump().items():
+        if value is not None:
+            setattr(db_trip, key, value)
     
-    fuel_cost = expenses.fuel_litres * expenses.fuel_price
-    db_trip.total_running_cost = fuel_cost + expenses.toll_charges + expenses.other_expenses + expenses.driver_cost + expenses.overtime_allowance + expenses.vehicle_cost
-    db_trip.profit = expenses.b2c_billing - db_trip.total_running_cost
+    fuel_cost = (db_trip.fuel_litres or 0) * (db_trip.fuel_price or 0)
+    db_trip.total_running_cost = fuel_cost + (db_trip.toll_charges or 0) + (db_trip.other_expenses or 0) + (db_trip.driver_cost or 0) + (db_trip.overtime_allowance or 0) + (db_trip.vehicle_cost or 0)
+    db_trip.profit = (db_trip.b2c_billing or 0) - db_trip.total_running_cost
     
     if db_trip.status in ["Completed", "Submitted for Review"]:
         db_trip.status = "Pending for Admin Final Review"
@@ -220,11 +228,14 @@ def admin_finalize(trip_id: int, billing: schemas.TripFinancialsUpdate, db: Sess
     db_trip = db.query(models.TripLog).filter(models.TripLog.id == trip_id).first()
     if not db_trip: raise HTTPException(status_code=404, detail="Trip not found")
     
-    for key, value in billing.model_dump().items(): setattr(db_trip, key, value)
+    # PRESERVE '0' VALUES EXPLICITLY
+    for key, value in billing.model_dump().items():
+        if value is not None:
+            setattr(db_trip, key, value)
     
-    fuel_cost = billing.fuel_litres * billing.fuel_price
-    db_trip.total_running_cost = fuel_cost + billing.toll_charges + billing.other_expenses + billing.driver_cost + billing.overtime_allowance + billing.vehicle_cost
-    db_trip.profit = billing.b2c_billing - db_trip.total_running_cost
+    fuel_cost = (db_trip.fuel_litres or 0) * (db_trip.fuel_price or 0)
+    db_trip.total_running_cost = fuel_cost + (db_trip.toll_charges or 0) + (db_trip.other_expenses or 0) + (db_trip.driver_cost or 0) + (db_trip.overtime_allowance or 0) + (db_trip.vehicle_cost or 0)
+    db_trip.profit = (db_trip.b2c_billing or 0) - db_trip.total_running_cost
     db_trip.status = "Billed / Completed"
     
     db.commit()
