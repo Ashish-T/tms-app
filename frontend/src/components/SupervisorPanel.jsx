@@ -16,6 +16,7 @@ export default function SupervisorPanel() {
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
 
+  const [walletSup, setWalletSup] = useState(null);
   const [wallet, setWallet] = useState({ total_funded: 0, total_trip_expenses: 0, total_misc_expenses: 0, current_balance: 0 });
   const [miscExpenses, setMiscExpenses] = useState([]);
   const [funds, setFunds] = useState([]);
@@ -77,7 +78,6 @@ export default function SupervisorPanel() {
       } catch (err) { alert("Failed to submit."); }
   }
 
-  // --- DEEP ERROR LOGGING UPLOAD FUNCTION ---
   const handleFileUpload = async (event) => {
     const file = event.target.files[0];
     if (!file) return;
@@ -152,166 +152,209 @@ export default function SupervisorPanel() {
   const getDriverName = (driverId) => { const driver = users.find(u => u.id === driverId); return driver ? driver.name : 'Unknown'; };
 
   return (
-    <div className="p-4 md:p-8 max-w-7xl mx-auto backdrop-blur-sm bg-gray-200/90 rounded-3xl shadow-2xl border border-gray-300">
-      <h2 className="text-3xl font-extrabold mb-6 text-gray-900 drop-shadow-sm">Supervisor Dispatch Center</h2>
-      <div className="flex flex-wrap gap-2 mb-6 bg-gray-300/80 p-1.5 rounded-xl inline-flex border border-gray-400/50 shadow-inner">
-        <button onClick={() => setActiveTab('availability')} className={`px-5 py-2.5 rounded-lg font-bold transition-all ${activeTab === 'availability' ? 'bg-gray-200 text-sky-700 shadow-sm border border-gray-300' : 'text-gray-600 hover:bg-gray-300'}`}>Availability Board</button>
-        <button onClick={() => setActiveTab('dispatch')} className={`px-5 py-2.5 rounded-lg font-bold transition-all ${activeTab === 'dispatch' ? 'bg-gray-200 text-sky-700 shadow-sm border border-gray-300' : 'text-gray-600 hover:bg-gray-300'}`}>Dispatch New Trip</button>
-        <button onClick={() => setActiveTab('trips')} className={`px-5 py-2.5 rounded-lg font-bold transition-all ${activeTab === 'trips' ? 'bg-gray-200 text-sky-700 shadow-sm border border-gray-300' : 'text-gray-600 hover:bg-gray-300'}`}>Manage Trips</button>
-        <button onClick={() => setActiveTab('wallet')} className={`px-5 py-2.5 rounded-lg font-bold transition-all ${activeTab === 'wallet' ? 'bg-gray-200 text-emerald-700 shadow-sm border border-gray-300' : 'text-gray-600 hover:bg-gray-300'}`}>My Wallet</button>
-        <button onClick={() => setActiveTab('drivers')} className={`px-5 py-2.5 rounded-lg font-bold transition-all ${activeTab === 'drivers' ? 'bg-gray-200 text-sky-700 shadow-sm border border-gray-300' : 'text-gray-600 hover:bg-gray-300'}`}>Add Driver</button>
-        <button onClick={() => setActiveTab('vehicles')} className={`px-5 py-2.5 rounded-lg font-bold transition-all ${activeTab === 'vehicles' ? 'bg-gray-200 text-sky-700 shadow-sm border border-gray-300' : 'text-gray-600 hover:bg-gray-300'}`}>Manage Vehicles</button>
-      </div>
+    <>
+      <div className="p-4 md:p-8 max-w-7xl mx-auto backdrop-blur-sm bg-gray-200/90 rounded-3xl shadow-2xl border border-gray-300 my-6 relative z-10">
+        <h2 className="text-3xl font-extrabold mb-6 text-gray-900 drop-shadow-sm">Supervisor Dispatch Center</h2>
+        <div className="flex flex-wrap gap-2 mb-6 bg-gray-300/80 p-1.5 rounded-xl inline-flex border border-gray-400/50 shadow-inner">
+          <button onClick={() => setActiveTab('availability')} className={`px-5 py-2.5 rounded-lg font-bold transition-all ${activeTab === 'availability' ? 'bg-gray-200 text-sky-700 shadow-sm border border-gray-300' : 'text-gray-600 hover:bg-gray-300'}`}>Availability Board</button>
+          <button onClick={() => setActiveTab('dispatch')} className={`px-5 py-2.5 rounded-lg font-bold transition-all ${activeTab === 'dispatch' ? 'bg-gray-200 text-sky-700 shadow-sm border border-gray-300' : 'text-gray-600 hover:bg-gray-300'}`}>Dispatch New Trip</button>
+          <button onClick={() => setActiveTab('trips')} className={`px-5 py-2.5 rounded-lg font-bold transition-all ${activeTab === 'trips' ? 'bg-gray-200 text-sky-700 shadow-sm border border-gray-300' : 'text-gray-600 hover:bg-gray-300'}`}>Manage Trips</button>
+          <button onClick={() => setActiveTab('wallet')} className={`px-5 py-2.5 rounded-lg font-bold transition-all ${activeTab === 'wallet' ? 'bg-gray-200 text-emerald-700 shadow-sm border border-gray-300' : 'text-gray-600 hover:bg-gray-300'}`}>My Wallet</button>
+          <button onClick={() => setActiveTab('drivers')} className={`px-5 py-2.5 rounded-lg font-bold transition-all ${activeTab === 'drivers' ? 'bg-gray-200 text-sky-700 shadow-sm border border-gray-300' : 'text-gray-600 hover:bg-gray-300'}`}>Add Driver</button>
+          <button onClick={() => setActiveTab('vehicles')} className={`px-5 py-2.5 rounded-lg font-bold transition-all ${activeTab === 'vehicles' ? 'bg-gray-200 text-sky-700 shadow-sm border border-gray-300' : 'text-gray-600 hover:bg-gray-300'}`}>Manage Vehicles</button>
+        </div>
 
-      {activeTab === 'wallet' && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="bg-gray-200/95 p-8 rounded-2xl shadow-xl border border-gray-400">
-                <h3 className="text-2xl font-black text-emerald-800 mb-6">Current Balance: ₹{wallet.current_balance}</h3>
-                <div className="space-y-4 text-sm font-bold text-gray-700">
-                    <div className="flex justify-between bg-gray-300 p-3 rounded-lg border border-gray-400"><span>Total Funded by Admin:</span><span className="text-indigo-600">₹{wallet.total_funded}</span></div>
-                    <div className="flex justify-between bg-gray-300 p-3 rounded-lg border border-gray-400"><span>Spent on Trip Expenses:</span><span className="text-orange-600">₹{wallet.total_trip_expenses}</span></div>
-                    <div className="flex justify-between bg-gray-300 p-3 rounded-lg border border-gray-400"><span>Spent on Misc Expenses:</span><span className="text-orange-600">₹{wallet.total_misc_expenses}</span></div>
-                </div>
+        {activeTab === 'wallet' && (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="bg-gray-200/95 p-8 rounded-2xl shadow-xl border border-gray-400">
+                  <h3 className="text-2xl font-black text-emerald-800 mb-6">Current Balance: ₹{wallet.current_balance}</h3>
+                  <div className="space-y-4 text-sm font-bold text-gray-700">
+                      <div className="flex justify-between bg-gray-300 p-3 rounded-lg border border-gray-400"><span>Total Funded by Admin:</span><span className="text-indigo-600">₹{wallet.total_funded}</span></div>
+                      <div className="flex justify-between bg-gray-300 p-3 rounded-lg border border-gray-400"><span>Spent on Trip Expenses:</span><span className="text-orange-600">₹{wallet.total_trip_expenses}</span></div>
+                      <div className="flex justify-between bg-gray-300 p-3 rounded-lg border border-gray-400"><span>Spent on Misc Expenses:</span><span className="text-orange-600">₹{wallet.total_misc_expenses}</span></div>
+                  </div>
 
-                <form onSubmit={handleMiscSubmit} className="mt-8 border-t border-gray-400 pt-6 space-y-4">
-                    <h4 className="text-lg font-bold text-gray-900">Raise Misc Expense</h4>
-                    <InputField label="Amount (₹)" type="number" value={newMisc.amount} onChange={e=>setNewMisc({...newMisc, amount: e.target.value})} />
-                    <InputField label="Description" value={newMisc.description} onChange={e=>setNewMisc({...newMisc, description: e.target.value})} placeholder="E.g., Vehicle Repair" />
-                    <button type="submit" className="w-full bg-emerald-600 text-gray-200 font-bold py-3 rounded-xl hover:bg-emerald-700 shadow-md">Submit for Approval</button>
-                </form>
+                  <form onSubmit={handleMiscSubmit} className="mt-8 border-t border-gray-400 pt-6 space-y-4">
+                      <h4 className="text-lg font-bold text-gray-900">Raise Misc Expense</h4>
+                      <InputField label="Amount (₹)" type="number" value={newMisc.amount} onChange={e=>setNewMisc({...newMisc, amount: e.target.value})} />
+                      <InputField label="Description" value={newMisc.description} onChange={e=>setNewMisc({...newMisc, description: e.target.value})} placeholder="E.g., Vehicle Repair" />
+                      <button type="submit" className="w-full bg-emerald-600 text-gray-200 font-bold py-3 rounded-xl hover:bg-emerald-700 shadow-md">Submit for Approval</button>
+                  </form>
+              </div>
+              
+              <div className="bg-gray-200/95 p-8 rounded-2xl shadow-xl border border-gray-400 flex flex-col gap-6">
+                  <div>
+                      <h3 className="text-xl font-bold mb-4 text-gray-900">Funds Received History</h3>
+                      <div className="space-y-2 max-h-[30vh] overflow-y-auto pr-2">
+                          {funds.map(f => (
+                              <div key={f.id} className="bg-indigo-100 p-3 rounded-lg border border-indigo-200 flex justify-between items-center shadow-sm">
+                                  <div>
+                                      <div className="font-bold text-indigo-800 text-lg">₹{f.amount}</div>
+                                      <div className="text-xs font-semibold text-indigo-600">Medium: {f.medium}</div>
+                                  </div>
+                                  <div className="text-xs font-bold text-gray-600">{new Date(f.date).toLocaleString()}</div>
+                              </div>
+                          ))}
+                          {funds.length === 0 && <div className="text-gray-600 italic">No funds received yet.</div>}
+                      </div>
+                  </div>
+
+                  <div>
+                      <h3 className="text-xl font-bold mb-4 border-t border-gray-400 pt-4 text-gray-900">Misc Expenses Log</h3>
+                      <div className="space-y-2 max-h-[30vh] overflow-y-auto pr-2">
+                          {miscExpenses.map(exp => (
+                              <div key={exp.id} className="bg-gray-300 p-3 rounded-lg border border-gray-400 flex justify-between items-center shadow-sm">
+                                  <div>
+                                      <div className="font-bold text-gray-900 text-lg">₹{exp.amount}</div>
+                                      <div className="text-xs text-gray-600">{exp.description} ({exp.date})</div>
+                                  </div>
+                                  <StatusBadge status={exp.status === 'Approved' ? 'Billed / Completed' : exp.status === 'Rejected' ? 'Pending Approval' : 'Waiting for Driver'} />
+                              </div>
+                          ))}
+                          {miscExpenses.length === 0 && <div className="text-gray-600 italic">No misc expenses raised.</div>}
+                      </div>
+                  </div>
+              </div>
+          </div>
+        )}
+
+        {activeTab === 'availability' && (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="bg-gray-200/95 p-6 rounded-2xl shadow-xl border border-gray-400">
+              <h3 className="text-xl font-bold border-b border-gray-400 pb-2 mb-4 text-indigo-800">🧑‍✈️ My Drivers</h3>
+              <div className="space-y-3">
+                {users.filter(u=>u.role==='driver').map(d => {
+                  const activeTrip = trips.find(t => t.driver_id === d.id && activeStatuses.includes(t.status));
+                  return (
+                    <div key={d.id} className="flex justify-between items-center bg-gray-300 p-3 rounded-lg border border-gray-400 shadow-sm">
+                      <div className="font-bold text-gray-900">{d.name}</div>
+                      {activeTrip ? <div className="text-xs font-bold text-orange-600 bg-orange-200 px-3 py-1 rounded-full">Busy (#{activeTrip.id})</div> : <div className="text-xs font-bold text-emerald-600 bg-emerald-200 px-3 py-1 rounded-full">Available</div>}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+            <div className="bg-gray-200/95 p-6 rounded-2xl shadow-xl border border-gray-400">
+              <h3 className="text-xl font-bold border-b border-gray-400 pb-2 mb-4 text-sky-800">🚛 System Vehicles</h3>
+              <div className="space-y-3 max-h-[60vh] overflow-y-auto">
+                {vehicles.map(v => {
+                  const activeTrip = trips.find(t => t.vehicle_number === v.vehicle_number && activeStatuses.includes(t.status));
+                  return (
+                    <div key={v.id} className="flex justify-between items-center bg-gray-300 p-3 rounded-lg border border-gray-400 shadow-sm">
+                      <div className="font-bold text-gray-900">{v.vehicle_number} <span className="text-xs font-normal text-gray-600 block">{v.ownership_type}</span></div>
+                      {activeTrip ? <div className="text-xs font-bold text-orange-600 bg-orange-200 px-3 py-1 rounded-full">Busy (#{activeTrip.id})</div> : <div className="text-xs font-bold text-emerald-600 bg-emerald-200 px-3 py-1 rounded-full">Available</div>}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'dispatch' && (
+          <div className="bg-gray-200/95 p-8 rounded-2xl shadow-xl max-w-2xl border border-gray-400">
+            <h3 className="text-2xl font-bold mb-6 text-gray-900">Create Trip Assignment</h3>
+            <form onSubmit={handleDispatch} className="space-y-5">
+              <SelectField label="Select Driver" value={dispatchData.driver_id} onChange={e => setDispatchData({...dispatchData, driver_id: Number(e.target.value)})} optionObjects={users.filter(u=>u.role==='driver')} />
+              <div className="flex flex-col space-y-1.5">
+                <label className="text-sm font-semibold text-gray-800">Assign Vehicle Number</label>
+                <input list="vehicles-list" required placeholder="Type or select..." value={dispatchData.vehicle_number} onChange={(e) => setDispatchData(prev => ({...prev, vehicle_number: e.target.value.replace(/\s+/g, '').toUpperCase()}))} className="bg-gray-300 border border-gray-400 text-gray-900 rounded-xl focus:ring-4 focus:ring-sky-500/20 block w-full p-3 outline-none shadow-inner" />
+                <datalist id="vehicles-list">{vehicles.map((v, i) => <option key={i} value={v.vehicle_number} />)}</datalist>
+              </div>
+              <InputField label="Trip Date" type="date" value={dispatchData.date} onChange={e => setDispatchData({...dispatchData, date: e.target.value})} />
+              <button type="submit" className="w-full bg-sky-600 text-gray-200 py-4 rounded-xl font-bold mt-4 shadow-md hover:bg-sky-700">Dispatch to Driver</button>
+            </form>
+          </div>
+        )}
+
+        {activeTab === 'trips' && (
+          <div className="bg-gray-200/95 p-6 rounded-2xl shadow-xl border border-gray-400 overflow-x-auto">
+            <div className="flex flex-wrap gap-4 mb-4 bg-gray-300 p-4 rounded-xl border border-gray-400 items-end shadow-inner">
+               <div className="flex-1 min-w-[200px]"><InputField type="date" label="Filter Start Date" value={startDate} onChange={e=>setStartDate(e.target.value)} /></div>
+               <div className="flex-1 min-w-[200px]"><InputField type="date" label="Filter End Date" value={endDate} onChange={e=>setEndDate(e.target.value)} /></div>
+               <button onClick={() => {setStartDate(''); setEndDate('');}} className="bg-gray-400 text-gray-800 px-4 py-3 rounded-xl font-bold border border-gray-500 hover:bg-gray-500 shadow-sm">Clear</button>
             </div>
             
-            <div className="bg-gray-200/95 p-8 rounded-2xl shadow-xl border border-gray-400 flex flex-col gap-6">
-                <div>
-                    <h3 className="text-xl font-bold mb-4 text-gray-900">Funds Received History</h3>
-                    <div className="space-y-2 max-h-[30vh] overflow-y-auto pr-2">
-                        {funds.map(f => (
-                            <div key={f.id} className="bg-indigo-100 p-3 rounded-lg border border-indigo-200 flex justify-between items-center shadow-sm">
-                                <div>
-                                    <div className="font-bold text-indigo-800 text-lg">₹{f.amount}</div>
-                                    <div className="text-xs font-semibold text-indigo-600">Medium: {f.medium}</div>
-                                </div>
-                                <div className="text-xs font-bold text-gray-600">{new Date(f.date).toLocaleString()}</div>
-                            </div>
-                        ))}
-                        {funds.length === 0 && <div className="text-gray-600 italic">No funds received yet.</div>}
-                    </div>
-                </div>
+            <table className="min-w-full text-left text-sm whitespace-nowrap">
+              <thead className="bg-gray-300 border-b border-gray-400"><tr><th className="p-4 text-gray-800">ID / Date</th><th className="p-4 text-gray-800">Driver</th><th className="p-4 text-gray-800">Vehicle</th><th className="p-4 text-gray-800">Status</th><th className="p-4 text-gray-800">Action</th></tr></thead>
+              <tbody>
+                {trips.map(trip => (
+                  <tr key={trip.id} className="border-b border-gray-400 hover:bg-gray-300/50">
+                    <td className="p-4 font-bold text-gray-900">#{trip.id} <span className="text-gray-600 block font-normal">{trip.date}</span></td>
+                    <td className="p-4 font-bold text-sky-600">{getDriverName(trip.driver_id)}</td>
+                    <td className="p-4 text-gray-800">{trip.vehicle_number}</td>
+                    <td className="p-4"><StatusBadge status={trip.status} /></td>
+                    <td className="p-4">
+                      <div className="flex gap-2 flex-wrap">
+                        {['Waiting for Driver'].includes(trip.status) && (<button onClick={() => { setShuffleTrip(trip); setShuffleVehicle(''); }} className="bg-amber-200 text-amber-800 px-3 py-1.5 rounded-lg font-bold hover:bg-amber-300 text-xs shadow-sm">Shuffle Vehicle</button>)}
+                        
+                        {['Waiting for Driver', 'Reported', 'Trip Started', 'Completed', 'Submitted for Review'].includes(trip.status) && (
+                           <button onClick={() => openExpenses(trip)} className="bg-orange-200 text-orange-800 px-3 py-1.5 rounded-lg font-bold hover:bg-orange-300 text-xs shadow-sm">Expenses & Advance</button>
+                        )}
 
-                <div>
-                    <h3 className="text-xl font-bold mb-4 border-t border-gray-400 pt-4 text-gray-900">Misc Expenses Log</h3>
-                    <div className="space-y-2 max-h-[30vh] overflow-y-auto pr-2">
-                        {miscExpenses.map(exp => (
-                            <div key={exp.id} className="bg-gray-300 p-3 rounded-lg border border-gray-400 flex justify-between items-center shadow-sm">
-                                <div>
-                                    <div className="font-bold text-gray-900 text-lg">₹{exp.amount}</div>
-                                    <div className="text-xs text-gray-600">{exp.description} ({exp.date})</div>
-                                </div>
-                                <StatusBadge status={exp.status === 'Approved' ? 'Billed / Completed' : exp.status === 'Rejected' ? 'Pending Approval' : 'Waiting for Driver'} />
-                            </div>
-                        ))}
-                        {miscExpenses.length === 0 && <div className="text-gray-600 italic">No misc expenses raised.</div>}
-                    </div>
-                </div>
-            </div>
-        </div>
-      )}
+                        {!['Pending Approval', 'Pending for Admin Final Review', 'Billed / Completed'].includes(trip.status) && (
+                           <button onClick={() => { setReviewTrip(trip); setReviewData({ vehicle_type: trip.vehicle_type || '', vehicle_mode: trip.vehicle_mode || '', body_type: trip.body_type || '', vendor_name: trip.vendor_name || '', helper_name: trip.helper_name || '', client_name: trip.client_name || '', source: trip.source || '', destination: trip.destination || '', vehicle_sourced_from: trip.vehicle_sourced_from || '', pod_link: trip.pod_link || '' }); }} className="bg-sky-200 text-sky-800 px-3 py-1.5 rounded-lg font-bold hover:bg-sky-300 text-xs shadow-sm">Review & Upload POD</button>
+                        )}
+                        
+                        {['Pending for Admin Final Review', 'Billed / Completed'].includes(trip.status) && (<button onClick={() => setViewingTrip(trip)} className="bg-gray-400 text-gray-800 px-3 py-1.5 rounded-lg font-bold hover:bg-gray-500 text-xs shadow-sm">Details</button>)}
+                        {['Trip Started', 'Submitted for Review'].includes(trip.status) && (<button onClick={() => { setEndingTrip(trip); setEndData({ in_km: '' }); }} className="bg-emerald-200 text-emerald-800 px-3 py-1.5 rounded-lg font-bold hover:bg-emerald-300 text-xs shadow-sm">Log Arrival</button>)}
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
 
-      {activeTab === 'availability' && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div className="bg-gray-200/95 p-6 rounded-2xl shadow-xl border border-gray-400">
-            <h3 className="text-xl font-bold border-b border-gray-400 pb-2 mb-4 text-indigo-800">🧑‍✈️ My Drivers</h3>
-            <div className="space-y-3">
-              {users.filter(u=>u.role==='driver').map(d => {
-                const activeTrip = trips.find(t => t.driver_id === d.id && activeStatuses.includes(t.status));
-                return (
-                  <div key={d.id} className="flex justify-between items-center bg-gray-300 p-3 rounded-lg border border-gray-400 shadow-sm">
-                    <div className="font-bold text-gray-900">{d.name}</div>
-                    {activeTrip ? <div className="text-xs font-bold text-orange-600 bg-orange-200 px-3 py-1 rounded-full">Busy (#{activeTrip.id})</div> : <div className="text-xs font-bold text-emerald-600 bg-emerald-200 px-3 py-1 rounded-full">Available</div>}
+        {activeTab === 'drivers' && (
+          <div className="bg-gray-200/95 p-8 rounded-2xl shadow-xl max-w-lg border border-gray-400">
+            <h3 className="text-xl font-bold mb-4 text-gray-900">Create Driver Account</h3>
+            <form onSubmit={handleCreateDriver} className="space-y-4">
+              <InputField label="Full Name" value={driverForm.name} onChange={e => setDriverForm({...driverForm, name: e.target.value})} />
+              <InputField label="Phone Number" type="number" value={driverForm.phone} onChange={e => setDriverForm({...driverForm, phone: e.target.value})} />
+              <InputField label="Login Username" value={driverForm.username} onChange={e => setDriverForm({...driverForm, username: e.target.value})} />
+              <InputField label="Login Password" type="password" value={driverForm.password} onChange={e => setDriverForm({...driverForm, password: e.target.value})} />
+              <button type="submit" className="w-full bg-sky-600 text-gray-200 py-3 rounded-xl font-bold shadow-md hover:bg-sky-700">Create Account</button>
+            </form>
+          </div>
+        )}
+
+        {activeTab === 'vehicles' && (
+          <div className="bg-gray-200/95 p-8 rounded-2xl shadow-xl max-w-lg border border-gray-400">
+            <h3 className="text-xl font-bold mb-4 text-gray-900">Register New Vehicle</h3>
+            <form onSubmit={handleAddVehicle} className="flex flex-col gap-4 mb-6">
+              <InputField label="Vehicle Number (No Spaces)" value={vehicleForm.vehicle_number} onChange={e => setVehicleForm({...vehicleForm, vehicle_number: e.target.value.replace(/\s+/g, '').toUpperCase()})} uppercase />
+              <SelectField label="Ownership Type" value={vehicleForm.ownership_type} onChange={e => setVehicleForm({...vehicleForm, ownership_type: e.target.value})} options={['Own Company', 'Third Party']} />
+              {vehicleForm.ownership_type === 'Own Company' && (
+                <InputField label="Monthly EMI (₹)" type="number" value={vehicleForm.emi} onChange={e => setVehicleForm({...vehicleForm, emi: e.target.value})} />
+              )}
+              <button type="submit" className="bg-sky-600 text-gray-200 py-3 rounded-xl font-bold hover:bg-sky-700 shadow-md">Add Vehicle</button>
+            </form>
+            <h4 className="text-sm font-bold text-gray-600 uppercase tracking-wider border-b border-gray-400 pb-2 mb-4">Approved Vehicles</h4>
+            <div className="grid grid-cols-1 gap-2">
+              {vehicles.map(v => (
+                <div key={v.id} className="bg-gray-300 p-3 rounded-lg border border-gray-400 text-sm flex items-center justify-between shadow-sm">
+                  <div>
+                    <div className="font-bold text-gray-900 flex items-center gap-2"><span className="w-2 h-2 rounded-full bg-emerald-500"></span>{v.vehicle_number}</div>
+                    <div className="text-xs text-gray-600 mt-1">{v.ownership_type} {v.ownership_type === 'Own Company' ? `(EMI: ₹${v.emi})` : ''}</div>
                   </div>
-                );
-              })}
-            </div>
-          </div>
-          <div className="bg-gray-200/95 p-6 rounded-2xl shadow-xl border border-gray-400">
-            <h3 className="text-xl font-bold border-b border-gray-400 pb-2 mb-4 text-sky-800">🚛 System Vehicles</h3>
-            <div className="space-y-3 max-h-[60vh] overflow-y-auto">
-              {vehicles.map(v => {
-                const activeTrip = trips.find(t => t.vehicle_number === v.vehicle_number && activeStatuses.includes(t.status));
-                return (
-                  <div key={v.id} className="flex justify-between items-center bg-gray-300 p-3 rounded-lg border border-gray-400 shadow-sm">
-                    <div className="font-bold text-gray-900">{v.vehicle_number} <span className="text-xs font-normal text-gray-600 block">{v.ownership_type}</span></div>
-                    {activeTrip ? <div className="text-xs font-bold text-orange-600 bg-orange-200 px-3 py-1 rounded-full">Busy (#{activeTrip.id})</div> : <div className="text-xs font-bold text-emerald-600 bg-emerald-200 px-3 py-1 rounded-full">Available</div>}
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {activeTab === 'dispatch' && (
-        <div className="bg-gray-200/95 p-8 rounded-2xl shadow-xl max-w-2xl border border-gray-400">
-          <h3 className="text-2xl font-bold mb-6 text-gray-900">Create Trip Assignment</h3>
-          <form onSubmit={handleDispatch} className="space-y-5">
-            <SelectField label="Select Driver" value={dispatchData.driver_id} onChange={e => setDispatchData({...dispatchData, driver_id: Number(e.target.value)})} optionObjects={users.filter(u=>u.role==='driver')} />
-            <div className="flex flex-col space-y-1.5">
-              <label className="text-sm font-semibold text-gray-800">Assign Vehicle Number</label>
-              <input list="vehicles-list" required placeholder="Type or select..." value={dispatchData.vehicle_number} onChange={(e) => setDispatchData(prev => ({...prev, vehicle_number: e.target.value.replace(/\s+/g, '').toUpperCase()}))} className="bg-gray-300 border border-gray-400 text-gray-900 rounded-xl focus:ring-4 focus:ring-sky-500/20 block w-full p-3 outline-none shadow-inner" />
-              <datalist id="vehicles-list">{vehicles.map((v, i) => <option key={i} value={v.vehicle_number} />)}</datalist>
-            </div>
-            <InputField label="Trip Date" type="date" value={dispatchData.date} onChange={e => setDispatchData({...dispatchData, date: e.target.value})} />
-            <button type="submit" className="w-full bg-sky-600 text-gray-200 py-4 rounded-xl font-bold mt-4 shadow-md hover:bg-sky-700">Dispatch to Driver</button>
-          </form>
-        </div>
-      )}
-
-      {activeTab === 'trips' && (
-        <div className="bg-gray-200/95 p-6 rounded-2xl shadow-xl border border-gray-400 overflow-x-auto">
-          <div className="flex flex-wrap gap-4 mb-4 bg-gray-300 p-4 rounded-xl border border-gray-400 items-end shadow-inner">
-             <div className="flex-1 min-w-[200px]"><InputField type="date" label="Filter Start Date" value={startDate} onChange={e=>setStartDate(e.target.value)} /></div>
-             <div className="flex-1 min-w-[200px]"><InputField type="date" label="Filter End Date" value={endDate} onChange={e=>setEndDate(e.target.value)} /></div>
-             <button onClick={() => {setStartDate(''); setEndDate('');}} className="bg-gray-400 text-gray-800 px-4 py-3 rounded-xl font-bold border border-gray-500 hover:bg-gray-500 shadow-sm">Clear</button>
-          </div>
-          
-          <table className="min-w-full text-left text-sm whitespace-nowrap">
-            <thead className="bg-gray-300 border-b border-gray-400"><tr><th className="p-4 text-gray-800">ID / Date</th><th className="p-4 text-gray-800">Driver</th><th className="p-4 text-gray-800">Vehicle</th><th className="p-4 text-gray-800">Status</th><th className="p-4 text-gray-800">Action</th></tr></thead>
-            <tbody>
-              {trips.map(trip => (
-                <tr key={trip.id} className="border-b border-gray-400 hover:bg-gray-300/50">
-                  <td className="p-4 font-bold text-gray-900">#{trip.id} <span className="text-gray-600 block font-normal">{trip.date}</span></td>
-                  <td className="p-4 font-bold text-sky-600">{getDriverName(trip.driver_id)}</td>
-                  <td className="p-4 text-gray-800">{trip.vehicle_number}</td>
-                  <td className="p-4"><StatusBadge status={trip.status} /></td>
-                  <td className="p-4">
-                    <div className="flex gap-2 flex-wrap">
-                      {['Waiting for Driver'].includes(trip.status) && (<button onClick={() => { setShuffleTrip(trip); setShuffleVehicle(''); }} className="bg-amber-200 text-amber-800 px-3 py-1.5 rounded-lg font-bold hover:bg-amber-300 text-xs shadow-sm">Shuffle Vehicle</button>)}
-                      
-                      {['Waiting for Driver', 'Reported', 'Trip Started', 'Completed', 'Submitted for Review'].includes(trip.status) && (
-                         <button onClick={() => openExpenses(trip)} className="bg-orange-200 text-orange-800 px-3 py-1.5 rounded-lg font-bold hover:bg-orange-300 text-xs shadow-sm">Expenses & Advance</button>
-                      )}
-
-                      {!['Pending Approval', 'Pending for Admin Final Review', 'Billed / Completed'].includes(trip.status) && (
-                         <button onClick={() => { setReviewTrip(trip); setReviewData({ vehicle_type: trip.vehicle_type || '', vehicle_mode: trip.vehicle_mode || '', body_type: trip.body_type || '', vendor_name: trip.vendor_name || '', helper_name: trip.helper_name || '', client_name: trip.client_name || '', source: trip.source || '', destination: trip.destination || '', vehicle_sourced_from: trip.vehicle_sourced_from || '', pod_link: trip.pod_link || '' }); }} className="bg-sky-200 text-sky-800 px-3 py-1.5 rounded-lg font-bold hover:bg-sky-300 text-xs shadow-sm">Review & Upload POD</button>
-                      )}
-                      
-                      {['Pending for Admin Final Review', 'Billed / Completed'].includes(trip.status) && (<button onClick={() => setViewingTrip(trip)} className="bg-gray-400 text-gray-800 px-3 py-1.5 rounded-lg font-bold hover:bg-gray-500 text-xs shadow-sm">Details</button>)}
-                      {['Trip Started', 'Submitted for Review'].includes(trip.status) && (<button onClick={() => { setEndingTrip(trip); setEndData({ in_km: '' }); }} className="bg-emerald-200 text-emerald-800 px-3 py-1.5 rounded-lg font-bold hover:bg-emerald-300 text-xs shadow-sm">Log Arrival</button>)}
-                    </div>
-                  </td>
-                </tr>
+                  <button onClick={() => handleDeleteVehicle(v.id)} className="text-orange-600 hover:text-orange-800 font-bold px-2 py-1 bg-orange-200 rounded text-xs border border-orange-300">Delete</button>
+                </div>
               ))}
-            </tbody>
-          </table>
-        </div>
-      )}
+            </div>
+          </div>
+        )}
+      </div>
 
-      {/* FULLY EXPANDING MODALS: Wrapper replaced with overflow-y-auto min-h-full items-start layout */}
+      {/* ========================================================================================= */}
+      {/* ALL MODALS NOW LIVE OUTSIDE THE MAIN CONTAINER SO THEY CAN BREAK FREE AND COVER THE SCREEN */}
+      {/* ========================================================================================= */}
 
       {expenseTrip && (
-        <div className="fixed inset-0 bg-gray-900/60 backdrop-blur-sm z-50 overflow-y-auto">
-          <div className="flex min-h-full items-start justify-center p-4 py-10">
-            <div className="bg-gray-200 p-8 rounded-3xl w-full max-w-2xl shadow-2xl border border-gray-400 relative">
+        <div className="fixed inset-0 z-[100] bg-gray-900/80 backdrop-blur-sm overflow-y-auto">
+          <div className="flex min-h-full items-center justify-center p-4 py-10">
+            <div className="bg-gray-200 p-6 md:p-10 rounded-3xl w-full max-w-4xl shadow-2xl border border-gray-400">
               <h3 className="text-2xl font-bold mb-6 text-gray-900">Log Expenses & Driver Advance (#{expenseTrip.id})</h3>
               <div className="flex space-x-2 mb-6 bg-gray-300 p-1.5 rounded-xl border border-gray-400 shadow-inner">
                 <button onClick={() => setExpTab('expenses')} className={`flex-1 py-2 rounded-lg font-bold transition-all ${expTab === 'expenses' ? 'bg-gray-200 text-orange-600 shadow-sm border border-gray-400' : 'text-gray-600 hover:bg-gray-400/50'}`}>Vehicle & Driver Costs</button>
@@ -362,9 +405,9 @@ export default function SupervisorPanel() {
       )}
 
       {reviewTrip && (
-        <div className="fixed inset-0 bg-gray-900/60 backdrop-blur-sm z-50 overflow-y-auto">
-          <div className="flex min-h-full items-start justify-center p-4 py-10">
-            <div className="bg-gray-200 p-8 rounded-3xl w-full max-w-2xl shadow-2xl border border-gray-400 relative">
+        <div className="fixed inset-0 z-[100] bg-gray-900/80 backdrop-blur-sm overflow-y-auto">
+          <div className="flex min-h-full items-center justify-center p-4 py-10">
+            <div className="bg-gray-200 p-6 md:p-10 rounded-3xl w-full max-w-4xl shadow-2xl border border-gray-400">
               <h3 className="text-2xl font-bold mb-6 text-gray-900">Review & Upload POD (#{reviewTrip.id})</h3>
               <form onSubmit={handleReviewSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <SelectField label="Vehicle Type" value={reviewData.vehicle_type} onChange={e => setReviewData({...reviewData, vehicle_type: e.target.value})} options={vehicleTypes} />
@@ -372,14 +415,14 @@ export default function SupervisorPanel() {
                 <SelectField label="Body Type" value={reviewData.body_type} onChange={e => setReviewData({...reviewData, body_type: e.target.value})} options={['Open', 'Closed']} />
                 <SelectField label="Vendor Name" value={reviewData.vendor_name} onChange={e => setReviewData({...reviewData, vendor_name: e.target.value})} options={vendors} />
                 
-                <div className="col-span-1 md:col-span-2 mt-2 font-bold text-sky-800 border-b border-gray-400 pb-2">Client Details & Documents</div>
+                <div className="col-span-1 md:col-span-2 mt-4 font-bold text-sky-800 border-b border-gray-400 pb-2">Client Details & Documents</div>
                 <SelectField label="Select Client" value={reviewData.client_name} onChange={e => setReviewData({...reviewData, client_name: e.target.value})} options={clients} />
                 <InputField label="Vehicle Sourced From" value={reviewData.vehicle_sourced_from} onChange={e => setReviewData({...reviewData, vehicle_sourced_from: e.target.value})} placeholder="E.g., Name/Company" />
                 <InputField label="Source (From)" value={reviewData.source} onChange={e => setReviewData({...reviewData, source: e.target.value})} />
                 <InputField label="Destination (To)" value={reviewData.destination} onChange={e => setReviewData({...reviewData, destination: e.target.value})} />
                 <InputField label="Helper Name" value={reviewData.helper_name} onChange={e => setReviewData({...reviewData, helper_name: e.target.value})} />
                 
-                <div className="col-span-1 md:col-span-2 flex flex-col space-y-1.5 mt-2 bg-gray-300 p-4 rounded-xl border border-gray-400">
+                <div className="col-span-1 md:col-span-2 flex flex-col space-y-1.5 mt-4 bg-gray-300 p-6 rounded-xl border border-gray-400">
                   <label className="text-sm font-semibold text-gray-800">Upload Proof of Delivery (POD)</label>
                   <input 
                     type="file" 
@@ -388,13 +431,13 @@ export default function SupervisorPanel() {
                     disabled={uploading} 
                     className="bg-gray-200 border border-gray-400 text-gray-900 rounded-xl block w-full p-2 outline-none file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-bold file:bg-sky-600 file:text-gray-200 hover:file:bg-sky-700 shadow-inner" 
                   />
-                  {uploading && <span className="text-xs font-bold text-sky-600">Uploading to secure storage...</span>}
-                  {reviewData.pod_link && <span className="text-xs font-bold text-emerald-600 mt-1 flex items-center gap-1"><svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path></svg> File attached successfully!</span>}
+                  {uploading && <span className="text-sm font-bold text-sky-600 mt-2 block">Uploading to secure storage...</span>}
+                  {reviewData.pod_link && <span className="text-sm font-bold text-emerald-600 mt-2 flex items-center gap-1"><svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path></svg> File attached successfully!</span>}
                 </div>
                 
-                <div className="col-span-1 md:col-span-2 flex gap-4 mt-6">
-                  <button type="button" onClick={() => setReviewTrip(null)} className="flex-1 bg-gray-300 py-3 rounded-xl font-bold text-gray-700 hover:bg-gray-400 shadow-sm">Cancel</button>
-                  <button type="submit" disabled={uploading} className="flex-1 bg-sky-600 text-gray-200 py-3 rounded-xl font-bold disabled:opacity-50 hover:bg-sky-700 shadow-md">
+                <div className="col-span-1 md:col-span-2 flex gap-4 mt-8">
+                  <button type="button" onClick={() => setReviewTrip(null)} className="flex-1 bg-gray-300 py-4 rounded-xl font-bold text-gray-700 hover:bg-gray-400 shadow-sm">Cancel</button>
+                  <button type="submit" disabled={uploading} className="flex-1 bg-sky-600 text-gray-200 py-4 rounded-xl font-bold disabled:opacity-50 hover:bg-sky-700 shadow-md">
                     {['Completed'].includes(reviewTrip.status) ? "Submit Details for Review" : "Save Details (Trip Running)"}
                   </button>
                 </div>
@@ -405,9 +448,9 @@ export default function SupervisorPanel() {
       )}
 
       {shuffleTrip && (
-        <div className="fixed inset-0 bg-gray-900/60 backdrop-blur-sm z-50 overflow-y-auto">
-          <div className="flex min-h-full items-start justify-center p-4 py-10">
-            <div className="bg-gray-200 p-8 rounded-3xl w-full max-w-md shadow-2xl border border-gray-400 relative">
+        <div className="fixed inset-0 z-[100] bg-gray-900/80 backdrop-blur-sm overflow-y-auto">
+          <div className="flex min-h-full items-center justify-center p-4 py-10">
+            <div className="bg-gray-200 p-8 rounded-3xl w-full max-w-lg shadow-2xl border border-gray-400">
               <h3 className="text-2xl font-bold mb-6 text-gray-900">Change Vehicle for #{shuffleTrip.id}</h3>
               <form onSubmit={handleShuffle}>
                 <div className="flex flex-col space-y-1.5 mb-6">
@@ -425,9 +468,9 @@ export default function SupervisorPanel() {
       )}
 
       {viewingTrip && (
-        <div className="fixed inset-0 bg-gray-900/60 backdrop-blur-sm z-50 overflow-y-auto">
-          <div className="flex min-h-full items-start justify-center p-4 py-10">
-            <div className="bg-gray-200 p-8 rounded-3xl w-full max-w-4xl shadow-2xl border border-gray-400 relative">
+        <div className="fixed inset-0 z-[100] bg-gray-900/80 backdrop-blur-sm overflow-y-auto">
+          <div className="flex min-h-full items-center justify-center p-4 py-10">
+            <div className="bg-gray-200 p-8 rounded-3xl w-full max-w-4xl shadow-2xl border border-gray-400">
               <div className="flex justify-between items-center mb-6"><h3 className="text-2xl font-bold text-gray-900">Details (#{viewingTrip.id})</h3><button onClick={() => setViewingTrip(null)} className="text-gray-500 font-bold bg-gray-300 p-2 rounded-full hover:bg-gray-400">✕</button></div>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <DetailItem label="Vehicle" value={viewingTrip.vehicle_number} />
@@ -452,9 +495,9 @@ export default function SupervisorPanel() {
       )}
 
       {endingTrip && (
-        <div className="fixed inset-0 bg-gray-900/60 backdrop-blur-sm z-50 overflow-y-auto">
-          <div className="flex min-h-full items-start justify-center p-4 py-10">
-            <div className="bg-gray-200 p-8 rounded-3xl w-full max-w-sm shadow-2xl border border-gray-400 relative">
+        <div className="fixed inset-0 z-[100] bg-gray-900/80 backdrop-blur-sm overflow-y-auto">
+          <div className="flex min-h-full items-center justify-center p-4 py-10">
+            <div className="bg-gray-200 p-8 rounded-3xl w-full max-w-sm shadow-2xl border border-gray-400">
               <h3 className="text-2xl font-bold mb-6 text-gray-900">Log Arrival (#{endingTrip.id})</h3>
               <div className="mb-4 text-sm font-semibold text-gray-700 bg-gray-300 p-3 rounded-lg border border-gray-400 shadow-inner">Started at: <span className="text-sky-600 text-lg">{endingTrip.out_km} KM</span></div>
               <form onSubmit={handleEndTrip} className="space-y-4">
@@ -468,45 +511,6 @@ export default function SupervisorPanel() {
           </div>
         </div>
       )}
-
-      {activeTab === 'drivers' && (
-        <div className="bg-gray-200/95 p-8 rounded-2xl shadow-xl max-w-lg border border-gray-400">
-          <h3 className="text-xl font-bold mb-4 text-gray-900">Create Driver Account</h3>
-          <form onSubmit={handleCreateDriver} className="space-y-4">
-            <InputField label="Full Name" value={driverForm.name} onChange={e => setDriverForm({...driverForm, name: e.target.value})} />
-            <InputField label="Phone Number" type="number" value={driverForm.phone} onChange={e => setDriverForm({...driverForm, phone: e.target.value})} />
-            <InputField label="Login Username" value={driverForm.username} onChange={e => setDriverForm({...driverForm, username: e.target.value})} />
-            <InputField label="Login Password" type="password" value={driverForm.password} onChange={e => setDriverForm({...driverForm, password: e.target.value})} />
-            <button type="submit" className="w-full bg-sky-600 text-gray-200 py-3 rounded-xl font-bold shadow-md hover:bg-sky-700">Create Account</button>
-          </form>
-        </div>
-      )}
-
-      {activeTab === 'vehicles' && (
-        <div className="bg-gray-200/95 p-8 rounded-2xl shadow-xl max-w-lg border border-gray-400">
-          <h3 className="text-xl font-bold mb-4 text-gray-900">Register New Vehicle</h3>
-          <form onSubmit={handleAddVehicle} className="flex flex-col gap-4 mb-6">
-            <InputField label="Vehicle Number (No Spaces)" value={vehicleForm.vehicle_number} onChange={e => setVehicleForm({...vehicleForm, vehicle_number: e.target.value.replace(/\s+/g, '').toUpperCase()})} uppercase />
-            <SelectField label="Ownership Type" value={vehicleForm.ownership_type} onChange={e => setVehicleForm({...vehicleForm, ownership_type: e.target.value})} options={['Own Company', 'Third Party']} />
-            {vehicleForm.ownership_type === 'Own Company' && (
-              <InputField label="Monthly EMI (₹)" type="number" value={vehicleForm.emi} onChange={e => setVehicleForm({...vehicleForm, emi: e.target.value})} />
-            )}
-            <button type="submit" className="bg-sky-600 text-gray-200 py-3 rounded-xl font-bold hover:bg-sky-700 shadow-md">Add Vehicle</button>
-          </form>
-          <h4 className="text-sm font-bold text-gray-600 uppercase tracking-wider border-b border-gray-400 pb-2 mb-4">Approved Vehicles</h4>
-          <div className="grid grid-cols-1 gap-2">
-            {vehicles.map(v => (
-              <div key={v.id} className="bg-gray-300 p-3 rounded-lg border border-gray-400 text-sm flex items-center justify-between shadow-sm">
-                <div>
-                  <div className="font-bold text-gray-900 flex items-center gap-2"><span className="w-2 h-2 rounded-full bg-emerald-500"></span>{v.vehicle_number}</div>
-                  <div className="text-xs text-gray-600 mt-1">{v.ownership_type} {v.ownership_type === 'Own Company' ? `(EMI: ₹${v.emi})` : ''}</div>
-                </div>
-                <button onClick={() => handleDeleteVehicle(v.id)} className="text-orange-600 hover:text-orange-800 font-bold px-2 py-1 bg-orange-200 rounded text-xs border border-orange-300">Delete</button>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-    </div>
+    </>
   );
 }
