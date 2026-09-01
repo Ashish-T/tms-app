@@ -35,6 +35,17 @@ export default function AdminPanel() {
   const [clientName, setClientName] = useState('');
   const [vehicleForm, setVehicleForm] = useState({ vehicle_number: '', ownership_type: 'Third Party', emi: '' });
 
+  const handleAdminPasswordReset = async (userId, userName) => {
+    const newPassword = prompt(`Enter new password for ${userName}:`);
+    if (!newPassword) return;
+    try {
+      await API.patch(`/users/${userId}/admin_password`, { current_password: "", new_password: newPassword });
+      alert(`Password successfully updated for ${userName}!`);
+    } catch (err) {
+      alert("Failed to update password.");
+    }
+  };
+
   useEffect(() => { fetchAllData(); }, [startDate, endDate]);
   
   const fetchAllData = () => {
@@ -97,7 +108,7 @@ export default function AdminPanel() {
         if (['vehicle_cost_type', 'client_name'].includes(k)) { 
           payload[k] = billData[k] || (k === 'vehicle_cost_type' ? "Third Party" : ""); 
         } else { 
-          // Safely preserve explicit 0 inputs instead of wiping them out
+          // Safely parse numbers while preserving explicit 0 values
           payload[k] = billData[k] === '' || billData[k] === null ? 0 : Number(billData[k]); 
         } 
       }); 
@@ -406,8 +417,8 @@ export default function AdminPanel() {
                     
                     <td className="p-4 font-black text-emerald-600">₹{trip.profit || 0}</td>
                     
-                    {/* EXPANDED COLUMN WIDTH (min-w-[370px]) TO KEEP ALL BUTTONS IN ONE CLEAN HORIZONTAL LINE */}
-                    <td className="p-4 min-w-[370px]">
+                    {/* WIDENED CONTAINER TO 340px SO ALL 4 ACTION BUTTONS LOCK IN ONE CLEAN ROW */}
+                    <td className="p-4 min-w-[340px]">
                       <div className="flex gap-1.5 flex-wrap items-center">
                         <button onClick={() => setViewingTrip(trip)} className="bg-gray-400 text-gray-900 px-2.5 py-1.5 rounded-lg font-bold hover:bg-gray-500 text-xs shadow-sm">View Log</button>
                         
@@ -420,7 +431,7 @@ export default function AdminPanel() {
                         
                         {trip.status === 'Billed / Completed' && (
                           <button onClick={() => handleGeneratePDF(trip)} className="bg-orange-200 text-orange-800 px-2.5 py-1.5 rounded-lg font-bold hover:bg-orange-300 text-xs shadow-sm flex items-center gap-1">
-                             <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg> Download PDF
+                             <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg> PDF
                           </button>
                         )}
                       </div>
