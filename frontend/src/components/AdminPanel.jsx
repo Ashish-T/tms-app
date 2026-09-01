@@ -188,7 +188,6 @@ export default function AdminPanel() {
 
   return (
     <>
-      {/* EXTENDED WIDE PANEL (max-w-[98%]) TO FIT ALL BUTTONS & COLUMNS */}
       <div className="p-4 md:p-8 max-w-[98%] 2xl:max-w-[1600px] mx-auto backdrop-blur-sm bg-gray-200/90 rounded-3xl shadow-2xl border border-gray-300 my-6 relative z-10">
         <h2 className="text-3xl font-extrabold mb-6 text-white drop-shadow-md">Master Admin Dashboard</h2>
         <div className="flex flex-wrap gap-2 mb-6 bg-gray-300/80 p-1.5 rounded-xl inline-flex border border-gray-400/50 shadow-inner">
@@ -384,7 +383,6 @@ export default function AdminPanel() {
                     </td>
                     <td className="p-4 text-gray-800">{trip.vehicle_number} <span className="block text-gray-600 text-xs">{trip.vendor_name || 'Unassigned'}</span></td>
                     
-                    {/* ADDED SOURCED FROM COLUMN BACK EXPLICITLY */}
                     <td className="p-4 text-gray-800 font-semibold">{trip.vehicle_sourced_from || '-'}</td>
                     
                     <td className="p-4">
@@ -392,12 +390,10 @@ export default function AdminPanel() {
                     </td>
                     <td className="p-4"><StatusBadge status={trip.status} /></td>
                     
-                    {/* ADDED TOTAL COST COLUMN BACK EXPLICITLY */}
                     <td className="p-4 font-bold text-orange-600">₹{trip.total_running_cost || 0}</td>
                     
                     <td className="p-4 font-black text-emerald-600">₹{trip.profit || 0}</td>
                     
-                    {/* EXPANDED ACTION COLUMN TO PREVENT UGLY WRAPPING */}
                     <td className="p-4 min-w-[280px]">
                       <div className="flex gap-2 flex-wrap items-center">
                         <button onClick={() => setViewingTrip(trip)} className="bg-gray-400 text-gray-900 px-3 py-1.5 rounded-lg font-bold hover:bg-gray-500 text-xs shadow-sm">View Log</button>
@@ -515,7 +511,7 @@ export default function AdminPanel() {
       {viewDriverDetails && (
         <div className="fixed inset-0 bg-gray-900/60 backdrop-blur-sm z-[100] flex overflow-y-auto">
           <div className="flex min-h-full w-full items-center justify-center p-4 py-10">
-            <div className="bg-gray-200 p-8 rounded-3xl w-full max-w-6xl shadow-2xl border border-gray-400 relative">
+            <div className="bg-gray-200 p-8 rounded-3xl w-full max-w-6xl m-auto shadow-2xl border border-gray-400 relative">
               <div className="flex justify-between items-center mb-6">
                   <h3 className="text-2xl font-bold text-gray-900">Payroll Ledger for {viewDriverDetails.name}</h3>
                   <button onClick={() => setViewDriverDetails(null)} className="text-gray-500 font-bold bg-gray-300 p-2 rounded-full hover:bg-gray-400">✕</button>
@@ -549,66 +545,60 @@ export default function AdminPanel() {
 
       {billingTrip && (
         <div className="fixed inset-0 bg-gray-900/60 backdrop-blur-sm z-[100] flex overflow-y-auto">
-          <div className="flex min-h-full w-full items-center justify-center p-4 py-10">
-            <div className="bg-gray-200 p-8 rounded-3xl w-full max-w-5xl shadow-2xl border border-gray-400 relative">
-              <h3 className="text-2xl font-bold mb-6 text-gray-900">Financial Reconciliation (#{billingTrip.id})</h3>
+          <div className="flex min-h-full w-full items-center justify-center p-2 sm:p-4 py-8">
+            <div className="bg-gray-200 p-5 md:p-6 rounded-2xl w-full max-w-5xl m-auto shadow-2xl border border-gray-400 relative">
+              <h3 className="text-xl font-bold mb-3 text-gray-900">Financial Reconciliation (#{billingTrip.id})</h3>
               
-              <div className="bg-gray-300 p-5 rounded-2xl border border-gray-400 mb-6 grid grid-cols-2 md:grid-cols-4 gap-4 text-sm shadow-inner">
-                  <div className="col-span-2 md:col-span-4 border-b border-gray-400 pb-2 mb-2 font-black text-gray-800 uppercase tracking-wider">Trip Summary (Provided by Supervisor)</div>
-                  <DetailItem label="Driver" value={getDriverName(billingTrip.driver_id)} />
-                  <DetailItem label="Vehicle & Type" value={`${billingTrip.vehicle_number} (${billingTrip.vehicle_type || 'N/A'})`} />
-                  <DetailItem label="Vendor" value={billingTrip.vendor_name} />
-                  <DetailItem label="Sourced From" value={billingTrip.vehicle_sourced_from} />
-                  
-                  <DetailItem label="Client" value={billingTrip.client_name} />
-                  <DetailItem label="Route (Src -> Dst)" value={`${billingTrip.source || 'N/A'} -> ${billingTrip.destination || 'N/A'}`} />
-                  <DetailItem label="Total Distance" value={`${billingTrip.in_km - billingTrip.out_km} km`} />
-                  <DetailItem label="Travel Time" value={`${billingTrip.out_time || '-'} to ${billingTrip.in_time || '-'}`} />
-                  
-                  <div className="col-span-2 md:col-span-4 border-t border-gray-400 pt-2 mt-2">
-                    <DetailItem label="Advance Given (Kharcha)" value={`₹${billingTrip.advance_paid || 0}`} />
+              {/* ULTRA-COMPACT TRIP SUMMARY */}
+              <div className="bg-gray-300 p-3 rounded-xl border border-gray-400 mb-4 grid grid-cols-2 md:grid-cols-4 gap-3 text-sm shadow-inner">
+                  <div className="col-span-2 md:col-span-4 border-b border-gray-400 pb-1 mb-1 font-black text-gray-800 uppercase tracking-wider text-xs">Trip Summary (Provided by Supervisor)</div>
+                  <div><span className="block text-[10px] font-bold text-gray-500 uppercase">Driver</span><span className="font-semibold text-gray-900">{getDriverName(billingTrip.driver_id)}</span></div>
+                  <div><span className="block text-[10px] font-bold text-gray-500 uppercase">Vehicle & Type</span><span className="font-semibold text-gray-900">{billingTrip.vehicle_number} ({billingTrip.vehicle_type || 'N/A'})</span></div>
+                  <div><span className="block text-[10px] font-bold text-gray-500 uppercase">Vendor</span><span className="font-semibold text-gray-900">{billingTrip.vendor_name || '-'}</span></div>
+                  <div><span className="block text-[10px] font-bold text-gray-500 uppercase">Sourced From</span><span className="font-semibold text-gray-900">{billingTrip.vehicle_sourced_from || '-'}</span></div>
+                  <div><span className="block text-[10px] font-bold text-gray-500 uppercase">Client</span><span className="font-semibold text-gray-900">{billingTrip.client_name || '-'}</span></div>
+                  <div><span className="block text-[10px] font-bold text-gray-500 uppercase">Route (Src -&gt; Dst)</span><span className="font-semibold text-gray-900">{billingTrip.source || '-'} -&gt; {billingTrip.destination || '-'}</span></div>
+                  <div><span className="block text-[10px] font-bold text-gray-500 uppercase">Total Distance</span><span className="font-semibold text-gray-900">{billingTrip.in_km - billingTrip.out_km} km</span></div>
+                  <div><span className="block text-[10px] font-bold text-gray-500 uppercase">Travel Time</span><span className="font-semibold text-gray-900">{billingTrip.out_time || '-'} to {billingTrip.in_time || '-'}</span></div>
+                  <div className="col-span-2 md:col-span-4 border-t border-gray-400 pt-2 mt-1">
+                    <span className="block text-[10px] font-bold text-gray-500 uppercase">Advance Given (Kharcha)</span><span className="font-semibold text-orange-600">₹{billingTrip.advance_paid || 0}</span>
                   </div>
               </div>
 
               <form onSubmit={handleBillSubmit}>
-                <div className="grid grid-cols-2 gap-4">
+                {/* STRICT 4-COLUMN LAYOUT TO REDUCE VERTICAL HEIGHT BY 50% */}
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                   <InputField label="Fuel Litres" type="number" value={billData.fuel_litres} onChange={e => setBillData({...billData, fuel_litres: e.target.value})} />
                   <InputField label="Fuel Price / L" type="number" value={billData.fuel_price} onChange={e => setBillData({...billData, fuel_price: e.target.value})} />
                   <InputField label="Toll Charges" type="number" value={billData.toll_charges} onChange={e => setBillData({...billData, toll_charges: e.target.value})} />
                   <InputField label="Other Expenses" type="number" value={billData.other_expenses} onChange={e => setBillData({...billData, other_expenses: e.target.value})} />
                   
-                  <div className="col-span-2 border-t border-gray-400 pt-4 mt-2 grid grid-cols-4 gap-4">
-                    <InputField label="Driver Base Cost" type="number" value={billData.driver_cost} onChange={e => setBillData({...billData, driver_cost: e.target.value})} />
-                    <InputField label="Trip Days" type="number" value={billData.trip_days} onChange={e => setBillData({...billData, trip_days: e.target.value})} />
-                    <InputField label="Overtime Allowance" type="number" value={billData.overtime_allowance} onChange={e => setBillData({...billData, overtime_allowance: e.target.value})} />
-                    <InputField label="Advance (Kharcha)" type="number" value={billData.advance_paid} onChange={e => setBillData({...billData, advance_paid: e.target.value})} />
-                  </div>
+                  <InputField label="Driver Base Cost" type="number" value={billData.driver_cost} onChange={e => setBillData({...billData, driver_cost: e.target.value})} />
+                  <InputField label="Trip Days" type="number" value={billData.trip_days} onChange={e => setBillData({...billData, trip_days: e.target.value})} />
+                  <InputField label="Overtime Allowance" type="number" value={billData.overtime_allowance} onChange={e => setBillData({...billData, overtime_allowance: e.target.value})} />
+                  <InputField label="Advance (Kharcha)" type="number" value={billData.advance_paid} onChange={e => setBillData({...billData, advance_paid: e.target.value})} />
                   
-                  <div className="col-span-2 grid grid-cols-2 gap-4 border-t border-gray-400 pt-4 mt-2">
-                    <SelectField label="Vehicle Cost Type" value={billData.vehicle_cost_type} onChange={e => setBillData({...billData, vehicle_cost_type: e.target.value, vehicle_cost: ''})} options={['Own Company', 'Third Party']} />
-                    <InputField label="Vehicle Cost" type="number" value={billData.vehicle_cost} disabled={billData.vehicle_cost_type === 'Own Company'} onChange={e => setBillData({...billData, vehicle_cost: e.target.value})} />
-                  </div>
-                  <div className="col-span-2 border-t border-gray-400 pt-4 mt-2 bg-indigo-100 p-4 rounded-xl border border-indigo-200 space-y-4">
-                    <SelectField label="Client Billed" value={billData.client_name} onChange={e => setBillData({...billData, client_name: e.target.value})} options={clients.map(c=>c.name)} />
-                    <InputField label="B2C (Bill to Company) Revenue" type="number" value={billData.b2c_billing} onChange={e => setBillData({...billData, b2c_billing: e.target.value})} />
-                  </div>
+                  <SelectField label="Vehicle Cost Type" value={billData.vehicle_cost_type} onChange={e => setBillData({...billData, vehicle_cost_type: e.target.value, vehicle_cost: ''})} options={['Own Company', 'Third Party']} />
+                  <InputField label="Vehicle Cost" type="number" value={billData.vehicle_cost} disabled={billData.vehicle_cost_type === 'Own Company'} onChange={e => setBillData({...billData, vehicle_cost: e.target.value})} />
+                  <SelectField label="Client Billed" value={billData.client_name} onChange={e => setBillData({...billData, client_name: e.target.value})} options={clients.map(c=>c.name)} />
+                  <InputField label="B2C Revenue" type="number" value={billData.b2c_billing} onChange={e => setBillData({...billData, b2c_billing: e.target.value})} />
                 </div>
 
                 {(() => {
                    const currentLiveCost = (Number(billData.fuel_litres)||0) * (Number(billData.fuel_price)||0) + (Number(billData.toll_charges)||0) + (Number(billData.other_expenses)||0) + (Number(billData.driver_cost)||0) + (Number(billData.overtime_allowance)||0) + (Number(billData.vehicle_cost)||0);
                    const currentLiveProfit = (Number(billData.b2c_billing)||0) - currentLiveCost;
                    return (
-                      <div className="flex flex-col md:flex-row gap-4 border-t border-gray-400 pt-6 mt-6">
-                        <div className="flex-1 bg-gray-300 p-4 rounded-xl text-center shadow-inner"><div className="text-xs font-bold text-gray-700">TOTAL EXPENSES</div><div className="text-2xl font-black text-orange-600">₹{currentLiveCost}</div></div>
-                        <div className="flex-1 bg-gray-300 p-4 rounded-xl text-center shadow-inner"><div className="text-xs font-bold text-gray-700">B2C REVENUE</div><div className="text-2xl font-black text-indigo-600">₹{Number(billData.b2c_billing) || 0}</div></div>
-                        <div className={`flex-1 p-4 rounded-xl text-center shadow-sm border ${currentLiveProfit >= 0 ? 'bg-emerald-200 border-emerald-300' : 'bg-orange-200 border-orange-300'}`}><div className={`text-xs font-bold ${currentLiveProfit >= 0 ? 'text-emerald-700' : 'text-orange-700'}`}>PROFIT</div><div className={`text-2xl font-black ${currentLiveProfit >= 0 ? 'text-emerald-800' : 'text-orange-800'}`}>₹{currentLiveProfit}</div></div>
+                      <div className="flex flex-col md:flex-row gap-3 border-t border-gray-400 pt-4 mt-4">
+                        <div className="flex-1 bg-gray-300 p-2 rounded-xl text-center shadow-inner"><div className="text-[10px] font-bold text-gray-700">TOTAL EXPENSES</div><div className="text-xl font-black text-orange-600">₹{currentLiveCost}</div></div>
+                        <div className="flex-1 bg-gray-300 p-2 rounded-xl text-center shadow-inner"><div className="text-[10px] font-bold text-gray-700">B2C REVENUE</div><div className="text-xl font-black text-indigo-600">₹{Number(billData.b2c_billing) || 0}</div></div>
+                        <div className={`flex-1 p-2 rounded-xl text-center shadow-sm border ${currentLiveProfit >= 0 ? 'bg-emerald-200 border-emerald-300' : 'bg-orange-200 border-orange-300'}`}><div className={`text-[10px] font-bold ${currentLiveProfit >= 0 ? 'text-emerald-700' : 'text-orange-700'}`}>PROFIT</div><div className={`text-xl font-black ${currentLiveProfit >= 0 ? 'text-emerald-800' : 'text-orange-800'}`}>₹{currentLiveProfit}</div></div>
                       </div>
                    );
                 })()}
                 
-                <div className="flex gap-4 mt-6">
-                  <button type="button" onClick={() => setBillingTrip(null)} className="flex-1 bg-gray-300 py-4 rounded-xl font-bold text-gray-800 hover:bg-gray-400 shadow-sm">Cancel</button>
-                  <button type="submit" className="flex-1 bg-emerald-600 text-gray-200 py-4 rounded-xl font-bold hover:bg-emerald-700 shadow-md">Finalize Bill</button>
+                <div className="flex gap-3 mt-4">
+                  <button type="button" onClick={() => setBillingTrip(null)} className="flex-1 bg-gray-300 py-3 rounded-xl font-bold text-gray-800 hover:bg-gray-400 shadow-sm">Cancel</button>
+                  <button type="submit" className="flex-1 bg-emerald-600 text-gray-200 py-3 rounded-xl font-bold hover:bg-emerald-700 shadow-md">Finalize Bill</button>
                 </div>
               </form>
             </div>
@@ -619,7 +609,7 @@ export default function AdminPanel() {
       {editDetailsTrip && (
         <div className="fixed inset-0 bg-gray-900/60 backdrop-blur-sm z-[100] flex overflow-y-auto">
           <div className="flex min-h-full w-full items-center justify-center p-4 py-10">
-            <div className="bg-gray-200 p-8 rounded-3xl w-full max-w-2xl shadow-2xl border border-gray-400 relative">
+            <div className="bg-gray-200 p-8 rounded-3xl w-full max-w-2xl m-auto shadow-2xl border border-gray-400 relative">
               <h3 className="text-2xl font-bold mb-6 text-gray-900">Admin Override: Trip #{editDetailsTrip.id}</h3>
               <form onSubmit={handleEditDetailsSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <SelectField label="Vehicle Type" value={editDetailsData.vehicle_type} onChange={e => setEditDetailsData({...editDetailsData, vehicle_type: e.target.value})} options={vehicleTypes} />
@@ -648,7 +638,7 @@ export default function AdminPanel() {
       {walletSup && (
         <div className="fixed inset-0 bg-gray-900/60 backdrop-blur-sm z-[100] flex overflow-y-auto">
           <div className="flex min-h-full w-full items-center justify-center p-4 py-10">
-            <div className="bg-gray-200 p-8 rounded-3xl w-full max-w-4xl shadow-2xl border border-gray-400 relative">
+            <div className="bg-gray-200 p-8 rounded-3xl w-full max-w-4xl m-auto shadow-2xl border border-gray-400 relative">
               <div className="flex justify-between items-center mb-6">
                   <h3 className="text-2xl font-bold text-gray-900">Wallet: {walletSup.name}</h3>
                   <button onClick={() => setWalletSup(null)} className="text-gray-500 font-bold bg-gray-300 p-2 rounded-full hover:bg-gray-400">✕</button>
@@ -712,7 +702,7 @@ export default function AdminPanel() {
       {viewingTrip && (
         <div className="fixed inset-0 bg-gray-900/60 backdrop-blur-sm z-[100] flex overflow-y-auto">
           <div className="flex min-h-full w-full items-center justify-center p-4 py-10">
-            <div className="bg-gray-200 p-8 rounded-3xl w-full max-w-4xl shadow-2xl border border-gray-400 relative">
+            <div className="bg-gray-200 p-8 rounded-3xl w-full max-w-4xl m-auto shadow-2xl border border-gray-400 relative">
               <div className="flex justify-between items-center mb-6"><h3 className="text-2xl font-bold text-gray-900">Complete Trip Log (#{viewingTrip.id})</h3><button onClick={() => setViewingTrip(null)} className="text-gray-500 font-bold bg-gray-300 p-2 rounded-full hover:bg-gray-400">✕</button></div>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <DetailItem label="Vehicle" value={viewingTrip.vehicle_number} />
