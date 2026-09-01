@@ -84,13 +84,15 @@ export default function SupervisorPanel() {
     setUploading(true);
     const fileExt = file.name.split('.').pop();
     const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
-    const filePath = `${fileName}`;
 
     try {
-      const { error: uploadError } = await supabase.storage.from('pods').upload(filePath, file);
+      const { error: uploadError } = await supabase.storage.from('pods').upload(fileName, file, {
+        upsert: true,
+        contentType: file.type // Explicitly tells Supabase if it's a PDF or JPG to prevent 400 Errors
+      });
       if (uploadError) throw uploadError;
 
-      const { data } = supabase.storage.from('pods').getPublicUrl(filePath);
+      const { data } = supabase.storage.from('pods').getPublicUrl(fileName);
       setReviewData({ ...reviewData, pod_link: data.publicUrl });
     } catch (error) {
       alert('Error uploading document: ' + error.message);
@@ -298,6 +300,7 @@ export default function SupervisorPanel() {
         </div>
       )}
 
+      {/* FULLY EXPANDING MODAL WITH NO INTERNAL SCROLL */}
       {expenseTrip && (
         <div className="fixed inset-0 bg-gray-900/60 backdrop-blur-sm z-50 flex overflow-y-auto p-4 sm:p-8">
           <div className="bg-gray-200 p-8 rounded-3xl w-full max-w-2xl m-auto shadow-2xl border border-gray-400 relative">
@@ -349,6 +352,7 @@ export default function SupervisorPanel() {
         </div>
       )}
 
+      {/* FULLY EXPANDING MODAL WITH NO INTERNAL SCROLL */}
       {reviewTrip && (
         <div className="fixed inset-0 bg-gray-900/60 backdrop-blur-sm z-50 flex overflow-y-auto p-4 sm:p-8">
           <div className="bg-gray-200 p-8 rounded-3xl w-full max-w-2xl m-auto shadow-2xl border border-gray-400 relative">
@@ -390,6 +394,7 @@ export default function SupervisorPanel() {
         </div>
       )}
 
+      {/* FULLY EXPANDING MODAL WITH NO INTERNAL SCROLL */}
       {shuffleTrip && (
         <div className="fixed inset-0 bg-gray-900/60 backdrop-blur-sm z-50 flex overflow-y-auto p-4 sm:p-8">
           <div className="bg-gray-200 p-8 rounded-3xl w-full max-w-md m-auto shadow-2xl border border-gray-400 relative">
@@ -408,6 +413,7 @@ export default function SupervisorPanel() {
         </div>
       )}
 
+      {/* FULLY EXPANDING MODAL WITH NO INTERNAL SCROLL */}
       {viewingTrip && (
         <div className="fixed inset-0 bg-gray-900/60 backdrop-blur-sm z-50 flex overflow-y-auto p-4 sm:p-8">
           <div className="bg-gray-200 p-8 rounded-3xl w-full max-w-4xl m-auto shadow-2xl border border-gray-400 relative">
@@ -433,6 +439,7 @@ export default function SupervisorPanel() {
         </div>
       )}
 
+      {/* FULLY EXPANDING MODAL WITH NO INTERNAL SCROLL */}
       {endingTrip && (
         <div className="fixed inset-0 bg-gray-900/60 backdrop-blur-sm z-50 flex overflow-y-auto p-4 sm:p-8">
           <div className="bg-gray-200 p-8 rounded-3xl w-full max-w-sm m-auto shadow-2xl border border-gray-400 relative">
