@@ -4,12 +4,11 @@ import { InputField, StatusBadge, getCurrentTime } from './SharedUI';
 
 export default function DriverPanel({ userName }) {
   const [trips, setTrips] = useState([]);
-  const [vehicles, setVehicles] = useState([]);
   const [actionTrip, setActiveTrip] = useState(null);
   const [startData, setStartData] = useState({ out_km: '' });
   const [endData, setEndData] = useState({ in_km: '' });
 
-  useEffect(() => { fetchTrips(); API.get('/vehicles_list/').then(res => setVehicles(res.data.map(v => v.vehicle_number))).catch(console.error); }, []);
+  useEffect(() => { fetchTrips(); }, []);
   const fetchTrips = () => API.get('/trips/').then(res => setTrips(res.data)).catch(console.error);
   
   const hasActiveTrip = trips.some(t => ['Reported', 'Trip Started', 'Submitted for Review'].includes(t.status));
@@ -20,53 +19,53 @@ export default function DriverPanel({ userName }) {
 
   return (
     <div className="p-4 md:p-8 max-w-5xl mx-auto">
-      <h2 className="text-3xl font-extrabold mb-6">Welcome, {userName} 🚛</h2>
-      <h3 className="text-xl font-bold mb-4">Your Dispatched Trips</h3>
+      <h2 className="text-3xl font-extrabold mb-6 text-gray-900">Welcome, {userName} 🚛</h2>
+      <h3 className="text-xl font-bold mb-4 text-gray-800">Your Dispatched Trips</h3>
       <div className="grid gap-4 mb-12">
         {trips.filter(t => ['Waiting for Driver', 'Reported', 'Trip Started', 'Submitted for Review'].includes(t.status)).map(trip => (
-          <div key={trip.id} className={`bg-white p-6 rounded-2xl shadow-sm border ${trip.status === 'Reported' || trip.status === 'Trip Started' ? 'border-sky-400 shadow-sky-100' : 'border-slate-100'}`}>
-            <div className="flex justify-between items-center mb-4"><div><span className="font-bold text-xl">{trip.vehicle_number}</span><span className="text-slate-500 ml-2 font-medium">({trip.date})</span></div><StatusBadge status={trip.status} /></div>
+          <div key={trip.id} className={`bg-gray-200 p-6 rounded-2xl shadow-sm border ${trip.status === 'Reported' || trip.status === 'Trip Started' ? 'border-sky-400 shadow-sky-100' : 'border-gray-400'}`}>
+            <div className="flex justify-between items-center mb-4"><div><span className="font-bold text-xl text-gray-900">{trip.vehicle_number}</span><span className="text-gray-600 ml-2 font-medium">({trip.date})</span></div><StatusBadge status={trip.status} /></div>
             
             {trip.status === 'Waiting for Driver' && (
-              <button onClick={() => handleReport(trip.id)} disabled={hasActiveTrip} className={`px-6 py-3 rounded-xl font-bold w-full md:w-auto transition-all ${hasActiveTrip ? 'bg-slate-200 text-slate-400 cursor-not-allowed' : 'bg-sky-600 text-white shadow-md hover:bg-sky-700'}`}>
+              <button onClick={() => handleReport(trip.id)} disabled={hasActiveTrip} className={`px-6 py-3 rounded-xl font-bold w-full md:w-auto transition-all ${hasActiveTrip ? 'bg-gray-400 text-gray-600 cursor-not-allowed' : 'bg-sky-600 text-gray-200 shadow-md hover:bg-sky-700'}`}>
                 {hasActiveTrip ? 'Another trip is active' : 'Report for Duty'}
               </button>
             )}
             {trip.status === 'Reported' && (
-              <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
-                <div className="text-sm font-semibold text-slate-600 mb-4">Reported at: <span className="text-slate-900">{trip.reporting_time}</span></div>
+              <div className="bg-gray-300 p-4 rounded-xl border border-gray-400">
+                <div className="text-sm font-semibold text-gray-700 mb-4">Reported at: <span className="text-gray-900">{trip.reporting_time}</span></div>
                 {actionTrip === trip.id ? (
                   <form onSubmit={(e) => handleStart(e, trip.id)} className="flex flex-col md:flex-row gap-4 items-end">
                     <div className="flex-1 w-full"><InputField label="Starting KM" type="number" name="out_km" value={startData.out_km} onChange={e=>setStartData({out_km: e.target.value})} /></div>
-                    <button type="submit" className="bg-blue-600 text-white px-6 py-3 rounded-xl font-bold">Start Journey</button>
-                    <button type="button" onClick={() => setActiveTrip(null)} className="text-slate-500 px-4 font-semibold">Cancel</button>
+                    <button type="submit" className="bg-blue-600 text-gray-200 px-6 py-3 rounded-xl font-bold">Start Journey</button>
+                    <button type="button" onClick={() => setActiveTrip(null)} className="text-gray-600 px-4 font-semibold">Cancel</button>
                   </form>
-                ) : (<button onClick={() => setActiveTrip(trip.id)} className="bg-blue-600 text-white px-6 py-3 rounded-xl font-bold shadow-md">Enter Starting KM</button>)}
+                ) : (<button onClick={() => setActiveTrip(trip.id)} className="bg-blue-600 text-gray-200 px-6 py-3 rounded-xl font-bold shadow-md">Enter Starting KM</button>)}
               </div>
             )}
             {['Trip Started', 'Submitted for Review'].includes(trip.status) && (
-              <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
-                <div className="text-sm font-semibold text-slate-600 mb-4">Started at: <span className="text-indigo-600 font-bold text-lg">{trip.out_km} KM</span> ({trip.out_time})</div>
+              <div className="bg-gray-300 p-4 rounded-xl border border-gray-400">
+                <div className="text-sm font-semibold text-gray-700 mb-4">Started at: <span className="text-indigo-600 font-bold text-lg">{trip.out_km} KM</span> ({trip.out_time})</div>
                 {actionTrip === trip.id ? (
                   <form onSubmit={(e) => handleEnd(e, trip)} className="flex flex-col md:flex-row gap-4 items-end">
                     <div className="flex-1 w-full"><InputField label="Stop KM" type="number" name="in_km" value={endData.in_km} onChange={e=>setEndData({in_km: e.target.value})} /></div>
-                    <button type="submit" className="bg-emerald-600 text-white px-6 py-3 rounded-xl font-bold">Close Trip</button>
-                    <button type="button" onClick={() => setActiveTrip(null)} className="text-slate-500 px-4 font-semibold">Cancel</button>
+                    <button type="submit" className="bg-emerald-600 text-gray-200 px-6 py-3 rounded-xl font-bold">Close Trip</button>
+                    <button type="button" onClick={() => setActiveTrip(null)} className="text-gray-600 px-4 font-semibold">Cancel</button>
                   </form>
-                ) : (<button onClick={() => setActiveTrip(trip.id)} className="bg-slate-900 text-white px-6 py-3 rounded-xl font-bold shadow-md hover:bg-slate-800 transition-colors">Log Arrival (Stop KM)</button>)}
+                ) : (<button onClick={() => setActiveTrip(trip.id)} className="bg-gray-900 text-gray-200 px-6 py-3 rounded-xl font-bold shadow-md hover:bg-gray-800 transition-colors">Log Arrival (Stop KM)</button>)}
               </div>
             )}
           </div>
         ))}
-        {trips.filter(t => ['Waiting for Driver', 'Reported', 'Trip Started', 'Submitted for Review'].includes(t.status)).length === 0 && <div className="text-slate-500 italic">No dispatched trips waiting for you.</div>}
+        {trips.filter(t => ['Waiting for Driver', 'Reported', 'Trip Started', 'Submitted for Review'].includes(t.status)).length === 0 && <div className="text-gray-600 italic">No dispatched trips waiting for you.</div>}
       </div>
 
-      <h3 className="text-xl font-bold mb-4">Your Past Journeys</h3>
+      <h3 className="text-xl font-bold mb-4 text-gray-800">Your Past Journeys</h3>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {trips.filter(t => ['Completed', 'Pending for Admin Final Review', 'Billed / Completed'].includes(t.status)).map(trip => (
-          <div key={trip.id} className="bg-slate-50 p-4 rounded-xl border border-slate-200">
-            <div className="flex justify-between items-center mb-2"><span className="font-bold text-slate-800">{trip.vehicle_number}</span><span className="text-xs font-semibold text-slate-500">{trip.date}</span></div>
-            <div className="text-sm text-slate-600 mb-2">Distance: {trip.in_km - trip.out_km} KM</div>
+          <div key={trip.id} className="bg-gray-300 p-4 rounded-xl border border-gray-400">
+            <div className="flex justify-between items-center mb-2"><span className="font-bold text-gray-900">{trip.vehicle_number}</span><span className="text-xs font-semibold text-gray-600">{trip.date}</span></div>
+            <div className="text-sm text-gray-700 mb-2">Distance: {trip.in_km - trip.out_km} KM</div>
             <StatusBadge status={trip.status} />
           </div>
         ))}

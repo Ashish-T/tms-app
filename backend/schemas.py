@@ -15,6 +15,10 @@ class UserCreate(BaseModel):
     role: str
     supervisor_id: Optional[int] = None
 
+class PasswordUpdate(BaseModel):
+    current_password: str
+    new_password: str
+
 class UserResponse(BaseModel):
     id: int
     username: str
@@ -53,6 +57,7 @@ class TripSupervisorUpdate(BaseModel):
     source: str
     destination: str
     vehicle_sourced_from: str  
+    pod_link: Optional[str] = None # NEW
 
 class TripFinancialsUpdate(BaseModel):
     fuel_litres: float
@@ -62,6 +67,7 @@ class TripFinancialsUpdate(BaseModel):
     driver_cost: float
     trip_days: float
     overtime_allowance: float
+    advance_paid: float # NEW
     vehicle_cost_type: Optional[str] = "Third Party"
     vehicle_cost: float
     b2c_billing: float
@@ -88,6 +94,7 @@ class TripLogResponse(BaseModel):
     source: Optional[str]
     destination: Optional[str]
     vehicle_sourced_from: Optional[str] 
+    pod_link: Optional[str]
     fuel_litres: float
     fuel_price: float
     toll_charges: float
@@ -95,6 +102,7 @@ class TripLogResponse(BaseModel):
     driver_cost: float
     trip_days: float
     overtime_allowance: float
+    advance_paid: float
     vehicle_cost_type: Optional[str]
     vehicle_cost: float
     b2c_billing: float
@@ -126,14 +134,14 @@ class FundTransferCreate(BaseModel):
     supervisor_id: int
     amount: float
     date: str
-    medium: str # <--- NEW
+    medium: str 
 
 class FundTransferResponse(BaseModel):
     id: int
     supervisor_id: int
     amount: float
     date: str
-    medium: str # <--- NEW
+    medium: str 
     model_config = ConfigDict(from_attributes=True)
 
 class MiscExpenseCreate(BaseModel):
