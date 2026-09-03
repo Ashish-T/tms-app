@@ -18,8 +18,16 @@ else:
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
+<<<<<<< HEAD
 class User(Base):
     __tablename__ = 'users'
+=======
+# --- THE SINGLE TRIP LOG TABLE ---
+class TripLog(Base):
+    __tablename__ = 'trip_logs_v2'
+    extend_existing = True # This tells SQLAlchemy to safely update if needed
+    
+>>>>>>> dc30009 (db fix)
     id = Column(Integer, primary_key=True)
     username = Column(String, unique=True)
     password = Column(String) 

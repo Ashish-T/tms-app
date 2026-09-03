@@ -168,4 +168,17 @@ Need to make changes for deploying new appliation version
 2, add backend service url to - frontend/src/api.js
 3. Change the database credentials in .env file
 4. also add the environment variable on render backend service.
+<<<<<<< HEAD
 5. In the main.py, we need to add the new backend url
+=======
+5. In the main.py, we need to add the new backend url
+6. While using the old database, We need to create bucket, and save policies, also need to run the below query
+
+-- Allow anyone to upload files to the 'pods' bucket
+CREATE POLICY "Allow anonymous uploads" 
+ON storage.objects FOR INSERT 
+TO public 
+WITH CHECK (bucket_id = 'pods');
+
+7. 
+>>>>>>> dc30009 (db fix)
