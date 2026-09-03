@@ -1,6 +1,11 @@
 test
+<<<<<<< Updated upstream
 <<<<<<< HEAD
 123
 =======
 123123
 >>>>>>> 9187b03 (check)
+=======
+123123
+test commit
+>>>>>>> Stashed changes
