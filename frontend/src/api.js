@@ -1,7 +1,9 @@
 import axios from 'axios';
 
+const baseURL = import.meta.env.VITE_BACKEND_URL || 'http://127.0.0.1:8000';
+
 const API = axios.create({
-    baseURL: 'https://tms-app-svc.onrender.com', 
+    baseURL: baseURL,
 });
 
 // Automatically attach the secure token to every request
