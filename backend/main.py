@@ -16,7 +16,7 @@ app = FastAPI(title="TMS Enterprise RBAC API")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["https://tms-app-v2.onrender.com", "http://localhost:5173"],
+    allow_origins=["https://tms-app-web.onrender.com", "http://localhost:5173"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

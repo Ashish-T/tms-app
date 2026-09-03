@@ -158,11 +158,6 @@ The backend automatically handles database migrations on startup using `Base.met
 | `POST` | `/trips/{trip_id}/expenses/` | Log a new expense (Diesel, Toll, etc.) |
 | `GET` | `/trips/{trip_id}/summary` | Get total cost and distance for a specific trip |
 
----
-
-## 🔒 License
-This project is open-source and available under the MIT License.
-
 Need to make changes for deploying new appliation version
 1. Create a different supabase database
 2, add backend service url to - frontend/src/api.js
